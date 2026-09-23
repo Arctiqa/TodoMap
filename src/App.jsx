@@ -29,6 +29,8 @@ import { TitleUnlockDialog } from "./screens/TitleUnlockDialog";
 import { ThemePickerOverlay } from "./screens/ThemePickerOverlay";
 
 import { nextId } from "./utils/id";
+import { requestNotificationPermission, scheduleTaskNotifications, cancelTaskNotifications } from "./utils/notifications";
+
 import { resolveImageSource, DOM_DEFAULT_BG, MAP_DEFAULT_BG } from "./data/initialScreens";
 import { SHARE_API, SHARE_POOL_KEY, RANDOM_REPEAT_MIN, RANDOM_REPEAT_SPAN } from "./constants/config";
 import { GUIDE_CHAINS, GUIDE_TITLES } from "./constants/guides";
@@ -103,6 +105,24 @@ function AppShell({ onThemeChange }) {
   const cancelPendingPlacement = useCallback(() => {
     setPendingPlacement(null);
   }, []);
+  
+  useEffect(() => {
+    if (!loaded) return;
+    requestNotificationPermission();
+  }, [loaded]);
+  
+  useEffect(() => {
+    if (!loaded) return;
+    const allTasks = [];
+    Object.values(screens).forEach((scr) => {
+      (scr.markers || []).forEach((mk) => {
+        (mk.tasks || []).forEach((t) => {
+          if (!t.done && t.due) allTasks.push(t);
+        });
+      });
+    });
+    allTasks.forEach(scheduleTaskNotifications);
+  }, [loaded]);
 
   useEffect(() => {
     const onBackPress = () => {
@@ -137,7 +157,11 @@ function AppShell({ onThemeChange }) {
       screenId: scr.id, screenName: scr.name, markerId: mk.id, markerName: mk.name,
       markerEmoji: mk.emoji, markerColor: mk.color, task, removedAt: Date.now(),
     }));
-    if (entries.length) setHistory((prev) => [...prev, ...entries]);
+    if (entries.length) {
+      // отменяем напоминания для всех архивируемых задач
+      (mk.tasks || []).forEach((t) => cancelTaskNotifications(t.id));
+      setHistory((prev) => [...prev, ...entries]);
+    }
   };
   const archiveScreen = (scr) => (scr.markers || []).forEach((mk) => archiveTasks(scr, mk));
 
@@ -168,8 +192,20 @@ function AppShell({ onThemeChange }) {
   const toggleTask = (markerId, taskId) => {
     const marker = screen.markers.find((m) => m.id === markerId);
     const task = marker && marker.tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    // Отменяем или перепланируем напоминания
+    if (!task.done) {
+      // Задача сейчас станет выполненной → отменяем
+      cancelTaskNotifications(task.id);
+    } else {
+      // Снимаем галочку → перепланируем
+      scheduleTaskNotifications(task);
+    }
+
     const shouldAward = !!(task && !task.done && !task.titleAwarded && task.source && GUIDE_TITLES[task.source]);
     if (shouldAward) bumpGuideProgress(task.source);
+
     updateScreen(currentId, (s) => ({
       ...s,
       markers: s.markers.map((m) => m.id === markerId
@@ -184,7 +220,12 @@ function AppShell({ onThemeChange }) {
     if (!task || !task.repeat || task.done) return;
     const nextCount = Math.min(task.repeat.target, task.repeat.count + 1);
     const willFinish = nextCount >= task.repeat.target;
-    const shouldAward = !!(willFinish && !task.titleAwarded && task.source && GUIDE_TITLES[task.source]);
+	
+    if (willFinish) {
+      cancelTaskNotifications(task.id);
+    }
+	
+	const shouldAward = !!(willFinish && !task.titleAwarded && task.source && GUIDE_TITLES[task.source]);
     if (shouldAward) bumpGuideProgress(task.source);
     updateScreen(currentId, (s) => ({
       ...s,
@@ -197,6 +238,17 @@ function AppShell({ onThemeChange }) {
   };
 
   const addTaskCore = (screenId, markerId, payload) => {
+    const newTask = {
+      id: nextId(),
+      title: payload.title,
+      due: payload.due || null,
+      done: false,
+      notes: (payload.notes || []).map((t) => (typeof t === "string" ? { text: t, done: false } : t)),
+      createdAt: Date.now(),
+      source: payload.source || undefined,
+      repeat: payload.repeat || null,
+    };
+
     setScreens((prev) => {
       const scr = prev[screenId];
       if (!scr) return prev;
@@ -204,17 +256,18 @@ function AppShell({ onThemeChange }) {
         ...prev,
         [screenId]: {
           ...scr,
-          markers: scr.markers.map((m) => m.id === markerId
-            ? { ...m, tasks: [...(m.tasks || []), {
-                id: nextId(), title: payload.title, due: payload.due || null, done: false,
-                notes: (payload.notes || []).map((t) => (typeof t === "string" ? { text: t, done: false } : t)),
-                createdAt: Date.now(), source: payload.source || undefined, repeat: payload.repeat || null,
-              }] }
-            : m),
+          markers: scr.markers.map((m) =>
+            m.id === markerId
+              ? { ...m, tasks: [...(m.tasks || []), newTask] }
+              : m
+          ),
         },
       };
     });
-  };
+
+  // Напоминания
+  scheduleTaskNotifications(newTask);
+};
 
   // ---- Гиды ----
   const openGuide = (guideKey) => { pushNav(NAV.GUIDE_TASKS, { guideKey }); };
@@ -295,6 +348,8 @@ function AppShell({ onThemeChange }) {
 
   // ---- CRUD ----
   const deleteTask = (markerId, taskId) => {
+	  
+	cancelTaskNotifications(taskId);
     const marker = screen.markers.find((m) => m.id === markerId);
     const task = marker && marker.tasks.find((t) => t.id === taskId);
     if (marker && task) {
@@ -382,6 +437,7 @@ function AppShell({ onThemeChange }) {
     if (entry.removedAt) {
       setHistory((prev) => prev.filter((e) => !(e.task.id === entry.task.id && e.removedAt === entry.removedAt)));
     } else {
+	  cancelTaskNotifications(entry.task.id);
       setScreens((prev) => {
         const scr = prev[entry.screenId];
         if (!scr) return prev;

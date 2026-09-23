@@ -31,14 +31,25 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
   const submit = () => {
     if (!title.trim()) return;
     let due = null;
+
     if (dueMode === "date") {
-      if (dueDate || dueTime) due = { date: dueDate || null, time: dueTime || null, kind: "date" };
+      if (dueDate || dueTime) {
+        // Если только время — подставляем сегодняшнюю дату
+        let date = dueDate;
+        if (!date && dueTime) {
+          const d = new Date();
+          date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        }
+        due = { date: date || null, time: dueTime || null, kind: "date" };
+      }
     } else if (dueMode === "duration") {
       due = { target: Date.now() + dueDays * 86400000, kind: "duration" };
     }
+
     const repeat = repeatOn ? { count: 0, target: Math.max(1, repeatTarget) } : null;
     onAdd(marker.id, title.trim(), due, repeat);
     if (shareToPool && onShare) onShare(title.trim(), due);
+
     setTitle("");
     setDueMode("none");
     setDueDate("");
