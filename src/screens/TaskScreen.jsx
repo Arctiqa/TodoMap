@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import { View, Text, TextInput, Pressable, ScrollView, Image } from "react-native";
 import { Overlay } from "../components/ui/Overlay";
 import { OverlayHeader } from "../components/ui/OverlayHeader";
-import { PrimaryButton } from "../components/ui/PrimaryButton";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
-import { DueEditor } from "../components/DueEditor";
 import { TaskDetailOverlay } from "./TaskDetailOverlay";
 import { useTheme } from "../theme/ThemeContext";
 import { GREEN, BLUE } from "../theme/palettes";
 import { formatRemaining, isTaskExpired } from "../utils/date";
+import { AddTaskBar } from "../components/AddTaskBar";
+
 
 export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNote, onRemoveNote, onToggleNote, onShare, onIncrementRepeat }) {
   const { ink, card, paper, bar } = useTheme();
@@ -139,47 +139,14 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
           })}
       </ScrollView>
 
-      <View style={{ borderTopWidth: 1.5, borderColor: ink, padding: 12, backgroundColor: paper }}>
-        <TextInput
-          value={title}
-          onChangeText={setTitle}
-          placeholder="Новое дело..."
-          placeholderTextColor={ink}
-          placeholderStyle={{ opacity: 0.4 }}
-          style={{ borderWidth: 2, borderColor: ink, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, marginBottom: 8, color: ink }}
-        />
-
-        <DueEditor dueMode={dueMode} setDueMode={setDueMode} dueDate={dueDate} setDueDate={setDueDate} dueTime={dueTime} setDueTime={setDueTime} dueDays={dueDays} setDueDays={setDueDays} />
-
-        <Pressable onPress={() => setRepeatOn((v) => !v)} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: repeatOn ? 6 : 10 }}>
-          <View style={{ width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: ink, alignItems: "center", justifyContent: "center", backgroundColor: repeatOn ? ink : paper }}>
-            {repeatOn && <Text style={{ color: paper, fontSize: 11 }}>✓</Text>}
-          </View>
-          <Text style={{ fontSize: 11.5, color: ink }}>🔁 Серия повторов</Text>
-        </Pressable>
-
-        {repeatOn && (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderColor: ink, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 10 }}>
-            <Pressable onPress={() => setRepeatTarget((n) => Math.max(1, n - 1))} style={{ width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ fontWeight: "bold", color: ink }}>−</Text>
-            </Pressable>
-            <Text style={{ minWidth: 26, textAlign: "center", fontWeight: "bold", color: ink }}>{repeatTarget}</Text>
-            <Pressable onPress={() => setRepeatTarget((n) => n + 1)} style={{ width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ fontWeight: "bold", color: ink }}>+</Text>
-            </Pressable>
-            <Text style={{ fontSize: 12, color: ink, opacity: 0.6 }}> раз до завершения</Text>
-          </View>
-        )}
-
-        <Pressable onPress={() => setShareToPool((v) => !v)} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <View style={{ width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: ink, alignItems: "center", justifyContent: "center", backgroundColor: shareToPool ? ink : paper }}>
-            {shareToPool && <Text style={{ color: paper, fontSize: 11 }}>✓</Text>}
-          </View>
-          <Text style={{ fontSize: 11.5, color: ink }}>🌐 Поделиться задачей (анонимно, в «Другие»)</Text>
-        </Pressable>
-
-        <PrimaryButton label="Добавить дело" color={GREEN} textColor="#fff" onPress={submit} />
-      </View>
+	  <AddTaskBar
+		visible={true}
+		targetMarkerId={marker.id}
+		onSubmit={({ title, due, repeat, share }) => {
+		  onAdd(marker.id, title, due, repeat);
+		  if (share && onShare) onShare(title, due);
+		}}
+	  />
 
       {noteTask && (
         <TaskDetailOverlay

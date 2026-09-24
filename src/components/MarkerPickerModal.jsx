@@ -2,23 +2,25 @@ import React from "react";
 import { View, Text, Pressable, ScrollView, Modal } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
 
-export function MarkerPickerModal({ screens, onPick, onClose }) {
+export function MarkerPickerModal({ screens, screenId, onPick, onClose }) {
   const { ink, paper, card } = useTheme();
 
   const rows = [];
-  Object.values(screens).forEach((scr) => {
-    (scr.markers || []).forEach((mk) => {
+  const currentScreen = screenId ? screens[screenId] : null;
+
+  if (currentScreen) {
+    (currentScreen.markers || []).forEach((mk) => {
       if (mk.isGuide || mk.linkTo) return;
       rows.push({
-        screenId: scr.id,
-        screenName: scr.name,
+        screenId: currentScreen.id,
+        screenName: currentScreen.name,
         markerId: mk.id,
         markerName: mk.name,
         emoji: mk.emoji,
         color: mk.color,
       });
     });
-  });
+  }
 
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
