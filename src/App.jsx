@@ -11,6 +11,8 @@ import { useQuestStore } from "./state/useQuestStore";
 import { navReducer, NAV } from "./state/navigation";
 import { activeEntries, historyEntries, findEntry } from "./state/selectors";
 
+import { BottomBar } from "./components/BottomBar";
+import { SideMenu } from "./components/SideMenu";
 import { Pin } from "./components/Pin";
 import { MarkerPickerModal } from "./components/MarkerPickerModal";
 import { InfoDialog } from "./components/ui/InfoDialog";
@@ -60,6 +62,7 @@ export default function App() {
 // ============ Всё приложение ============
 function AppShell({ onThemeChange }) {
   const { name: themeName, ink, paper, bar } = useTheme();
+  const [showSideMenu, setShowSideMenu] = useState(false);
 
   const {
     state, setScreens, updateScreen, setTopLevelOrder, setHistory,
@@ -86,7 +89,6 @@ function AppShell({ onThemeChange }) {
   const activeMarker = activeTaskId ? (screen.markers || []).find((m) => m.id === activeTaskId) : null;
 
   // ---- Локальные оверлеи ----
-  const [showFieldMenu, setShowFieldMenu] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [pendingDeleteField, setPendingDeleteField] = useState(null);
   const [placementConfirm, setPlacementConfirm] = useState(null);
@@ -100,17 +102,20 @@ function AppShell({ onThemeChange }) {
   const navRef = useRef(navStack);
   navRef.current = navStack;
   const overlayRef = useRef({});
-  overlayRef.current = { placementConfirm, titleUnlock, pendingDeleteField, pendingDelete, pendingPlacement, showExitConfirm, showFieldMenu, journalDetail };
+  overlayRef.current = {
+    placementConfirm, titleUnlock, pendingDeleteField, pendingDelete,
+    pendingPlacement, showExitConfirm, journalDetail, showSideMenu,
+  };
 
   const cancelPendingPlacement = useCallback(() => {
     setPendingPlacement(null);
   }, []);
-  
+
   useEffect(() => {
     if (!loaded) return;
     requestNotificationPermission();
   }, [loaded]);
-  
+
   useEffect(() => {
     if (!loaded) return;
     const allTasks = [];
@@ -127,19 +132,18 @@ function AppShell({ onThemeChange }) {
   useEffect(() => {
     const onBackPress = () => {
       const o = overlayRef.current;
+      if (o.showSideMenu) { setShowSideMenu(false); return true; }
       if (o.placementConfirm) { setPlacementConfirm(null); return true; }
       if (o.titleUnlock) { setTitleUnlock(null); return true; }
       if (o.pendingDeleteField) { setPendingDeleteField(null); return true; }
       if (o.pendingDelete) { setPendingDelete(null); return true; }
       if (o.pendingPlacement) { cancelPendingPlacement(); return true; }
-      if (o.showFieldMenu) { setShowFieldMenu(false); return true; }
       if (o.journalDetail) { setJournalDetail(null); return true; }
 
       const stack = navRef.current;
       if (stack.length > 1) { navDispatch({ type: "POP" }); return true; }
       if (editMode) { setEditMode(false); return true; }
       if (currentId !== "main") {
-        // Возврат к родительскому экрану карты
         const parent = screens[currentId]?.parentId || "main";
         setCurrentId(parent);
         return true;
@@ -158,7 +162,6 @@ function AppShell({ onThemeChange }) {
       markerEmoji: mk.emoji, markerColor: mk.color, task, removedAt: Date.now(),
     }));
     if (entries.length) {
-      // отменяем напоминания для всех архивируемых задач
       (mk.tasks || []).forEach((t) => cancelTaskNotifications(t.id));
       setHistory((prev) => [...prev, ...entries]);
     }
@@ -194,12 +197,9 @@ function AppShell({ onThemeChange }) {
     const task = marker && marker.tasks.find((t) => t.id === taskId);
     if (!task) return;
 
-    // Отменяем или перепланируем напоминания
     if (!task.done) {
-      // Задача сейчас станет выполненной → отменяем
       cancelTaskNotifications(task.id);
     } else {
-      // Снимаем галочку → перепланируем
       scheduleTaskNotifications(task);
     }
 
@@ -220,12 +220,12 @@ function AppShell({ onThemeChange }) {
     if (!task || !task.repeat || task.done) return;
     const nextCount = Math.min(task.repeat.target, task.repeat.count + 1);
     const willFinish = nextCount >= task.repeat.target;
-	
+
     if (willFinish) {
       cancelTaskNotifications(task.id);
     }
-	
-	const shouldAward = !!(willFinish && !task.titleAwarded && task.source && GUIDE_TITLES[task.source]);
+
+    const shouldAward = !!(willFinish && !task.titleAwarded && task.source && GUIDE_TITLES[task.source]);
     if (shouldAward) bumpGuideProgress(task.source);
     updateScreen(currentId, (s) => ({
       ...s,
@@ -265,9 +265,8 @@ function AppShell({ onThemeChange }) {
       };
     });
 
-  // Напоминания
-  scheduleTaskNotifications(newTask);
-};
+    scheduleTaskNotifications(newTask);
+  };
 
   // ---- Гиды ----
   const openGuide = (guideKey) => { pushNav(NAV.GUIDE_TASKS, { guideKey }); };
@@ -296,7 +295,6 @@ function AppShell({ onThemeChange }) {
     setGuideTakenCount((prev) => ({ ...prev, [guideKey]: (prev[guideKey] || 0) + 1 }));
     const target = RANDOM_REPEAT_MIN + Math.floor(Math.random() * RANDOM_REPEAT_SPAN);
     setPendingPlacement({ title, due: null, notes: [], source: guideKey, repeat: { count: 0, target } });
-    // Окно гида НЕ закрываем — оно остаётся под MarkerPickerModal
   };
 
   const placeTask = (screenId, markerId) => {
@@ -348,8 +346,7 @@ function AppShell({ onThemeChange }) {
 
   // ---- CRUD ----
   const deleteTask = (markerId, taskId) => {
-	  
-	cancelTaskNotifications(taskId);
+    cancelTaskNotifications(taskId);
     const marker = screen.markers.find((m) => m.id === markerId);
     const task = marker && marker.tasks.find((t) => t.id === taskId);
     if (marker && task) {
@@ -437,7 +434,7 @@ function AppShell({ onThemeChange }) {
     if (entry.removedAt) {
       setHistory((prev) => prev.filter((e) => !(e.task.id === entry.task.id && e.removedAt === entry.removedAt)));
     } else {
-	  cancelTaskNotifications(entry.task.id);
+      cancelTaskNotifications(entry.task.id);
       setScreens((prev) => {
         const scr = prev[entry.screenId];
         if (!scr) return prev;
@@ -479,6 +476,60 @@ function AppShell({ onThemeChange }) {
     },
   }), [editMode, goSibling]);
 
+  // ---- Нижнее меню ----
+  const handleBottomAction = (action) => {
+    switch (action) {
+      case "menu":
+        setShowSideMenu(true);
+        break;
+      case "journal":
+        pushNav(NAV.JOURNAL);
+        break;
+      case "history":
+        pushNav(NAV.HISTORY);
+        break;
+      case "others":
+        pushNav(NAV.OTHERS);
+        loadSharedPool();
+        break;
+    }
+  };
+
+  // ---- Боковое меню ----
+  const handleSideMenuAction = (key) => {
+    setShowSideMenu(false);
+
+    switch (key) {
+      case "add-marker":
+        pushNav(NAV.ADD_MARKER);
+        break;
+      case "add-field":
+        pushNav(NAV.ADD_SCREEN);
+        break;
+      case "edit-mode":
+        resetNav();
+        setEditMode(true);
+        break;
+      case "change-bg":
+        pickBackgroundImage(currentId);
+        break;
+      case "reset-bg":
+        if (currentId === "main" || currentId === "home") {
+          updateScreenImage(currentId, currentId === "main" ? MAP_DEFAULT_BG : DOM_DEFAULT_BG);
+        }
+        break;
+      case "guides":
+        pushNav(NAV.GUIDES_LIST);
+        break;
+      case "titles":
+        pushNav(NAV.TITLES);
+        break;
+      case "settings":
+        pushNav(NAV.THEME_PICKER);
+        break;
+    }
+  };
+
   // ---- Верхний оверлей из стека ----
   const renderTopNav = () => {
     switch (topNav.type) {
@@ -498,7 +549,7 @@ function AppShell({ onThemeChange }) {
       case NAV.JOURNAL:
         return <JournalList entries={active} onClose={popNav} onOpenDetail={(e) => setJournalDetail({ screenId: e.screenId, markerId: e.markerId, taskId: e.task.id })} />;
       case NAV.HISTORY:
-        return <HistoryList entries={history} onClose={popNav} onDeleteEntry={hardDeleteEntry} />;
+		return <HistoryList entries={history} onClose={popNav} onDeleteEntry={hardDeleteEntry} />;
       case NAV.OTHERS:
         return <OthersList pool={sharedPool} onClose={popNav} onRefresh={loadSharedPool} onTake={(p) => { setPendingPlacement({ title: p.title, due: p.due || null, notes: [], source: undefined }); popNav(); }} />;
       case NAV.TITLES:
@@ -532,6 +583,7 @@ function AppShell({ onThemeChange }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: paper }} edges={["top", "bottom"]}>
       <StatusBar barStyle="dark-content" />
 
+      {/* Шапка */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1.5, borderColor: ink, backgroundColor: bar }}>
         {screen.parentId ? (
           <Pressable onPress={() => { setEditMode(false); setCurrentId(screen.parentId); }} style={{ flexDirection: "row", alignItems: "center", gap: 6, minWidth: 46 }}>
@@ -539,35 +591,10 @@ function AppShell({ onThemeChange }) {
           </Pressable>
         ) : <View style={{ width: 46 }} />}
         <Text style={{ fontSize: 16, fontWeight: "bold", color: ink, textAlign: "center", flex: 1 }} numberOfLines={1}>{screen.name}</Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 9, minWidth: 100, justifyContent: "flex-end" }}>
-          <Pressable onPress={() => pushNav(NAV.THEME_PICKER)}><Text style={{ fontSize: 17 }}>🎨</Text></Pressable>
-          <Pressable onPress={() => pushNav(NAV.GUIDES_LIST)}><Text style={{ fontSize: 17 }}>🧭</Text></Pressable>
-          <Pressable onPress={() => pushNav(NAV.TITLES)}><Text style={{ fontSize: 17 }}>🏆</Text></Pressable>
-          <Pressable onPress={() => setShowFieldMenu((v) => !v)}><Text style={{ fontSize: 18, fontWeight: "bold" }}>⋮</Text></Pressable>
-        </View>
+        <View style={{ width: 46 }} />
       </View>
 
-      {showFieldMenu && (
-        <>
-          <Pressable onPress={() => setShowFieldMenu(false)} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 90 }} />
-          <View style={{ position: "absolute", top: 48, right: 14, backgroundColor: "#fff", borderWidth: 2, borderColor: ink, borderRadius: 10, zIndex: 91, overflow: "hidden", minWidth: 170 }}>
-            <Pressable onPress={() => { setShowFieldMenu(false); pickBackgroundImage(currentId); }} style={{ paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: 1, borderColor: ink }}>
-              <Text style={{ fontSize: 13, color: ink }}>🖼 Изменить фон</Text>
-            </Pressable>
-            {(currentId === "main" || currentId === "home") && (
-              <Pressable onPress={() => { setShowFieldMenu(false); updateScreenImage(currentId, currentId === "main" ? MAP_DEFAULT_BG : DOM_DEFAULT_BG); }} style={{ paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: topLevelOrder.includes(currentId) && currentId !== "main" ? 1 : 0, borderColor: ink }}>
-                <Text style={{ fontSize: 13, color: ink }}>↺ Фон по умолчанию</Text>
-              </Pressable>
-            )}
-            {topLevelOrder.includes(currentId) && currentId !== "main" && (
-              <Pressable onPress={() => { setShowFieldMenu(false); setPendingDeleteField(screen); }} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
-                <Text style={{ fontSize: 13, color: "#E4572E" }}>🗑 Удалить поле</Text>
-              </Pressable>
-            )}
-          </View>
-        </>
-      )}
-
+      {/* Карта */}
       <View {...swipeResponder.panHandlers} style={{ flex: 1, backgroundColor: THEME_BG[screen.theme || "terrain"] }} onLayout={(e) => setMapSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}>
         {screen.image && <Image source={resolveImageSource(screen.image)} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} resizeMode="cover" />}
         {screen.markers.map((m) => (
@@ -603,27 +630,9 @@ function AppShell({ onThemeChange }) {
         {showExitConfirm && <ConfirmDialog message="Выйти из приложения?" confirmLabel="Выйти" confirmColor={BLUE} onCancel={() => setShowExitConfirm(false)} onConfirm={() => { setShowExitConfirm(false); BackHandler.exitApp(); }} />}
       </View>
 
-      <View style={{ backgroundColor: bar, borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingTop: 10, paddingBottom: 12, paddingHorizontal: 10, shadowColor: ink, shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 14 }}>
-        {!editMode ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between" }}>
-              {[
-                { icon: "📖", label: "Журнал", onPress: () => pushNav(NAV.JOURNAL) },
-                { icon: "🕓", label: "История", onPress: () => pushNav(NAV.HISTORY) },
-                { icon: "🌐", label: "Другие", onPress: () => { pushNav(NAV.OTHERS); loadSharedPool(); } },
-                { icon: "✎", label: "Правка", onPress: () => { resetNav(); setEditMode(true); } },
-              ].map((item) => (
-                <Pressable key={item.label} onPress={item.onPress} style={({ pressed }) => [{ flex: 1, alignItems: "center", paddingVertical: 6, borderRadius: 14, backgroundColor: pressed ? "rgba(59,47,47,0.08)" : "transparent" }]}>
-                  <Text style={{ fontSize: 18 }}>{item.icon}</Text>
-                  <Text style={{ fontSize: 9.5, fontWeight: "bold", color: ink, marginTop: 2 }}>{item.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <Pressable onPress={() => pushNav(NAV.ADD_MARKER)} style={({ pressed }) => [{ width: 48, height: 48, borderRadius: 24, backgroundColor: GREEN, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center", marginTop: -18, shadowColor: ink, shadowOffset: { width: 2, height: 3 }, shadowOpacity: 0.3, shadowRadius: 0, elevation: 8, transform: [{ scale: pressed ? 0.92 : 1 }] }]}>
-              <Text style={{ fontSize: 22, color: "#fff", fontWeight: "bold" }}>＋</Text>
-            </Pressable>
-          </View>
-        ) : (
+      {/* Нижнее меню или панель редактирования */}
+      {editMode ? (
+        <View style={{ backgroundColor: bar, paddingTop: 8, paddingBottom: 10, paddingHorizontal: 10, shadowColor: ink, shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 14 }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 6 }}>
             <Pressable onPress={() => pushNav(NAV.ADD_MARKER)} style={{ flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 14, backgroundColor: "#fff", borderWidth: 1.5, borderColor: ink }}>
               <Text style={{ fontSize: 16 }}>＋</Text>
@@ -642,8 +651,17 @@ function AppShell({ onThemeChange }) {
               <Text style={{ fontSize: 9.5, fontWeight: "bold", color: "#fff", marginTop: 2 }}>Готово</Text>
             </Pressable>
           </View>
-        )}
-      </View>
+        </View>
+      ) : (
+        <BottomBar onAction={handleBottomAction} />
+      )}
+
+      {/* Боковое меню */}
+      <SideMenu
+        visible={showSideMenu}
+        onClose={() => setShowSideMenu(false)}
+        onAction={handleSideMenuAction}
+      />
     </SafeAreaView>
   );
 }

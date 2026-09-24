@@ -7,17 +7,29 @@ export const todayStr = (offset = 0) => {
   return `${y}-${m}-${day}`;
 };
 
+// Быстрый парсинг даты — без new Date(строка)
 export function toDate(due) {
   if (!due) return null;
+
   if (due.kind === "duration" && due.target) return new Date(due.target);
-  if (due.date && due.time) return new Date(`${due.date}T${due.time}`);
-  if (due.date) return new Date(`${due.date}T23:59:00`);
-  if (due.time) {
-    const [h, m] = due.time.split(":");
-    const d = new Date();
-    d.setHours(Number(h), Number(m), 0, 0);
-    return d;
+
+  if (due.date) {
+    const [y, mo, d] = due.date.split("-").map(Number);
+    let h = 23, mi = 59;
+    if (due.time) {
+      const [hh, mm] = due.time.split(":").map(Number);
+      h = hh || 0;
+      mi = mm || 0;
+    }
+    return new Date(y, mo - 1, d, h, mi, 0, 0);
   }
+
+  if (due.time) {
+    const [h, m] = due.time.split(":").map(Number);
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), h || 0, m || 0, 0, 0);
+  }
+
   return null;
 }
 
@@ -57,7 +69,12 @@ export function isTaskExpired(task) {
   return d.getTime() - Date.now() <= 0;
 }
 
+// Быстрое форматирование — без toLocaleDateString
 export function fmtDate(ts) {
   if (!ts) return "";
-  return new Date(ts).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const d = new Date(ts);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}.${month}.${year}`;
 }
