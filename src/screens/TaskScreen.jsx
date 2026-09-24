@@ -11,7 +11,7 @@ import { GREEN, BLUE } from "../theme/palettes";
 import { formatRemaining, isTaskExpired } from "../utils/date";
 
 export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNote, onRemoveNote, onToggleNote, onShare, onIncrementRepeat }) {
-  const { ink, card } = useTheme();
+  const { ink, card, paper, bar } = useTheme();
   const [title, setTitle] = useState("");
   const [dueMode, setDueMode] = useState("none");
   const [dueDate, setDueDate] = useState("");
@@ -34,7 +34,6 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
 
     if (dueMode === "date") {
       if (dueDate || dueTime) {
-        // Если только время — подставляем сегодняшнюю дату
         let date = dueDate;
         if (!date && dueTime) {
           const d = new Date();
@@ -68,11 +67,11 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
           <Image source={{ uri: marker.image }} style={{ width: 90, height: 90, borderRadius: 12, borderWidth: 2, borderColor: ink }} />
         </View>
       )}
-      <Text style={{ paddingHorizontal: 16, paddingTop: 10, fontSize: 12, letterSpacing: 1, color: "#8a7a6a" }}>ДЕЛА</Text>
+      <Text style={{ paddingHorizontal: 16, paddingTop: 10, fontSize: 12, letterSpacing: 1, color: ink, opacity: 0.55 }}>ДЕЛА</Text>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 8 }}>
         {(!marker.tasks || marker.tasks.length === 0) && (
-          <Text style={{ color: "#a0907e", fontSize: 13, fontStyle: "italic" }}>Пока пусто — самое время добавить первое дело.</Text>
+          <Text style={{ color: ink, opacity: 0.5, fontSize: 13, fontStyle: "italic" }}>Пока пусто — самое время добавить первое дело.</Text>
         )}
         {marker.tasks &&
           marker.tasks.map((t) => {
@@ -82,14 +81,15 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
                 key={t.id}
                 style={{
                   flexDirection: "row", alignItems: "flex-start", gap: 8,
-                  backgroundColor: t.done ? "#F1EEE4" : card,
+                  backgroundColor: t.done ? card : card,
+                  opacity: t.done ? 0.55 : 1,
                   borderWidth: 2, borderColor: ink, borderRadius: 10, padding: 10,
                 }}
               >
                 {t.repeat && !t.done ? (
                   <Pressable
                     onPress={() => onIncrementRepeat(marker.id, t.id)}
-                    style={{ width: 28, height: 28, borderRadius: 7, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center", marginTop: 2, backgroundColor: "#fff" }}
+                    style={{ width: 28, height: 28, borderRadius: 7, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center", marginTop: 2, backgroundColor: paper }}
                   >
                     <View style={{ width: 14, height: 2.5, borderRadius: 1.5, backgroundColor: ink, position: "absolute" }} />
                     <View style={{ width: 2.5, height: 14, borderRadius: 1.5, backgroundColor: ink, position: "absolute" }} />
@@ -109,10 +109,10 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
                   </Text>
                   {t.repeat && (
                     <View style={{ marginTop: 4, marginBottom: 2 }}>
-                      <View style={{ height: 4, borderRadius: 2, backgroundColor: "#E5DCC8", overflow: "hidden" }}>
+                      <View style={{ height: 4, borderRadius: 2, backgroundColor: ink, opacity: 0.15, overflow: "hidden" }}>
                         <View style={{ height: 4, borderRadius: 2, backgroundColor: GREEN, width: `${Math.min(100, (t.repeat.count / t.repeat.target) * 100)}%` }} />
                       </View>
-                      <Text style={{ fontSize: 10.5, color: "#9a8a76", marginTop: 2 }}>
+                      <Text style={{ fontSize: 10.5, color: ink, opacity: 0.6, marginTop: 2 }}>
                         {t.repeat.count}/{t.repeat.target}
                       </Text>
                     </View>
@@ -120,13 +120,13 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
                   {t.notes && t.notes.length > 0 && (
                     <View style={{ marginTop: 3, gap: 1 }}>
                       {t.notes.map((n, i) => (
-                        <Text key={i} style={{ fontSize: 11.5, color: n.done ? "#b0a496" : "#6b5b4d", textDecorationLine: n.done ? "line-through" : "none" }}>
+                        <Text key={i} style={{ fontSize: 11.5, color: ink, opacity: n.done ? 0.4 : 0.75, textDecorationLine: n.done ? "line-through" : "none" }}>
                           [{n.text}]
                         </Text>
                       ))}
                     </View>
                   )}
-                  <Text style={{ fontSize: 11, marginTop: 3, color: expired ? BLUE : "#9a8a76", fontWeight: expired || t.due ? "bold" : "normal" }}>
+                  <Text style={{ fontSize: 11, marginTop: 3, color: expired ? BLUE : ink, opacity: expired ? 1 : 0.6, fontWeight: expired || t.due ? "bold" : "normal" }}>
                     {formatRemaining(t.due)}
                   </Text>
                 </Pressable>
@@ -139,20 +139,21 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
           })}
       </ScrollView>
 
-      <View style={{ borderTopWidth: 1.5, borderColor: ink, padding: 12 }}>
+      <View style={{ borderTopWidth: 1.5, borderColor: ink, padding: 12, backgroundColor: paper }}>
         <TextInput
           value={title}
           onChangeText={setTitle}
           placeholder="Новое дело..."
-          placeholderTextColor="#a0907e"
-          style={{ borderWidth: 2, borderColor: ink, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, marginBottom: 8 }}
+          placeholderTextColor={ink}
+          placeholderStyle={{ opacity: 0.4 }}
+          style={{ borderWidth: 2, borderColor: ink, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, marginBottom: 8, color: ink }}
         />
 
         <DueEditor dueMode={dueMode} setDueMode={setDueMode} dueDate={dueDate} setDueDate={setDueDate} dueTime={dueTime} setDueTime={setDueTime} dueDays={dueDays} setDueDays={setDueDays} />
 
         <Pressable onPress={() => setRepeatOn((v) => !v)} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: repeatOn ? 6 : 10 }}>
-          <View style={{ width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: ink, alignItems: "center", justifyContent: "center", backgroundColor: repeatOn ? ink : "#fff" }}>
-            {repeatOn && <Text style={{ color: "#fff", fontSize: 11 }}>✓</Text>}
+          <View style={{ width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: ink, alignItems: "center", justifyContent: "center", backgroundColor: repeatOn ? ink : paper }}>
+            {repeatOn && <Text style={{ color: paper, fontSize: 11 }}>✓</Text>}
           </View>
           <Text style={{ fontSize: 11.5, color: ink }}>🔁 Повторяющееся задание</Text>
         </Pressable>
@@ -160,24 +161,24 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
         {repeatOn && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1.5, borderColor: ink, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 10 }}>
             <Pressable onPress={() => setRepeatTarget((n) => Math.max(1, n - 1))} style={{ width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ fontWeight: "bold" }}>−</Text>
+              <Text style={{ fontWeight: "bold", color: ink }}>−</Text>
             </Pressable>
             <Text style={{ minWidth: 26, textAlign: "center", fontWeight: "bold", color: ink }}>{repeatTarget}</Text>
             <Pressable onPress={() => setRepeatTarget((n) => n + 1)} style={{ width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ fontWeight: "bold" }}>+</Text>
+              <Text style={{ fontWeight: "bold", color: ink }}>+</Text>
             </Pressable>
-            <Text style={{ fontSize: 12, color: "#8a7a6a" }}>раз — дело завершится, когда наберётся столько</Text>
+            <Text style={{ fontSize: 12, color: ink, opacity: 0.6 }}>раз — дело завершится, когда наберётся столько</Text>
           </View>
         )}
 
         <Pressable onPress={() => setShareToPool((v) => !v)} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <View style={{ width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: ink, alignItems: "center", justifyContent: "center", backgroundColor: shareToPool ? ink : "#fff" }}>
-            {shareToPool && <Text style={{ color: "#fff", fontSize: 11 }}>✓</Text>}
+          <View style={{ width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: ink, alignItems: "center", justifyContent: "center", backgroundColor: shareToPool ? ink : paper }}>
+            {shareToPool && <Text style={{ color: paper, fontSize: 11 }}>✓</Text>}
           </View>
           <Text style={{ fontSize: 11.5, color: ink }}>🌐 Поделиться задачей (анонимно, в «Другие»)</Text>
         </Pressable>
 
-        <PrimaryButton label="Добавить дело" color="#BDEFC9" textColor={ink} onPress={submit} />
+        <PrimaryButton label="Добавить дело" color={GREEN} textColor="#fff" onPress={submit} />
       </View>
 
       {noteTask && (

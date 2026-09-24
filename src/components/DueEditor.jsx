@@ -5,7 +5,7 @@ import { MiniCalendar } from "./MiniCalendar";
 import { TimeWheelPicker } from "./TimeWheelPicker";
 
 export function DueEditor({ dueMode, setDueMode, dueDate, setDueDate, dueTime, setDueTime, dueDays, setDueDays }) {
-  const { ink } = useTheme();
+  const { ink, paper, card } = useTheme();
   const [showCalendar, setShowCalendar] = useState(false);
   const [showTime, setShowTime] = useState(false);
 
@@ -17,6 +17,7 @@ export function DueEditor({ dueMode, setDueMode, dueDate, setDueDate, dueTime, s
 
   return (
     <View style={{ marginBottom: 8 }}>
+      {/* Переключатель Без срока / Дата / Срок */}
       <View style={{ flexDirection: "row", gap: 6, marginBottom: 8 }}>
         {[
           { key: "none", label: "Без срока" },
@@ -33,10 +34,16 @@ export function DueEditor({ dueMode, setDueMode, dueDate, setDueDate, dueTime, s
               borderRadius: 8,
               borderWidth: 2,
               borderColor: ink,
-              backgroundColor: dueMode === opt.key ? ink : "#fff",
+              backgroundColor: dueMode === opt.key ? ink : card,
             }}
           >
-            <Text style={{ fontSize: 11, fontWeight: "bold", color: dueMode === opt.key ? "#fff" : ink }}>
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: "bold",
+                color: dueMode === opt.key ? paper : ink,
+              }}
+            >
               {opt.label}
             </Text>
           </Pressable>
@@ -45,7 +52,6 @@ export function DueEditor({ dueMode, setDueMode, dueDate, setDueDate, dueTime, s
 
       {dueMode === "date" && (
         <View>
-          {/* Кнопка даты — на всю ширину */}
           <Pressable
             onPress={() => {
               setShowCalendar((v) => !v);
@@ -61,13 +67,15 @@ export function DueEditor({ dueMode, setDueMode, dueDate, setDueDate, dueTime, s
               paddingHorizontal: 10,
               paddingVertical: 8,
               marginBottom: 6,
+              backgroundColor: card,
             }}
           >
             <Text style={{ fontSize: 13 }}>📅</Text>
             <Text
               style={{
                 fontSize: 12.5,
-                color: dueDate ? ink : "#a0907e",
+                color: ink,
+                opacity: dueDate ? 1 : 0.5,
                 fontWeight: dueDate ? "bold" : "normal",
               }}
               numberOfLines={1}
@@ -76,7 +84,6 @@ export function DueEditor({ dueMode, setDueMode, dueDate, setDueDate, dueTime, s
             </Text>
           </Pressable>
 
-          {/* Кнопка времени — на всю ширину, под датой */}
           <Pressable
             onPress={() => {
               setShowTime((v) => !v);
@@ -92,13 +99,15 @@ export function DueEditor({ dueMode, setDueMode, dueDate, setDueDate, dueTime, s
               paddingHorizontal: 10,
               paddingVertical: 8,
               marginBottom: 6,
+              backgroundColor: card,
             }}
           >
             <Text style={{ fontSize: 13 }}>🕐</Text>
             <Text
               style={{
                 fontSize: 12.5,
-                color: dueTime ? ink : "#a0907e",
+                color: ink,
+                opacity: dueTime ? 1 : 0.5,
                 fontWeight: dueTime ? "bold" : "normal",
                 fontFamily: dueTime ? "monospace" : undefined,
               }}
@@ -107,7 +116,6 @@ export function DueEditor({ dueMode, setDueMode, dueDate, setDueDate, dueTime, s
             </Text>
           </Pressable>
 
-          {/* Календарь */}
           {showCalendar && (
             <MiniCalendar
               value={dueDate}
@@ -118,7 +126,6 @@ export function DueEditor({ dueMode, setDueMode, dueDate, setDueDate, dueTime, s
             />
           )}
 
-          {/* Колесо времени */}
           {showTime && (
             <View style={{ marginTop: 4 }}>
               <TimeWheelPicker
@@ -142,38 +149,23 @@ export function DueEditor({ dueMode, setDueMode, dueDate, setDueDate, dueTime, s
             borderRadius: 8,
             paddingHorizontal: 10,
             paddingVertical: 6,
+            backgroundColor: card,
           }}
         >
           <Pressable
             onPress={() => setDueDays((d) => Math.max(1, d - 1))}
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: 6,
-              borderWidth: 2,
-              borderColor: ink,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            style={{ width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}
           >
-            <Text style={{ fontWeight: "bold" }}>−</Text>
+            <Text style={{ fontWeight: "bold", color: ink }}>−</Text>
           </Pressable>
           <Text style={{ minWidth: 26, textAlign: "center", fontWeight: "bold", color: ink }}>{dueDays}</Text>
           <Pressable
             onPress={() => setDueDays((d) => d + 1)}
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: 6,
-              borderWidth: 2,
-              borderColor: ink,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            style={{ width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}
           >
-            <Text style={{ fontWeight: "bold" }}>+</Text>
+            <Text style={{ fontWeight: "bold", color: ink }}>+</Text>
           </Pressable>
-          <Text style={{ fontSize: 12, color: "#8a7a6a" }}>дней с отсчётом</Text>
+          <Text style={{ fontSize: 12, color: ink, opacity: 0.6 }}>дней с отсчётом</Text>
         </View>
       )}
     </View>

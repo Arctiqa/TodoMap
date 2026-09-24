@@ -6,7 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemeProvider, useTheme } from "./theme/ThemeContext";
-import { GREEN, BLUE, THEME_BG } from "./theme/palettes";
+import { GREEN, BLUE, } from "./theme/palettes";
 import { useQuestStore } from "./state/useQuestStore";
 import { navReducer, NAV } from "./state/navigation";
 import { activeEntries, historyEntries, findEntry } from "./state/selectors";
@@ -24,6 +24,7 @@ import { JournalList } from "./screens/JournalList";
 import { JournalDetail } from "./screens/JournalDetail";
 import { HistoryList } from "./screens/HistoryList";
 import { OthersList } from "./screens/OthersList";
+import { SettingsOverlay } from "./screens/SettingsOverlay";
 import { GuidesListOverlay } from "./screens/GuidesListOverlay";
 import { GuideTasksOverlay } from "./screens/GuideTasksOverlay";
 import { TitlesOverlay } from "./screens/TitlesOverlay";
@@ -61,7 +62,7 @@ export default function App() {
 
 // ============ Всё приложение ============
 function AppShell({ onThemeChange }) {
-  const { name: themeName, ink, paper, bar } = useTheme();
+  const { name: themeName, ink, paper, card, bar, fieldBg } = useTheme();
   const [showSideMenu, setShowSideMenu] = useState(false);
 
   const {
@@ -427,7 +428,6 @@ function AppShell({ onThemeChange }) {
 
   // ---- Селекторы ----
   const active = useMemo(() => activeEntries(screens), [screens]);
-  const history = useMemo(() => historyEntries(screens, historyLog), [screens, historyLog]);
   const journalDetailEntry = useMemo(() => findEntry(screens, journalDetail), [screens, journalDetail]);
 
   const hardDeleteEntry = (entry) => {
@@ -483,12 +483,15 @@ function AppShell({ onThemeChange }) {
         setShowSideMenu(true);
         break;
       case "journal":
+	    resetNav();
         pushNav(NAV.JOURNAL);
         break;
       case "history":
+	    resetNav();
         pushNav(NAV.HISTORY);
         break;
       case "others":
+	    resetNav();
         pushNav(NAV.OTHERS);
         loadSharedPool();
         break;
@@ -501,9 +504,11 @@ function AppShell({ onThemeChange }) {
 
     switch (key) {
       case "add-marker":
+        resetNav();
         pushNav(NAV.ADD_MARKER);
         break;
       case "add-field":
+        resetNav();
         pushNav(NAV.ADD_SCREEN);
         break;
       case "edit-mode":
@@ -519,13 +524,16 @@ function AppShell({ onThemeChange }) {
         }
         break;
       case "guides":
+        resetNav();
         pushNav(NAV.GUIDES_LIST);
         break;
       case "titles":
+        resetNav();
         pushNav(NAV.TITLES);
         break;
       case "settings":
-        pushNav(NAV.THEME_PICKER);
+        resetNav();
+        pushNav(NAV.SETTINGS);
         break;
     }
   };
@@ -549,13 +557,13 @@ function AppShell({ onThemeChange }) {
       case NAV.JOURNAL:
         return <JournalList entries={active} onClose={popNav} onOpenDetail={(e) => setJournalDetail({ screenId: e.screenId, markerId: e.markerId, taskId: e.task.id })} />;
       case NAV.HISTORY:
-		return <HistoryList entries={history} onClose={popNav} onDeleteEntry={hardDeleteEntry} />;
+		return <HistoryList entries={historyEntries(screens, historyLog)} onClose={popNav} onDeleteEntry={hardDeleteEntry} />;
       case NAV.OTHERS:
         return <OthersList pool={sharedPool} onClose={popNav} onRefresh={loadSharedPool} onTake={(p) => { setPendingPlacement({ title: p.title, due: p.due || null, notes: [], source: undefined }); popNav(); }} />;
       case NAV.TITLES:
         return <TitlesOverlay guideProgress={guideProgress} onClose={popNav} />;
       case NAV.THEME_PICKER:
-        return <ThemePickerOverlay current={themeName} onSelect={(key) => { onThemeChange(key); popNav(); }} onClose={popNav} />;
+        return <ThemePickerOverlay current={themeName} onSelect={(key) => { onThemeChange(key); }} onClose={popNav} />;
       case NAV.GUIDES_LIST:
         return <GuidesListOverlay onSelect={(key) => { popNav(); openGuide(key); }} onClose={popNav} />;
       case NAV.GUIDE_TASKS:
@@ -573,6 +581,16 @@ function AppShell({ onThemeChange }) {
         );
       default:
         return null;
+	  case NAV.SETTINGS:
+		return (
+		  <SettingsOverlay
+			onClose={popNav}
+			onOpenTheme={() => pushNav(NAV.THEME_PICKER)}
+			onOpenLanguage={() => { /* TODO */ }}
+			onOpenNotifications={() => { /* TODO */ }}
+			onOpenAbout={() => { /* TODO */ }}
+		  />
+		);
     }
   };
 
@@ -580,14 +598,14 @@ function AppShell({ onThemeChange }) {
   if (!screen) return null;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: paper }} edges={["top", "bottom"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: paper }} edges={["top", "bottom", "left", "right"]}>
       <StatusBar barStyle="dark-content" />
 
       {/* Шапка */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1.5, borderColor: ink, backgroundColor: bar }}>
         {screen.parentId ? (
           <Pressable onPress={() => { setEditMode(false); setCurrentId(screen.parentId); }} style={{ flexDirection: "row", alignItems: "center", gap: 6, minWidth: 46 }}>
-            <Text>← Карта</Text>
+            <Text style={{ color: ink }}>← Карта</Text>
           </Pressable>
         ) : <View style={{ width: 46 }} />}
         <Text style={{ fontSize: 16, fontWeight: "bold", color: ink, textAlign: "center", flex: 1 }} numberOfLines={1}>{screen.name}</Text>
@@ -595,14 +613,14 @@ function AppShell({ onThemeChange }) {
       </View>
 
       {/* Карта */}
-      <View {...swipeResponder.panHandlers} style={{ flex: 1, backgroundColor: THEME_BG[screen.theme || "terrain"] }} onLayout={(e) => setMapSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}>
+      <View {...swipeResponder.panHandlers} style={{ flex: 1, backgroundColor: fieldBg }} onLayout={(e) => setMapSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}>
         {screen.image && <Image source={resolveImageSource(screen.image)} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} resizeMode="cover" />}
         {screen.markers.map((m) => (
           <Pin key={m.id} marker={m} editMode={editMode} editAction={editAction} containerSize={mapSize} onOpen={handleOpen} onDragMove={handleDragMove} onDelete={(mk) => setPendingDelete(mk)} />
         ))}
 
         {!editMode && siblings.index > 0 && (
-          <Pressable onPress={() => goSibling(-1)} style={{ position: "absolute", left: 10, top: "50%", marginTop: -17, width: 34, height: 34, borderRadius: 17, backgroundColor: "#fff", borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
+          <Pressable onPress={() => goSibling(-1)} style={{ position: "absolute", left: 10, top: "50%", marginTop: -17, width: 34, height: 34, borderRadius: 17, backgroundColor: card, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
             <Text style={{ color: GREEN, fontWeight: "bold", fontSize: 18 }}>‹</Text>
           </Pressable>
         )}

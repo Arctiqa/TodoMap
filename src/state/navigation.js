@@ -16,6 +16,9 @@ export const NAV = {
   GUIDE_TASKS: "guideTasks",
   EDIT_MODE: "editMode",
   FIELD_MENU: "fieldMenu",
+  SETTINGS: "settings",
+  LANGUAGE: "language",
+  ABOUT: "about",
 };
 
 // Вспомогательные экшены над стеком
