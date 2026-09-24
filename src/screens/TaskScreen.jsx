@@ -21,7 +21,7 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
   const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState(null);
   const [shareToPool, setShareToPool] = useState(false);
   const [repeatOn, setRepeatOn] = useState(false);
-  const [repeatTarget, setRepeatTarget] = useState(5);
+  const [repeatTarget, setRepeatTarget] = useState(1);
 
   if (!marker) return null;
 
@@ -56,7 +56,7 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
     setDueDays(1);
     setShareToPool(false);
     setRepeatOn(false);
-    setRepeatTarget(5);
+    setRepeatTarget(1);
   };
 
   return (
@@ -155,7 +155,7 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
           <View style={{ width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: ink, alignItems: "center", justifyContent: "center", backgroundColor: repeatOn ? ink : paper }}>
             {repeatOn && <Text style={{ color: paper, fontSize: 11 }}>✓</Text>}
           </View>
-          <Text style={{ fontSize: 11.5, color: ink }}>🔁 Повторяющееся задание</Text>
+          <Text style={{ fontSize: 11.5, color: ink }}>🔁 Серия повторов</Text>
         </Pressable>
 
         {repeatOn && (
@@ -167,7 +167,7 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
             <Pressable onPress={() => setRepeatTarget((n) => n + 1)} style={{ width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
               <Text style={{ fontWeight: "bold", color: ink }}>+</Text>
             </Pressable>
-            <Text style={{ fontSize: 12, color: ink, opacity: 0.6 }}>раз — дело завершится, когда наберётся столько</Text>
+            <Text style={{ fontSize: 12, color: ink, opacity: 0.6 }}> раз до завершения</Text>
           </View>
         )}
 

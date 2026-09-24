@@ -35,6 +35,7 @@ export function toDate(due) {
 
 export function formatRemaining(due) {
   if (!due) return "без срока";
+
   if (due.kind === "duration") {
     if (!due.target) return "без срока";
     const diffMs = due.target - Date.now();
@@ -43,12 +44,18 @@ export function formatRemaining(due) {
     if (diffMs < 86400000) {
       const diffMin = Math.round(diffMs / 60000);
       if (diffMin < 60) return `через ${diffMin} мин`;
-      const diffH = Math.round(diffMin / 60);
+      const diffH = Math.floor(diffMin / 60);
+      const remMin = diffMin % 60;
+
+      if (diffMin < 6 * 60) {
+        return remMin > 0 ? `через ${diffH} ч ${remMin} мин` : `через ${diffH} ч`;
+      }
       return `через ${diffH} ч`;
     }
     const diffDays = Math.ceil(diffMs / 86400000);
     return diffDays === 1 ? "через 1 день" : `через ${diffDays} дн.`;
   }
+
   const d = toDate(due);
   if (!d) return "без срока";
   const diffMs = d.getTime() - Date.now();
@@ -56,9 +63,16 @@ export function formatRemaining(due) {
   if (diffMs < 60000) return "меньше минуты";
   const diffMin = Math.round(diffMs / 60000);
   if (diffMin < 60) return `через ${diffMin} мин`;
-  const diffH = Math.round(diffMin / 60);
-  if (diffH < 24) return `через ${diffH} ч`;
-  const diffD = Math.round(diffH / 24);
+  const diffH = Math.floor(diffMin / 60);
+  const remMin = diffMin % 60;
+  if (diffH < 24) {
+
+    if (diffMin < 6 * 60) {
+      return remMin > 0 ? `через ${diffH} ч ${remMin} мин` : `через ${diffH} ч`;
+    }
+    return `через ${diffH} ч`;
+  }
+  const diffD = Math.floor(diffH / 24);
   return `через ${diffD} дн.`;
 }
 

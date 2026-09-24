@@ -31,17 +31,17 @@ export async function requestNotificationPermission() {
 
 // Точки напоминаний
 const REMINDER_OFFSETS = [
-  { label: "за 5 минут", ms: 5 * 60 * 1000 },
-  { label: "за 3 минуты", ms: 3 * 60 * 1000 },
-  { label: "за 1 минуту", ms: 60 * 1000 },
+  { text: "осталось 24 часа", ms: 24 * 60 * 60 * 1000 },
+  { text: "осталось 6 часов", ms: 6 * 60 * 60 * 1000 },
+  { text: "остался 1 час", ms: 60 * 60 * 1000 },
 ];
 
 // Запланировать напоминания для одной задачи
 export async function scheduleTaskNotifications(task) {
-  console.warn(`[notif] Вызов для "${task?.title}", due=${JSON.stringify(task?.due)}`);
+  if (__DEV__) console.warn(`[notif] Вызов для "${task?.title}", due=${JSON.stringify(task?.due)}`);
 
   if (!task || task.done || !task.due) {
-    console.warn(`[notif] Пропуск: task=${!!task}, done=${task?.done}, due=${!!task?.due}`);
+    if (__DEV__) console.warn(`[notif] Пропуск: task=${!!task}, done=${task?.done}, due=${!!task?.due}`);
     return;
   }
 
@@ -67,17 +67,17 @@ export async function scheduleTaskNotifications(task) {
       dueTime = d.getTime();
     }
   } else {
-    console.warn(`[notif] Не могу вычислить dueTime для "${task.title}"`);
+    if (__DEV__) console.warn(`[notif] Не могу вычислить dueTime для "${task.title}"`);
     return;
   }
 
   const now = Date.now();
-  console.warn(`[notif] dueTime=${new Date(dueTime).toISOString()}, now=${new Date(now).toISOString()}`);
+  if (__DEV__) console.warn(`[notif] dueTime=${new Date(dueTime).toISOString()}, now=${new Date(now).toISOString()}`);
 
   for (const offset of REMINDER_OFFSETS) {
     const triggerTime = dueTime - offset.ms;
     if (triggerTime <= now) {
-      console.warn(`[notif] Пропуск ${offset.label} (уже в прошлом)`);
+      if (__DEV__) console.warn(`[notif] Пропуск ${offset.text} (уже в прошлом)`);
       continue;
     }
 
@@ -85,14 +85,15 @@ export async function scheduleTaskNotifications(task) {
       identifier: `task_${task.id}_${offset.ms}`,
       content: {
         title: "⏰ Напоминание",
-        body: `${task.title} — ${offset.label}`,
+        body: `До истечения срока «${task.title}» ${offset.text}`,
         data: { taskId: task.id },
       },
       trigger: { type: "date", date: new Date(triggerTime) },
     });
-    console.warn(`[notif] Запланировано для "${task.title}" — ${offset.label}`);
+    if (__DEV__) console.warn(`[notif] Запланировано для "${task.title}" — ${offset.text}`);
   }
 }
+
 // Отменить все напоминания для задачи (при выполнении или удалении)
 export async function cancelTaskNotifications(taskId) {
   if (!taskId) return;
@@ -101,7 +102,7 @@ export async function cancelTaskNotifications(taskId) {
   const prefix = `task_${taskId}_`;
   const mine = all.filter((n) => n.identifier && n.identifier.startsWith(prefix));
 
-  console.warn(`[notifications] Отменяю ${mine.length} уведомлений для задачи ${taskId}`);
+  if (__DEV__) console.warn(`[notifications] Отменяю ${mine.length} уведомлений для задачи ${taskId}`);
 
   for (const n of mine) {
     await Notifications.cancelScheduledNotificationAsync(n.identifier);

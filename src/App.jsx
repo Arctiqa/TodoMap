@@ -555,7 +555,16 @@ function AppShell({ onThemeChange }) {
       case NAV.ADD_SCREEN:
         return <NewPinForm title="Новое поле" confirmLabel="Создать поле" showColor={false} imageAspect={[9, 16]} onClose={popNav} onCreate={createScreen} />;
       case NAV.JOURNAL:
-        return <JournalList entries={active} onClose={popNav} onOpenDetail={(e) => setJournalDetail({ screenId: e.screenId, markerId: e.markerId, taskId: e.task.id })} />;
+        return (
+		  <JournalList
+			entries={active}
+			onClose={popNav}
+			onOpenDetail={(e) => {
+			  setCurrentId(e.screenId);
+			  pushNav(NAV.TASK, { markerId: e.markerId });
+		    }}
+		  />
+		);
       case NAV.HISTORY:
 		return <HistoryList entries={historyEntries(screens, historyLog)} onClose={popNav} onDeleteEntry={hardDeleteEntry} />;
       case NAV.OTHERS:
@@ -598,7 +607,7 @@ function AppShell({ onThemeChange }) {
   if (!screen) return null;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: paper }} edges={["top", "bottom", "left", "right"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: paper }} edges={["top", "bottom"]}>
       <StatusBar barStyle="dark-content" />
 
       {/* Шапка */}
@@ -615,7 +624,7 @@ function AppShell({ onThemeChange }) {
       {/* Карта */}
       <View {...swipeResponder.panHandlers} style={{ flex: 1, backgroundColor: fieldBg }} onLayout={(e) => setMapSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}>
         {screen.image && <Image source={resolveImageSource(screen.image)} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} resizeMode="cover" />}
-        {screen.markers.map((m) => (
+		{screen.markers.map((m) => (
           <Pin key={m.id} marker={m} editMode={editMode} editAction={editAction} containerSize={mapSize} onOpen={handleOpen} onDragMove={handleDragMove} onDelete={(mk) => setPendingDelete(mk)} />
         ))}
 
