@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
+import React, { useState, useMemo, useCallback, memo } from "react";
 import { View, Text, Pressable, FlatList } from "react-native";
 import { Overlay } from "../components/ui/Overlay";
 import { OverlayHeader } from "../components/ui/OverlayHeader";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { useTheme } from "../theme/ThemeContext";
-import { BLUE } from "../theme/palettes";
+import { BLUE, GREEN, RED, TEAL } from "../theme/palettes";
 import { isTaskExpired } from "../utils/date";
 
-// Быстрое форматирование даты без toLocaleDateString
 function fmtDateFast(ts) {
   if (!ts) return "";
   const d = new Date(ts);
@@ -17,7 +16,6 @@ function fmtDateFast(ts) {
   return `${day}.${month}.${year}`;
 }
 
-// Мемоизированная карточка записи
 const HistoryRow = memo(function HistoryRow({ item, ink, card, onDelete }) {
   return (
     <View
@@ -49,7 +47,7 @@ const HistoryRow = memo(function HistoryRow({ item, ink, card, onDelete }) {
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 13, color: ink, fontWeight: "bold" }}>{item.task.title}</Text>
-        <Text style={{ fontSize: 10, color: "#9a8a76" }}>
+        <Text style={{ fontSize: 10, color: ink, opacity: 0.6 }}>
           {item.markerName} · создано {item.createdText}
           {item.task.repeat ? ` · ${item.task.repeat.count}/${item.task.repeat.target}` : ""}
         </Text>
@@ -57,7 +55,7 @@ const HistoryRow = memo(function HistoryRow({ item, ink, card, onDelete }) {
       <Text style={{ fontSize: 11, fontWeight: "bold", color: item.statusColor }}>{item.status}</Text>
       {item.canDelete && (
         <Pressable onPress={() => onDelete(item.raw)}>
-          <Text style={{ opacity: 0.5, fontSize: 13 }}>🗑</Text>
+          <Text style={{ opacity: 0.5, fontSize: 13, color: ink }}>🗑</Text>
         </Pressable>
       )}
     </View>
@@ -68,22 +66,26 @@ export function HistoryList({ entries, onClose, onDeleteEntry }) {
   const { ink, card } = useTheme();
   const [pending, setPending] = useState(null);
 
-  // Обогащаем записи один раз — статус, цвет, дата
   const enriched = useMemo(() => {
     return entries.map((e) => {
-      const expired = isTaskExpired(e.task);   // ← один вызов на запись
-      const status = e.removedAt
-        ? e.task.done ? "Выполнено" : "Удалено"
-        : e.task.done ? "Выполнено"
+      const isDone = e.task.done;
+      const isRemoved = !!e.removedAt;
+      const expired = !isDone && !isRemoved ? isTaskExpired(e.task) : false;
+
+      const status = isRemoved
+        ? isDone ? "Выполнено" : "Удалено"
+        : isDone ? "Выполнено"
         : expired ? "Провалено"
         : "Активно";
-      const statusColor = e.task.done
-        ? "#2A9D8F"
-        : e.removedAt
-        ? "#C0392B"
+
+      const statusColor = isDone
+        ? TEAL
+        : isRemoved
+        ? RED
         : expired
         ? BLUE
-        : "#8a7a6a";
+        : ink;
+
       return {
         raw: e,
         key: `${e.task.id}-${e.removedAt || "live"}`,
@@ -97,12 +99,10 @@ export function HistoryList({ entries, onClose, onDeleteEntry }) {
         createdText: fmtDateFast(e.task.createdAt),
       };
     });
-  }, [entries]);
+  }, [entries, ink]);
 
   const renderItem = useCallback(
-    ({ item }) => (
-      <HistoryRow item={item} ink={ink} card={card} onDelete={setPending} />
-    ),
+    ({ item }) => <HistoryRow item={item} ink={ink} card={card} onDelete={setPending} />,
     [ink, card]
   );
 
@@ -117,7 +117,7 @@ export function HistoryList({ entries, onClose, onDeleteEntry }) {
         keyExtractor={keyExtractor}
         contentContainerStyle={{ padding: 16 }}
         ListEmptyComponent={
-          <Text style={{ color: "#a0907e", fontSize: 13, fontStyle: "italic" }}>
+          <Text style={{ color: ink, opacity: 0.5, fontSize: 13, fontStyle: "italic" }}>
             Пока нет ни одного дела.
           </Text>
         }

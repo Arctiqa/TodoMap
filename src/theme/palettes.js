@@ -56,3 +56,5 @@ export const PALETTE = ["#FF4B3E", "#00C9A7", "#FFC300", "#8B2FC9", "#2D6CDF", "
 // Не цвета темы, а семантические — они одинаковы во всех темах
 export const GREEN = "#2ECC71";
 export const BLUE = "#2F6FDE";
+export const RED = "#C0392B";
+export const TEAL = "#2A9D8F";

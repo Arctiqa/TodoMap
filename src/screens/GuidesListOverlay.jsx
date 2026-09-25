@@ -23,7 +23,7 @@ export function GuidesListOverlay({ onSelect, onClose }) {
                 <Text style={{ fontSize: 22 }}>{meta.emoji}</Text>
               </View>
               <Text style={{ fontSize: 15, fontWeight: "bold", color: ink, flex: 1 }}>{meta.name}</Text>
-              <Text style={{ fontSize: 16, color: "#9a8a76" }}>›</Text>
+              <Text style={{ fontSize: 16, color: ink, opacity: 0.6 }}>›</Text>
             </Pressable>
           );
         })}

@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, Pressable, ScrollView, Modal } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
+import { screenTitle } from "../utils/text";
 
 export function MarkerPickerModal({ screens, screenId, onPick, onClose }) {
   const { ink, paper, card } = useTheme();
@@ -13,7 +14,7 @@ export function MarkerPickerModal({ screens, screenId, onPick, onClose }) {
       if (mk.isGuide || mk.linkTo) return;
       rows.push({
         screenId: currentScreen.id,
-        screenName: currentScreen.name,
+        screenName: screenTitle(currentScreen),
         markerId: mk.id,
         markerName: mk.name,
         emoji: mk.emoji,

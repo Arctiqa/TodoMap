@@ -17,7 +17,7 @@ export function TitlesOverlay({ guideProgress, onClose }) {
           const meta = GUIDE_META[guideKey] || { name: guideKey, emoji: "🧑" };
           return (
             <View key={guideKey} style={{ marginBottom: 18 }}>
-              <Text style={{ fontSize: 12, color: "#8a7a6a", marginBottom: 8 }}>
+              <Text style={{ fontSize: 12, color: ink, opacity: 0.6, marginBottom: 8 }}>
                 {meta.emoji} {meta.name} · выполнено дел: {progress}
               </Text>
               {GUIDE_TITLE_TIERS.map((tier) => {
@@ -28,15 +28,15 @@ export function TitlesOverlay({ guideProgress, onClose }) {
                     key={tier}
                     style={{
                       flexDirection: "row", alignItems: "center", gap: 10,
-                      backgroundColor: unlocked ? card : "#EFEFEF",
+                      backgroundColor: unlocked ? card : card,
+                      opacity: unlocked ? 1 : 0.4,
                       borderWidth: 1.5, borderColor: ink, borderRadius: 10, padding: 10, marginBottom: 8,
-                      opacity: unlocked ? 1 : 0.55,
                     }}
                   >
                     <Text style={{ fontSize: 22 }}>{unlocked ? t.emoji : "🔒"}</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 13.5, fontWeight: "bold", color: ink }}>{t.name}</Text>
-                      <Text style={{ fontSize: 10.5, color: "#8a7a6a" }}>{unlocked ? t.desc : `За ${tier} дел от гида`}</Text>
+                      <Text style={{ fontSize: 10.5, color: ink, opacity: 0.6 }}>{unlocked ? t.desc : `За ${tier} дел от гида`}</Text>
                     </View>
                   </View>
                 );

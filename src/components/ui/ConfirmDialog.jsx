@@ -3,14 +3,14 @@ import { View, Text, Pressable, Modal } from "react-native";
 import { PrimaryButton } from "./PrimaryButton";
 import { useTheme } from "../../theme/ThemeContext";
 
-export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel = "Удалить", confirmColor = "#E4572E" }) {
+export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel = "Удалить", confirmColor = "#E4572E", backdrop = "rgba(0,0,0,0.5)" }) {
   const { ink, paper } = useTheme();
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onCancel} statusBarTranslucent>
       <View
         style={{
           flex: 1,
-          backgroundColor: "rgba(0,0,0,0.5)",
+          backgroundColor: backdrop,
           alignItems: "center",
           justifyContent: "center",
           padding: 12,

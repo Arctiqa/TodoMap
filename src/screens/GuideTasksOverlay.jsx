@@ -22,7 +22,6 @@ export function GuideTasksOverlay({
   const [customText, setCustomText] = useState("");
   const [showCustom, setShowCustom] = useState(false);
 
-  // Локальная сессия прокрутки. Живёт, пока открыт этот оверлей.
   const [rolledInSession, setRolledInSession] = useState([]);
   const [currentRoll, setCurrentRoll] = useState(null);
 
@@ -33,7 +32,6 @@ export function GuideTasksOverlay({
   const roll = useCallback(() => {
     let fresh = pool.filter((t) => !rolledInSession.includes(t));
 
-    // Прокрутили все — начинаем заново
     if (fresh.length === 0) {
       setRolledInSession([]);
       fresh = pool;
@@ -48,7 +46,6 @@ export function GuideTasksOverlay({
   const handleTake = () => {
     if (!currentRoll) return;
     onTakeRandom(currentRoll);
-    // Сброс сессии, но окно гида остаётся открытым
     setCurrentRoll(null);
     setRolledInSession([]);
   };
@@ -61,7 +58,7 @@ export function GuideTasksOverlay({
           <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: meta.color, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
             <Text style={{ fontSize: 30 }}>{meta.emoji}</Text>
           </View>
-          <Text style={{ fontSize: 11, color: "#8a7a6a", marginTop: 6 }}>Принято заданий: {takenCount || 0}</Text>
+          <Text style={{ fontSize: 11, color: ink, opacity: 0.6, marginTop: 6 }}>Принято заданий: {takenCount || 0}</Text>
         </View>
 
         {chainOffer ? (
@@ -74,13 +71,13 @@ export function GuideTasksOverlay({
               </View>
             ) : (
               <View>
-                <Text style={{ fontSize: 12, color: "#8a7a6a", textAlign: "center", marginBottom: 10 }}>А что-то своё хочешь? Напиши — я подумаю.</Text>
+                <Text style={{ fontSize: 12, color: ink, opacity: 0.6, textAlign: "center", marginBottom: 10 }}>А что-то своё хочешь? Напиши — я подумаю.</Text>
                 <TextInput
                   value={customText}
                   onChangeText={setCustomText}
                   placeholder="Например: заказать пиццу"
-                  placeholderTextColor="#a0907e"
-                  style={{ borderWidth: 1.5, borderColor: ink, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, marginBottom: 10 }}
+                  placeholderTextColor={ink}
+                  style={{ borderWidth: 1.5, borderColor: ink, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, marginBottom: 10, color: ink, backgroundColor: card }}
                 />
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   <PrimaryButton label="Ничего" color="#fff" textColor={ink} onPress={() => setShowCustom(false)} style={{ flex: 1 }} />
@@ -91,7 +88,7 @@ export function GuideTasksOverlay({
           </View>
         ) : (
           !randomUnlocked && (
-            <Text style={{ fontSize: 13, color: "#8a7a6a", textAlign: "center", marginBottom: 18 }}>
+            <Text style={{ fontSize: 13, color: ink, opacity: 0.6, textAlign: "center", marginBottom: 18 }}>
               Сюжетные задания закончились. Бери случайные ниже.
             </Text>
           )
@@ -99,7 +96,7 @@ export function GuideTasksOverlay({
 
         {randomUnlocked ? (
           <View style={{ borderWidth: 1.5, borderColor: ink, borderStyle: "dashed", borderRadius: 14, padding: 16, alignItems: "center" }}>
-            <Text style={{ fontSize: 11, color: "#8a7a6a", marginBottom: 10 }}>
+            <Text style={{ fontSize: 11, color: ink, opacity: 0.6, marginBottom: 10 }}>
               🎲 Рандомайзер · прокручено {rolledInSession.length}/{pool.length}
             </Text>
             {currentRoll ? (
@@ -115,7 +112,7 @@ export function GuideTasksOverlay({
             )}
           </View>
         ) : (
-          <Text style={{ fontSize: 11, color: "#a0907e", textAlign: "center", marginTop: 6 }}>
+          <Text style={{ fontSize: 11, color: ink, opacity: 0.5, textAlign: "center", marginTop: 6 }}>
             Рандомайзер откроется после {GUIDE_UNLOCK_RANDOM_AT} принятых заданий (сейчас {takenCount || 0}).
           </Text>
         )}

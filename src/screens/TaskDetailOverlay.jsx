@@ -25,16 +25,16 @@ export function TaskDetailOverlay({ task, markerColor, onBack, onAddNote, onRemo
 
         <View style={{ marginBottom: 16, gap: 6 }}>
           {(!task.notes || task.notes.length === 0) && (
-            <Text style={{ color: "#a0907e", fontSize: 12.5, fontStyle: "italic" }}>Пометок пока нет.</Text>
+            <Text style={{ color: ink, opacity: 0.5, fontSize: 12.5, fontStyle: "italic" }}>Пометок пока нет.</Text>
           )}
           {task.notes &&
             task.notes.map((n, i) => (
               <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: card, borderWidth: 1.5, borderColor: ink, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
                 <Pressable style={{ flex: 1 }} onPress={() => onToggleNote(i)}>
-                  <Text style={{ fontSize: 13, color: n.done ? "#9a8a76" : ink, textDecorationLine: n.done ? "line-through" : "none" }}>{n.text}</Text>
+                  <Text style={{ fontSize: 13, color: ink, opacity: n.done ? 0.4 : 1, textDecorationLine: n.done ? "line-through" : "none" }}>{n.text}</Text>
                 </Pressable>
                 <Pressable onPress={() => onRemoveNote(i)}>
-                  <Text style={{ opacity: 0.5 }}>✕</Text>
+                  <Text style={{ opacity: 0.5, color: ink }}>✕</Text>
                 </Pressable>
               </View>
             ))}
@@ -45,8 +45,8 @@ export function TaskDetailOverlay({ task, markerColor, onBack, onAddNote, onRemo
             value={note}
             onChangeText={setNote}
             placeholder="Новая пометка..."
-            placeholderTextColor="#a0907e"
-            style={{ flex: 1, borderWidth: 2, borderColor: ink, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13 }}
+            placeholderTextColor={ink}
+            style={{ flex: 1, borderWidth: 2, borderColor: ink, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, color: ink, backgroundColor: card }}
           />
           <Pressable onPress={submit} style={{ backgroundColor: markerColor, borderWidth: 2, borderColor: ink, borderRadius: 8, paddingHorizontal: 16, justifyContent: "center" }}>
             <Text style={{ color: "#fff", fontSize: 16 }}>＋</Text>

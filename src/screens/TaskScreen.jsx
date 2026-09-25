@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, ScrollView, Image } from "react-native";
+import { View, Text, Pressable, ScrollView, Image } from "react-native";
 import { Overlay } from "../components/ui/Overlay";
 import { OverlayHeader } from "../components/ui/OverlayHeader";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
@@ -9,55 +9,15 @@ import { GREEN, BLUE } from "../theme/palettes";
 import { formatRemaining, isTaskExpired } from "../utils/date";
 import { AddTaskBar } from "../components/AddTaskBar";
 
-
 export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNote, onRemoveNote, onToggleNote, onShare, onIncrementRepeat }) {
-  const { ink, card, paper, bar } = useTheme();
-  const [title, setTitle] = useState("");
-  const [dueMode, setDueMode] = useState("none");
-  const [dueDate, setDueDate] = useState("");
-  const [dueTime, setDueTime] = useState("");
-  const [dueDays, setDueDays] = useState(1);
+  const { ink, card, paper } = useTheme();
   const [noteTaskId, setNoteTaskId] = useState(null);
   const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState(null);
-  const [shareToPool, setShareToPool] = useState(false);
-  const [repeatOn, setRepeatOn] = useState(false);
-  const [repeatTarget, setRepeatTarget] = useState(1);
 
   if (!marker) return null;
 
   const noteTask = marker.tasks && marker.tasks.find((t) => t.id === noteTaskId);
   const pendingTask = marker.tasks && marker.tasks.find((t) => t.id === pendingDeleteTaskId);
-
-  const submit = () => {
-    if (!title.trim()) return;
-    let due = null;
-
-    if (dueMode === "date") {
-      if (dueDate || dueTime) {
-        let date = dueDate;
-        if (!date && dueTime) {
-          const d = new Date();
-          date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        }
-        due = { date: date || null, time: dueTime || null, kind: "date" };
-      }
-    } else if (dueMode === "duration") {
-      due = { target: Date.now() + dueDays * 86400000, kind: "duration" };
-    }
-
-    const repeat = repeatOn ? { count: 0, target: Math.max(1, repeatTarget) } : null;
-    onAdd(marker.id, title.trim(), due, repeat);
-    if (shareToPool && onShare) onShare(title.trim(), due);
-
-    setTitle("");
-    setDueMode("none");
-    setDueDate("");
-    setDueTime("");
-    setDueDays(1);
-    setShareToPool(false);
-    setRepeatOn(false);
-    setRepeatTarget(1);
-  };
 
   return (
     <Overlay zIndex={50}>
@@ -69,7 +29,7 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
       )}
       <Text style={{ paddingHorizontal: 16, paddingTop: 10, fontSize: 12, letterSpacing: 1, color: ink, opacity: 0.55 }}>ДЕЛА</Text>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 8 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 8, paddingBottom: 120 }}>
         {(!marker.tasks || marker.tasks.length === 0) && (
           <Text style={{ color: ink, opacity: 0.5, fontSize: 13, fontStyle: "italic" }}>Пока пусто — самое время добавить первое дело.</Text>
         )}
@@ -81,7 +41,7 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
                 key={t.id}
                 style={{
                   flexDirection: "row", alignItems: "flex-start", gap: 8,
-                  backgroundColor: t.done ? card : card,
+                  backgroundColor: card,
                   opacity: t.done ? 0.55 : 1,
                   borderWidth: 2, borderColor: ink, borderRadius: 10, padding: 10,
                 }}
@@ -132,21 +92,21 @@ export function TaskScreen({ marker, onClose, onToggle, onAdd, onDelete, onAddNo
                 </Pressable>
 
                 <Pressable onPress={() => setPendingDeleteTaskId(t.id)} style={{ marginTop: 2 }}>
-                  <Text style={{ opacity: 0.5 }}>✕</Text>
+                  <Text style={{ opacity: 0.5, color: ink }}>✕</Text>
                 </Pressable>
               </View>
             );
           })}
       </ScrollView>
 
-	  <AddTaskBar
-		visible={true}
-		targetMarkerId={marker.id}
-		onSubmit={({ title, due, repeat, share }) => {
-		  onAdd(marker.id, title, due, repeat);
-		  if (share && onShare) onShare(title, due);
-		}}
-	  />
+      <AddTaskBar
+        visible={true}
+        targetMarkerId={marker.id}
+        onSubmit={({ title, due, repeat, share }) => {
+          onAdd(marker.id, title, due, repeat);
+          if (share && onShare) onShare(title, due);
+        }}
+      />
 
       {noteTask && (
         <TaskDetailOverlay

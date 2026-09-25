@@ -1,16 +1,18 @@
 import React, { useMemo, useRef, useCallback } from "react";
 import { View, Text, Pressable, PanResponder, Image } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 import { PIN_BOUNDS, PIN_SIZE } from "../constants/config";
 import { shortLabel } from "../utils/text";
 import { isTaskExpired } from "../utils/date";
 import { BLUE } from "../theme/palettes";
 
-function PinInner({ marker, editMode, editAction, containerSize, onOpen, onDragMove, onDelete }) {
-  const { ink } = useTheme();
-  const size = marker.special ? PIN_SIZE.special : PIN_SIZE.normal;
+function PinInner({ marker, editMode, editAction, containerSize, onOpen, onDragMove, onDelete, onEdit }) {
+  const { ink, card, paper } = useTheme();
 
-  // Живая позиция во время драга — не толкаем стор на каждый кадр
+  const isBig = !!marker.linkTo;
+  const size = isBig ? PIN_SIZE.special : PIN_SIZE.normal;
+
   const dragRef = useRef({ x: marker.x, y: marker.y, active: false });
   const [, forceRender] = React.useState(0);
 
@@ -56,11 +58,12 @@ function PinInner({ marker, editMode, editAction, containerSize, onOpen, onDragM
 
   const handlePress = useCallback(() => {
     if (editMode) {
-      if (editAction === "delete") onDelete(marker);
+      if (editAction === "delete") { onDelete(marker); return; }
+      if (editAction === "edit") { onEdit && onEdit(marker); return; }
       return;
     }
     onOpen(marker);
-  }, [editMode, editAction, onDelete, onOpen, marker]);
+  }, [editMode, editAction, onDelete, onEdit, onOpen, marker]);
 
   return (
     <View
@@ -78,33 +81,101 @@ function PinInner({ marker, editMode, editAction, containerSize, onOpen, onDragM
       <Pressable onPress={handlePress} style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.88 : 1 }] }]}>
         <View
           style={{
-            width: size, height: size, borderRadius: size / 2,
+            width: size,
+            height: size,
+            borderRadius: size / 2,
             backgroundColor: marker.color,
-            borderWidth: 2.5, borderColor: ink,
-            alignItems: "center", justifyContent: "center",
+            alignItems: "center",
+            justifyContent: "center",
             overflow: "hidden",
-            shadowColor: ink, shadowOffset: { width: 2, height: 3 }, shadowOpacity: 0.35, shadowRadius: 0, elevation: 4,
+            shadowColor: "#000",
+            shadowOffset: { width: 2, height: 3 },
+            shadowOpacity: 0.35,
+            shadowRadius: 3,
+            elevation: 5,
           }}
         >
           {marker.image ? (
             <Image source={{ uri: marker.image }} style={{ width: size, height: size }} />
           ) : (
-            <Text style={{ fontSize: marker.special ? 24 : 19 }}>{marker.emoji}</Text>
+            <Text style={{ fontSize: isBig ? 26 : 19 }}>{marker.emoji}</Text>
           )}
+
+          {marker.linkTo && (
+            <View
+              style={{
+                position: "absolute",
+                bottom: -3,
+                right: -3,
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                backgroundColor: card,
+                borderWidth: 2,
+                borderColor: ink,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <MaterialIcons name="folder" size={12} color={ink} />
+            </View>
+          )}
+
           {marker.image && (
-            <View style={{ position: "absolute", bottom: -2, right: -2, width: 18, height: 18, borderRadius: 9, backgroundColor: "#fff", borderWidth: 1.5, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
+            <View
+              style={{
+                position: "absolute",
+                bottom: -2,
+                right: -2,
+                width: 18,
+                height: 18,
+                borderRadius: 9,
+                backgroundColor: card,
+                borderWidth: 1.5,
+                borderColor: ink,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
               <Text style={{ fontSize: 10 }}>{marker.emoji}</Text>
             </View>
           )}
+
           {editMode && (
-            <View style={{ position: "absolute", bottom: -5, right: -5, width: 18, height: 18, borderRadius: 9, backgroundColor: editAction === "delete" ? "#E4572E" : "#fff", borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ fontSize: 9 }}>{editAction === "delete" ? "🗑" : "✥"}</Text>
+            <View
+              style={{
+                position: "absolute",
+                bottom: -5,
+                right: -5,
+                width: 18,
+                height: 18,
+                borderRadius: 9,
+                backgroundColor: editAction === "delete" ? "#E4572E" : card,
+                borderWidth: 2,
+                borderColor: ink,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ fontSize: 9 }}>
+                {editAction === "delete" ? "🗑" : editAction === "edit" ? "✎" : "✥"}
+              </Text>
             </View>
           )}
         </View>
       </Pressable>
 
-      <View style={{ marginTop: 4, backgroundColor: "#fff", borderWidth: 2, borderColor: ink, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}>
+      <View
+        style={{
+          marginTop: 4,
+          backgroundColor: card,
+          borderWidth: 2,
+          borderColor: ink,
+          borderRadius: 8,
+          paddingHorizontal: 7,
+          paddingVertical: 2,
+        }}
+      >
         <Text style={{ fontSize: 11, fontWeight: "bold", color: ink }}>
           {marker.name}
           {total > 0 ? <Text style={{ fontWeight: "normal", opacity: 0.6 }}> {doneCount}/{total}</Text> : null}
@@ -114,8 +185,27 @@ function PinInner({ marker, editMode, editAction, containerSize, onOpen, onDragM
       {!editMode && previewTasks.length > 0 && (
         <View style={{ marginTop: 3, alignItems: "center" }}>
           {previewTasks.map((t) => (
-            <View key={t.id} style={{ marginTop: 2, backgroundColor: "#fff", borderWidth: 1.5, borderColor: ink, paddingHorizontal: 6, paddingVertical: 2, maxWidth: 110 }}>
-              <Text style={{ fontSize: 9.5, fontFamily: "monospace", color: isTaskExpired(t) ? BLUE : "#5b4c3f" }} numberOfLines={1}>
+            <View
+              key={t.id}
+              style={{
+                marginTop: 2,
+                backgroundColor: card,
+                borderWidth: 1.5,
+                borderColor: ink,
+                paddingHorizontal: 6,
+                paddingVertical: 2,
+                maxWidth: 110,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 9.5,
+                  fontFamily: "monospace",
+                  color: isTaskExpired(t) ? BLUE : ink,
+                  opacity: isTaskExpired(t) ? 1 : 0.75,
+                }}
+                numberOfLines={1}
+              >
                 {shortLabel(t.title)}
               </Text>
             </View>

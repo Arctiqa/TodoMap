@@ -1,4 +1,5 @@
 import { isTaskExpired } from "../utils/date";
+import { screenTitle } from "../utils/text";
 
 export function findMarker(screens, screenId, markerId) {
   const scr = screens[screenId];
@@ -17,7 +18,7 @@ export function allEntries(screens) {
       (mk.tasks || []).forEach((task) => {
         out.push({
           screenId: scr.id,
-          screenName: scr.name,
+          screenName: screenTitle(scr),
           markerId: mk.id,
           markerName: mk.name,
           markerEmoji: mk.emoji,
@@ -48,7 +49,7 @@ export function findEntry(screens, loc) {
   if (!task) return null;
   return {
     screenId: scr.id,
-    screenName: scr.name,
+    screenName: screenTitle(scr),
     markerId: mk.id,
     markerName: mk.name,
     markerEmoji: mk.emoji,

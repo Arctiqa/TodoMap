@@ -13,15 +13,17 @@ const NOW = Date.now();
 export const initialScreens = {
   main: {
     id: "main",
+    emoji: "🗺",
     name: "КАРТА",
     theme: "terrain",
     parentId: null,
     image: MAP_DEFAULT_BG,
-    markers: [{ id: "dom", special: true, name: "Дом", emoji: "🏠", color: "#E4572E", x: 50, y: 75, linkTo: "home" }],
+    markers: [{ id: "dom", name: "Дом", emoji: "🏠", color: "#E4572E", x: 50, y: 75, linkTo: "home" }],
   },
   home: {
     id: "home",
-    name: "🏠 ДОМ — ДЕЛА",
+    emoji: "🏠",
+    name: "ДОМ — ДЕЛА",
     theme: "home",
     parentId: "main",
     image: DOM_DEFAULT_BG,

@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useReducer, useRef, useEffect, useCallback } from "react";
-import { View, Text, Pressable, PanResponder, StatusBar, Image, BackHandler, Animated, Keyboard, Easing } from "react-native";
+import { View, Text, Pressable, PanResponder, StatusBar, Image, BackHandler, Animated, Keyboard } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ThemeProvider, useTheme } from "./theme/ThemeContext";
-import { GREEN, BLUE } from "./theme/palettes";
+import { GREEN, BLUE, RED } from "./theme/palettes";
 import { useQuestStore } from "./state/useQuestStore";
 import { navReducer, NAV } from "./state/navigation";
 import { activeEntries, historyEntries, findEntry } from "./state/selectors";
@@ -33,6 +33,7 @@ import { TitleUnlockDialog } from "./screens/TitleUnlockDialog";
 import { ThemePickerOverlay } from "./screens/ThemePickerOverlay";
 
 import { nextId } from "./utils/id";
+import { screenTitle } from "./utils/text";
 import { requestNotificationPermission, scheduleTaskNotifications, cancelTaskNotifications } from "./utils/notifications";
 
 import { resolveImageSource, DOM_DEFAULT_BG, MAP_DEFAULT_BG } from "./data/initialScreens";
@@ -55,9 +56,11 @@ export default function App() {
   }, []);
 
   return (
-    <ThemeProvider name={themeName}>
-      <AppShell onThemeChange={handleThemeChange} />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider name={themeName}>
+        <AppShell onThemeChange={handleThemeChange} />
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -73,16 +76,12 @@ function AppShell({ onThemeChange }) {
 
   const { screens, topLevelOrder, historyLog, guideProgress, guideUsedOffers, guideTakenCount, sharedPool, loaded } = state;
 
-  // ---- Навигация: стек для оверлеев ----
   const [navStack, navDispatch] = useReducer(navReducer, [{ type: NAV.ROOT }]);
   const pushNav = useCallback((navType, payload) => navDispatch({ type: "PUSH", navType, payload }), []);
   const popNav = useCallback(() => navDispatch({ type: "POP" }), []);
   const resetNav = useCallback(() => navDispatch({ type: "RESET" }), []);
 
-  // ---- Текущий экран карты ----
   const [currentId, setCurrentId] = useState("main");
-
-  // ---- Сдвиг всего приложения при клавиатуре ----
   const keyboardOffset = useRef(new Animated.Value(0)).current;
 
   const topNav = navStack[navStack.length - 1];
@@ -93,7 +92,6 @@ function AppShell({ onThemeChange }) {
   const activeTaskId = topNav.type === NAV.TASK ? topNav.payload.markerId : null;
   const activeMarker = activeTaskId ? (screen.markers || []).find((m) => m.id === activeTaskId) : null;
 
-  // ---- Локальные оверлеи ----
   const [pendingDelete, setPendingDelete] = useState(null);
   const [pendingDeleteField, setPendingDeleteField] = useState(null);
   const [placementConfirm, setPlacementConfirm] = useState(null);
@@ -102,14 +100,17 @@ function AppShell({ onThemeChange }) {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
   const [journalDetail, setJournalDetail] = useState(null);
+  const [editingMarker, setEditingMarker] = useState(null);
+  const [editingField, setEditingField] = useState(null);
+  const [pendingResetBg, setPendingResetBg] = useState(false);
 
-  // ---- Back ----
   const navRef = useRef(navStack);
   navRef.current = navStack;
   const overlayRef = useRef({});
   overlayRef.current = {
     placementConfirm, titleUnlock, pendingDeleteField, pendingDelete,
     pendingPlacement, showExitConfirm, journalDetail, showSideMenu,
+    editingMarker, editingField, pendingResetBg,
   };
 
   const cancelPendingPlacement = useCallback(() => {
@@ -121,7 +122,6 @@ function AppShell({ onThemeChange }) {
     requestNotificationPermission();
   }, [loaded]);
 
-  // ---- Клавиатура: сдвиг всего приложения на высоту клавиатуры ----
   useEffect(() => {
     const onShow = (e) => {
       Animated.timing(keyboardOffset, {
@@ -162,15 +162,19 @@ function AppShell({ onThemeChange }) {
     const onBackPress = () => {
       const o = overlayRef.current;
       if (o.showSideMenu) { setShowSideMenu(false); return true; }
+      if (o.editingField) { setEditingField(null); return true; }
+      if (o.editingMarker) { setEditingMarker(null); return true; }
+      if (o.pendingResetBg) { setPendingResetBg(false); return true; }
       if (o.placementConfirm) { setPlacementConfirm(null); return true; }
       if (o.titleUnlock) { setTitleUnlock(null); return true; }
       if (o.pendingDeleteField) { setPendingDeleteField(null); return true; }
       if (o.pendingDelete) { setPendingDelete(null); return true; }
       if (o.pendingPlacement) { cancelPendingPlacement(); return true; }
       if (o.journalDetail) { setJournalDetail(null); return true; }
+
       const stack = navRef.current;
       if (stack.length > 1) { navDispatch({ type: "POP" }); return true; }
-      if (editMode) { setEditMode(false); return true; }
+      if (editMode) { setEditMode(false); setEditAction("none"); return true; }
       if (currentId !== "main") {
         const parent = screens[currentId]?.parentId || "main";
         setCurrentId(parent);
@@ -196,7 +200,6 @@ function AppShell({ onThemeChange }) {
   };
   const archiveScreen = (scr) => (scr.markers || []).forEach((mk) => archiveTasks(scr, mk));
 
-  // ---- Открытие ----
   const handleOpen = (marker) => {
     if (marker.linkTo) {
       setEditMode(false);
@@ -210,7 +213,6 @@ function AppShell({ onThemeChange }) {
     updateScreen(currentId, (s) => ({ ...s, markers: s.markers.map((m) => (m.id === markerId ? { ...m, x, y } : m)) }));
   }, [currentId, updateScreen]);
 
-  // ---- Задания ----
   const bumpGuideProgress = (guideKey) => {
     setGuideProgress((prev) => {
       const next = { ...prev, [guideKey]: (prev[guideKey] || 0) + 1 };
@@ -282,7 +284,6 @@ function AppShell({ onThemeChange }) {
     scheduleTaskNotifications(newTask);
   };
 
-  // ---- Гиды ----
   const openGuide = (guideKey) => { pushNav(NAV.GUIDE_TASKS, { guideKey }); };
 
   const nextChainOfferFor = (guideKey) => {
@@ -322,7 +323,6 @@ function AppShell({ onThemeChange }) {
     setPendingPlacement(null);
   };
 
-  // ---- Шаринг ----
   const loadSharedPool = async () => {
     if (SHARE_API.baseUrl) {
       try { const res = await fetch(`${SHARE_API.baseUrl}/pool`); setSharedPool(await res.json()); return; }
@@ -358,7 +358,6 @@ function AppShell({ onThemeChange }) {
     } catch (e) { console.warn("QuestMap: не сохранилось в пул", e); }
   };
 
-  // ---- CRUD ----
   const deleteTask = (markerId, taskId) => {
     cancelTaskNotifications(taskId);
     const marker = screen.markers.find((m) => m.id === markerId);
@@ -386,7 +385,7 @@ function AppShell({ onThemeChange }) {
       setScreens((prev) => ({
         ...prev,
         [currentId]: { ...prev[currentId], markers: [...prev[currentId].markers, { id: markerId, name, emoji, color, type: type || "general", image: image || null, x: 50, y: 50, linkTo: newScreenId }] },
-        [newScreenId]: { id: newScreenId, name: `${emoji} ${name.toUpperCase()} — ДЕЛА`, theme: "city", parentId: currentId, markers: [] },
+        [newScreenId]: { id: newScreenId, emoji, name: `${name.toUpperCase()} — ДЕЛА`, theme: "city", parentId: currentId, markers: [] },
       }));
     } else {
       updateScreen(currentId, (s) => ({ ...s, markers: [...s.markers, { id: `m${nextId()}`, name, emoji, color, type: type || "general", image: image || null, x: 50, y: 50, tasks: [] }] }));
@@ -394,9 +393,36 @@ function AppShell({ onThemeChange }) {
     popNav();
   };
 
+  const saveMarkerEdits = (values) => {
+    if (!editingMarker) return;
+    updateScreen(currentId, (s) => ({
+      ...s,
+      markers: s.markers.map((m) =>
+        m.id === editingMarker.id
+          ? { ...m, name: values.name, emoji: values.emoji, color: values.color, image: values.image }
+          : m
+      ),
+    }));
+    setEditingMarker(null);
+  };
+
+  const saveFieldEdits = (values) => {
+    if (!editingField) return;
+    setScreens((prev) => ({
+      ...prev,
+      [editingField.id]: {
+        ...prev[editingField.id],
+        emoji: values.emoji || "",
+        name: values.name || "",
+        image: values.image ?? prev[editingField.id].image,
+      },
+    }));
+    setEditingField(null);
+  };
+
   const createScreen = ({ name, emoji, image }) => {
     const newId = `s${nextId()}`;
-    setScreens((prev) => ({ ...prev, [newId]: { id: newId, name: `${emoji} ${name.toUpperCase()}`, theme: "city", image: image || null, parentId: null, markers: [] } }));
+    setScreens((prev) => ({ ...prev, [newId]: { id: newId, emoji, name: name.toUpperCase(), theme: "city", image: image || null, parentId: null, markers: [] } }));
     setTopLevelOrder((prev) => [...prev, newId]);
     popNav();
     setEditMode(false);
@@ -439,7 +465,6 @@ function AppShell({ onThemeChange }) {
     });
   };
 
-  // ---- Селекторы ----
   const active = useMemo(() => activeEntries(screens), [screens]);
   const journalDetailEntry = useMemo(() => findEntry(screens, journalDetail), [screens, journalDetail]);
 
@@ -472,7 +497,6 @@ function AppShell({ onThemeChange }) {
     setScreens((prev) => ({ ...prev, [screenId]: { ...prev[screenId], markers: prev[screenId].markers.map((m) => (m.id === markerId ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, notes: t.notes.map((n, i) => (i === idx ? { ...n, done: !n.done } : n)) } : t)) } : m)) } }));
   };
 
-  // ---- Свайп ----
   const siblings = topLevelOrder.includes(currentId) ? { list: topLevelOrder, index: topLevelOrder.indexOf(currentId) } : { list: [], index: -1 };
   const goSibling = useCallback((dir) => {
     const target = topLevelOrder[topLevelOrder.indexOf(currentId) + dir];
@@ -489,7 +513,6 @@ function AppShell({ onThemeChange }) {
     },
   }), [editMode, goSibling]);
 
-  // ---- Нижнее меню ----
   const handleBottomAction = (action) => {
     switch (action) {
       case "menu": setShowSideMenu(true); break;
@@ -499,22 +522,50 @@ function AppShell({ onThemeChange }) {
     }
   };
 
-  // ---- Боковое меню ----
   const handleSideMenuAction = (key) => {
     setShowSideMenu(false);
     switch (key) {
-      case "add-marker": resetNav(); pushNav(NAV.ADD_MARKER); break;
-      case "add-field": resetNav(); pushNav(NAV.ADD_SCREEN); break;
-      case "edit-mode": resetNav(); setEditMode(true); break;
-      case "change-bg": pickBackgroundImage(currentId); break;
+      case "add-marker":
+        resetNav();
+        pushNav(NAV.ADD_MARKER);
+        break;
+      case "edit-marker":
+        resetNav();
+        setEditMode(true);
+        setEditAction("edit");
+        break;
+      case "delete-marker":
+        resetNav();
+        setEditMode(true);
+        setEditAction("delete");
+        break;
+      case "add-field":
+        resetNav();
+        pushNav(NAV.ADD_SCREEN);
+        break;
+      case "edit-field":
+        setEditingField(screen);
+        break;
       case "reset-bg":
-        if (currentId === "main" || currentId === "home") {
-          updateScreenImage(currentId, currentId === "main" ? MAP_DEFAULT_BG : DOM_DEFAULT_BG);
+        setPendingResetBg(true);
+        break;
+      case "delete-field":
+        if (topLevelOrder.includes(currentId) && currentId !== "main") {
+          setPendingDeleteField(screen);
         }
         break;
-      case "guides": resetNav(); pushNav(NAV.GUIDES_LIST); break;
-      case "titles": resetNav(); pushNav(NAV.TITLES); break;
-      case "settings": resetNav(); pushNav(NAV.SETTINGS); break;
+      case "guides":
+        resetNav();
+        pushNav(NAV.GUIDES_LIST);
+        break;
+      case "titles":
+        resetNav();
+        pushNav(NAV.TITLES);
+        break;
+      case "settings":
+        resetNav();
+        pushNav(NAV.SETTINGS);
+        break;
     }
   };
 
@@ -523,7 +574,6 @@ function AppShell({ onThemeChange }) {
     if (share) shareTaskToPool(title, due);
   };
 
-  // ---- Верхний оверлей из стека ----
   const renderTopNav = () => {
     switch (topNav.type) {
       case NAV.TASK:
@@ -535,10 +585,6 @@ function AppShell({ onThemeChange }) {
             onToggleNote={toggleNoteLocal} onShare={shareTaskToPool} onIncrementRepeat={incrementRepeat}
           />
         ) : null;
-      case NAV.ADD_MARKER:
-        return <NewPinForm title="Новая метка" confirmLabel="Добавить метку" showPlaceHints={currentId !== "home"} onClose={popNav} onCreate={createMarker} />;
-      case NAV.ADD_SCREEN:
-        return <NewPinForm title="Новое поле" confirmLabel="Создать поле" showColor={false} imageAspect={[9, 16]} onClose={popNav} onCreate={createScreen} />;
       case NAV.JOURNAL:
         return (
           <JournalList
@@ -588,39 +634,84 @@ function AppShell({ onThemeChange }) {
     }
   };
 
-  if (!loaded) return null;
   if (!screen) return null;
 
   return (
     <Animated.View style={{ flex: 1, backgroundColor: paper, transform: [{ translateY: keyboardOffset }] }}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: paper }} edges={["top", "bottom"]}>
+      <SafeAreaView key={themeName} style={{ flex: 1, backgroundColor: paper }} edges={["top", "bottom"]}>
         <StatusBar barStyle="dark-content" />
 
+        {/* Красная полоска "режим удаления" — над шапкой */}
+        {editMode && editAction === "delete" && (
+          <Pressable
+            onPress={() => { setEditMode(false); setEditAction("none"); }}
+            style={{ backgroundColor: RED, paddingVertical: 6, alignItems: "center" }}
+          >
+            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "bold" }}>
+              ТАПНИ МЕТКУ, ЧТОБЫ УДАЛИТЬ · НАЖМИ СЮДА, ЧТОБЫ ВЫЙТИ
+            </Text>
+          </Pressable>
+        )}
+
+        {/* Синяя полоска "режим редактирования" */}
+        {editMode && editAction === "edit" && (
+          <Pressable
+            onPress={() => { setEditMode(false); setEditAction("none"); }}
+            style={{ backgroundColor: BLUE, paddingVertical: 6, alignItems: "center" }}
+          >
+            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "bold" }}>
+              ТАПНИ МЕТКУ, ЧТОБЫ РЕДАКТИРОВАТЬ · НАЖМИ СЮДА, ЧТОБЫ ВЫЙТИ
+            </Text>
+          </Pressable>
+        )}
+
         {/* Шапка */}
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1.5, borderColor: ink, backgroundColor: bar }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: bar }}>
           {screen.parentId ? (
             <Pressable onPress={() => { setEditMode(false); setCurrentId(screen.parentId); }} style={{ flexDirection: "row", alignItems: "center", gap: 6, minWidth: 46 }}>
               <Text style={{ color: ink }}>← Карта</Text>
             </Pressable>
           ) : <View style={{ width: 46 }} />}
-          <Text style={{ fontSize: 16, fontWeight: "bold", color: ink, textAlign: "center", flex: 1 }} numberOfLines={1}>{screen.name}</Text>
+          <Text style={{ fontSize: 16, fontWeight: "bold", color: ink, textAlign: "center", flex: 1 }} numberOfLines={1}>{screenTitle(screen)}</Text>
           <View style={{ width: 46 }} />
         </View>
 
         {/* Карта */}
-        <View {...swipeResponder.panHandlers} style={{ flex: 1, backgroundColor: fieldBg }} onLayout={(e) => setMapSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}>
+        <View
+          {...swipeResponder.panHandlers}
+          style={{ flex: 1, backgroundColor: fieldBg, position: "relative" }}
+          onLayout={(e) => setMapSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
+        >
+          {/* Пустой тап — выход из режима удаления/редактирования */}
+          {editMode && (editAction === "delete" || editAction === "edit") && (
+            <Pressable
+              onPress={() => { setEditMode(false); setEditAction("none"); }}
+              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}
+            />
+          )}
+
           {screen.image && <Image source={resolveImageSource(screen.image)} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} resizeMode="cover" />}
           {screen.markers.map((m) => (
-            <Pin key={m.id} marker={m} editMode={editMode} editAction={editAction} containerSize={mapSize} onOpen={handleOpen} onDragMove={handleDragMove} onDelete={(mk) => setPendingDelete(mk)} />
+            <Pin
+              key={m.id}
+              marker={m}
+              editMode={editMode}
+              editAction={editAction}
+              containerSize={mapSize}
+              onOpen={handleOpen}
+              onDragMove={handleDragMove}
+              onDelete={(mk) => setPendingDelete(mk)}
+              onEdit={(mk) => setEditingMarker(mk)}
+            />
           ))}
 
           {!editMode && siblings.index > 0 && (
-            <Pressable onPress={() => goSibling(-1)} style={{ position: "absolute", left: 10, top: "50%", marginTop: -17, width: 34, height: 34, borderRadius: 17, backgroundColor: card, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
+            <Pressable onPress={() => goSibling(-1)} style={{ position: "absolute", left: 10, top: "50%", marginTop: -17, width: 34, height: 34, borderRadius: 17, backgroundColor: card, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center", zIndex: 3 }}>
               <Text style={{ color: GREEN, fontWeight: "bold", fontSize: 18 }}>‹</Text>
             </Pressable>
           )}
           {!editMode && siblings.index !== -1 && siblings.index < siblings.list.length - 1 && (
-            <Pressable onPress={() => goSibling(1)} style={{ position: "absolute", right: 10, top: "50%", marginTop: -17, width: 34, height: 34, borderRadius: 17, backgroundColor: card, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
+            <Pressable onPress={() => goSibling(1)} style={{ position: "absolute", right: 10, top: "50%", marginTop: -17, width: 34, height: 34, borderRadius: 17, backgroundColor: card, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center", zIndex: 3 }}>
               <Text style={{ color: GREEN, fontWeight: "bold", fontSize: 18 }}>›</Text>
             </Pressable>
           )}
@@ -635,55 +726,106 @@ function AppShell({ onThemeChange }) {
             />
           )}
 
-          {titleUnlock && <TitleUnlockDialog title={titleUnlock} onClose={() => setTitleUnlock(null)} />}
-          {pendingPlacement && (
-            <MarkerPickerModal
-              screens={screens}
-              screenId={currentId}
-              onClose={cancelPendingPlacement}
-              onPick={(screenId, markerId) => placeTask(screenId, markerId)}
-            />
-          )}
-          {placementConfirm && <InfoDialog message={`«${placementConfirm.title}» добавлено в «${placementConfirm.markerName}».`} onClose={() => setPlacementConfirm(null)} />}
-          {pendingDelete && <ConfirmDialog message={`Удалить метку «${pendingDelete.name}»?`} onCancel={() => setPendingDelete(null)} onConfirm={() => { deleteMarker(pendingDelete.id); setPendingDelete(null); }} />}
-          {pendingDeleteField && <ConfirmDialog message={`Удалить поле «${pendingDeleteField.name}» вместе со всеми метками?`} onCancel={() => setPendingDeleteField(null)} onConfirm={() => { deleteField(pendingDeleteField.id); setPendingDeleteField(null); }} />}
-          {showExitConfirm && <ConfirmDialog message="Выйти из приложения?" confirmLabel="Выйти" confirmColor={BLUE} onCancel={() => setShowExitConfirm(false)} onConfirm={() => { setShowExitConfirm(false); BackHandler.exitApp(); }} />}
-        </View>
-
-        {/* Нижняя секция */}
-        {editMode ? (
-          <View style={{ backgroundColor: bar, paddingTop: 8, paddingBottom: 10, paddingHorizontal: 10, shadowColor: "#000", shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 14 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 6 }}>
-              <Pressable onPress={() => pushNav(NAV.ADD_MARKER)} style={{ flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 14, backgroundColor: card, borderWidth: 1.5, borderColor: ink }}>
-                <Text style={{ fontSize: 16, color: ink }}>＋</Text>
-                <Text style={{ fontSize: 9.5, fontWeight: "bold", color: ink, marginTop: 2 }}>Метка</Text>
-              </Pressable>
-              <Pressable onPress={() => pushNav(NAV.ADD_SCREEN)} style={{ flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 14, backgroundColor: card, borderWidth: 1.5, borderColor: ink }}>
-                <Text style={{ fontSize: 16, color: ink }}>▤</Text>
-                <Text style={{ fontSize: 9.5, fontWeight: "bold", color: ink, marginTop: 2 }}>Поле</Text>
-              </Pressable>
-              <Pressable onPress={() => setEditAction((a) => (a === "delete" ? "none" : "delete"))} style={{ flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 14, backgroundColor: editAction === "delete" ? ink : card, borderWidth: 1.5, borderColor: ink }}>
-                <Text style={{ fontSize: 16, color: editAction === "delete" ? paper : ink }}>🗑</Text>
-                <Text style={{ fontSize: 9.5, fontWeight: "bold", color: editAction === "delete" ? paper : ink, marginTop: 2 }}>Удалить</Text>
-              </Pressable>
-              <Pressable onPress={() => setEditMode(false)} style={{ flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 14, backgroundColor: GREEN, borderWidth: 1.5, borderColor: ink }}>
-                <Text style={{ fontSize: 16, color: "#fff" }}>✓</Text>
-                <Text style={{ fontSize: 9.5, fontWeight: "bold", color: "#fff", marginTop: 2 }}>Готово</Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : (
-          <>
-            {navStack.length === 1 && !showSideMenu && !pendingDelete && !pendingDeleteField && !pendingPlacement && !showExitConfirm && !placementConfirm && !titleUnlock && (
+          {/* AddTaskBar — поверх картинки, внизу карты */}
+          {!editMode && navStack.length === 1 && !showSideMenu && !pendingDelete && !pendingDeleteField && !pendingPlacement && !showExitConfirm && !placementConfirm && !titleUnlock && (
+            <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 10, elevation: 10 }}>
               <AddTaskBar
                 visible={true}
                 targetMarkerId={null}
                 onSubmit={handleAddTaskFromBar}
+                bgColor="transparent"
               />
-            )}
-            <BottomBar onAction={handleBottomAction} />
-          </>
+            </View>
+          )}
+        </View>
+
+        {/* Нижняя секция — всегда BottomBar */}
+        <BottomBar onAction={handleBottomAction} />
+
+        {/* Модалки */}
+        <NewPinForm
+          mode="create"
+          title="Новая метка"
+          confirmLabel="Добавить метку"
+          showPlaceHints={currentId !== "home"}
+          onClose={popNav}
+          onCreate={createMarker}
+          visible={topNav.type === NAV.ADD_MARKER}
+        />
+
+        <NewPinForm
+          mode="create"
+          title="Новое поле"
+          confirmLabel="Создать поле"
+          showColor={false}
+          imageAspect={[9, 16]}
+          onClose={popNav}
+          onCreate={createScreen}
+          visible={topNav.type === NAV.ADD_SCREEN}
+        />
+
+        {editingMarker && (
+          <NewPinForm
+            mode="edit"
+            title="Редактировать метку"
+            confirmLabel="Сохранить"
+            initialValues={{
+              name: editingMarker.name,
+              emoji: editingMarker.emoji,
+              color: editingMarker.color,
+              image: editingMarker.image,
+            }}
+            onClose={() => setEditingMarker(null)}
+            onSave={saveMarkerEdits}
+          />
         )}
+        {editingField && (
+          <NewPinForm
+            mode="editField"
+            title="Редактировать поле"
+            confirmLabel="Сохранить"
+            initialValues={{
+              name: editingField.name,
+              emoji: editingField.emoji,
+              image: editingField.image,
+            }}
+            onClose={() => setEditingField(null)}
+            onSave={saveFieldEdits}
+          />
+        )}		
+
+        {titleUnlock && <TitleUnlockDialog title={titleUnlock} onClose={() => setTitleUnlock(null)} />}
+        {pendingPlacement && (
+          <MarkerPickerModal
+            screens={screens}
+            screenId={currentId}
+            onClose={cancelPendingPlacement}
+            onPick={(screenId, markerId) => placeTask(screenId, markerId)}
+          />
+        )}
+        {placementConfirm && <InfoDialog message={`«${placementConfirm.title}» добавлено в «${placementConfirm.markerName}».`} onClose={() => setPlacementConfirm(null)} />}
+        {pendingDelete && <ConfirmDialog message={`Удалить метку «${pendingDelete.name}»?`} onCancel={() => setPendingDelete(null)} onConfirm={() => { deleteMarker(pendingDelete.id); setPendingDelete(null); setEditMode(false); setEditAction("none"); }} />}
+        {pendingDeleteField && <ConfirmDialog message={`Удалить поле «${pendingDeleteField.name}» вместе со всеми метками?`} onCancel={() => setPendingDeleteField(null)} onConfirm={() => { deleteField(pendingDeleteField.id); setPendingDeleteField(null); }} />}
+        {pendingResetBg && (
+          <ConfirmDialog
+            message="Сбросить фон на стандартный?"
+            confirmLabel="Сбросить"
+            confirmColor={RED}
+            onCancel={() => setPendingResetBg(false)}
+            onConfirm={() => {
+              updateScreenImage(
+                currentId,
+                currentId === "main"
+                  ? MAP_DEFAULT_BG
+                  : currentId === "home"
+                  ? DOM_DEFAULT_BG
+                  : null
+              );
+              setPendingResetBg(false);
+            }}
+          />
+        )}        
+		{showExitConfirm && <ConfirmDialog message="Выйти из приложения?" confirmLabel="Выйти" confirmColor={BLUE} onCancel={() => setShowExitConfirm(false)} onConfirm={() => { setShowExitConfirm(false); BackHandler.exitApp(); }} />}
 
         {/* Боковое меню */}
         <SideMenu

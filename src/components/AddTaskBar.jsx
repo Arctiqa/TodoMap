@@ -13,7 +13,7 @@ import { PrimaryButton } from "./ui/PrimaryButton";
 import { useTheme } from "../theme/ThemeContext";
 import { GREEN } from "../theme/palettes";
 
-export function AddTaskBar({ targetMarkerId, onSubmit, visible }) {
+export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
   const { ink, card, paper } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const [title, setTitle] = useState("");
@@ -88,27 +88,32 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible }) {
 
   if (!expanded) {
     return (
-      <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
-        <Pressable
-          onPress={() => setExpanded(true)}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            backgroundColor: card,
-            borderWidth: 2,
-            borderColor: ink,
-            borderRadius: 10,
-            paddingHorizontal: 12,
-            paddingVertical: 10,
-          }}
-        >
-          <Text style={{ fontSize: 16, color: ink, opacity: 0.5 }}>＋</Text>
-          <Text style={{ fontSize: 14, color: ink, opacity: 0.5 }}>
-            Новое дело...
-          </Text>
-        </Pressable>
-      </View>
+      <Pressable
+        onPress={() => setExpanded(true)}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          backgroundColor: paper,
+          borderWidth: 1,
+          borderColor: ink,
+          borderBottomWidth: 0,
+          borderTopLeftRadius: 18,
+          borderTopRightRadius: 18,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 4,
+        }}
+      >
+        <Text style={{ fontSize: 16, color: ink, opacity: 0.5 }}>＋</Text>
+        <Text style={{ fontSize: 14, color: ink, opacity: 0.5 }}>
+          Новое дело...
+        </Text>
+      </Pressable>
     );
   }
 
@@ -116,8 +121,6 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible }) {
     <Animated.View
       {...swipeDownResponder.panHandlers}
       style={{
-        marginHorizontal: 10,
-        marginBottom: 8,
         borderTopLeftRadius: 18,
         borderTopRightRadius: 18,
         backgroundColor: paper,
@@ -127,7 +130,7 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible }) {
         shadowRadius: 8,
         elevation: 8,
         overflow: "hidden",
-        borderWidth: 2,
+        borderWidth: 1,
         borderBottomWidth: 0,
         borderColor: ink,
         maxHeight: animValue.interpolate({
