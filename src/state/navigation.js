@@ -12,6 +12,7 @@ export const NAV = {
   OTHERS: "others",
   TITLES: "titles",
   THEME_PICKER: "themePicker",
+  BACKGROUND_PICKER: "backgroundPicker",
   GUIDES_LIST: "guidesList",
   GUIDE_TASKS: "guideTasks",
   EDIT_MODE: "editMode",

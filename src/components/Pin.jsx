@@ -29,7 +29,6 @@ function PinInner({
   const isBig = !!marker.linkTo;
   const size = isBig ? PIN_SIZE.special : PIN_SIZE.normal;
 
-  // --- Актуальные значения в ref, чтобы PanResponder не зависел от них ---
   const markerRef = useRef(marker);
   markerRef.current = marker;
 
@@ -39,7 +38,6 @@ function PinInner({
   const onDragMoveRef = useRef(onDragMove);
   onDragMoveRef.current = onDragMove;
 
-  // --- Позиция в пикселях через Animated.ValueXY ---
   const pan = useRef(
     new Animated.ValueXY({
       x: pctToPx(marker.x, containerSize.width || 1),
@@ -47,10 +45,8 @@ function PinInner({
     })
   ).current;
 
-  // Базовое смещение на момент начала жеста (пиксели)
   const dragStartRef = useRef({ x: 0, y: 0 });
 
-  // Синхронизация при внешних изменениях marker.x/y или размера контейнера
   useEffect(() => {
     if (!containerSize.width || !containerSize.height) return;
     pan.setValue({
@@ -59,7 +55,6 @@ function PinInner({
     });
   }, [marker.x, marker.y, containerSize.width, containerSize.height, pan]);
 
-  // --- PanResponder создаётся ОДИН РАЗ ---
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
@@ -92,7 +87,6 @@ function PinInner({
         const cs = containerRef.current;
         if (!cs.width || !cs.height) return;
 
-        // Переводим пиксели обратно в проценты для хранения
         pan.stopAnimation((value) => {
           const xPct = (value.x / cs.width) * 100;
           const yPct = (value.y / cs.height) * 100;
@@ -101,18 +95,15 @@ function PinInner({
       },
 
       onPanResponderTerminate: () => {
-        // Ничего — позиция уже в pan
+
       },
 
-      // Не терять жест при скролле родителя
       onPanResponderTerminationRequest: () => false,
 
-      // Забирать жест сразу, как только начался (иначе родитель может перехватить)
       onShouldBlockNativeResponder: () => true,
     })
   ).current;
 
-  // --- Данные для отображения ---
   const doneCount = marker.tasks ? marker.tasks.filter((t) => t.done).length : 0;
   const total = marker.tasks ? marker.tasks.length : 0;
   const previewTasks = marker.tasks
@@ -134,8 +125,6 @@ function PinInner({
     onOpen(marker);
   }, [editMode, editAction, onDelete, onEdit, onOpen, marker]);
 
-  // Не рендерим, пока не знаем размер контейнера —
-  // иначе позиция «прыгнет» из (0,0)
   if (!containerSize.width || !containerSize.height) return null;
 
   return (
@@ -145,7 +134,7 @@ function PinInner({
         position: "absolute",
         left: 0,
         top: 0,
-        // Компенсируем половину размера пина, чтобы центр был в точке
+
         transform: [
           { translateX: Animated.subtract(pan.x, size / 2) },
           { translateY: Animated.subtract(pan.y, size / 2) },

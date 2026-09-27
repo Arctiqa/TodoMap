@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useReducer, useRef, useEffect, useCallback } from "react";
-import { View, Text, Pressable, PanResponder, StatusBar, Image, BackHandler, Animated, Keyboard } from "react-native";
+import { View, Text, Pressable, PanResponder, StatusBar, Image, BackHandler, Animated, Keyboard, Dimensions } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -31,6 +31,9 @@ import { GuideTasksOverlay } from "./screens/GuideTasksOverlay";
 import { TitlesOverlay } from "./screens/TitlesOverlay";
 import { TitleUnlockDialog } from "./screens/TitleUnlockDialog";
 import { ThemePickerOverlay } from "./screens/ThemePickerOverlay";
+import { BackgroundPickerOverlay } from "./screens/BackgroundPickerOverlay";
+
+import { SWIPE_EDGE_RESISTANCE } from "./constants/config";
 
 import { nextId } from "./utils/id";
 import { screenTitle } from "./utils/text";
@@ -103,6 +106,10 @@ function AppShell({ onThemeChange }) {
   const [editingMarker, setEditingMarker] = useState(null);
   const [editingField, setEditingField] = useState(null);
   const [pendingResetBg, setPendingResetBg] = useState(false);
+
+  const screenWidth = useRef(Dimensions.get("window").width).current;
+  const slideX = useRef(new Animated.Value(0)).current;
+  const isAnimatingRef = useRef(false);
 
   const navRef = useRef(navStack);
   navRef.current = navStack;
@@ -226,14 +233,22 @@ function AppShell({ onThemeChange }) {
     const marker = screen.markers.find((m) => m.id === markerId);
     const task = marker && marker.tasks.find((t) => t.id === taskId);
     if (!task) return;
-    if (!task.done) { cancelTaskNotifications(task.id); }
+    const willBeDone = !task.done;
+    if (willBeDone) { cancelTaskNotifications(task.id); }
     else { scheduleTaskNotifications(task); }
     const shouldAward = !!(task && !task.done && !task.titleAwarded && task.source && GUIDE_TITLES[task.source]);
     if (shouldAward) bumpGuideProgress(task.source);
     updateScreen(currentId, (s) => ({
       ...s,
       markers: s.markers.map((m) => m.id === markerId
-        ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, done: !t.done, titleAwarded: shouldAward ? true : t.titleAwarded } : t)) }
+        ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId
+            ? {
+                ...t,
+                done: willBeDone,
+                completedAt: willBeDone ? Date.now() : null,
+                titleAwarded: shouldAward ? true : t.titleAwarded,
+              }
+            : t)) }
         : m),
     }));
   };
@@ -497,22 +512,86 @@ function AppShell({ onThemeChange }) {
     setScreens((prev) => ({ ...prev, [screenId]: { ...prev[screenId], markers: prev[screenId].markers.map((m) => (m.id === markerId ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, notes: t.notes.map((n, i) => (i === idx ? { ...n, done: !n.done } : n)) } : t)) } : m)) } }));
   };
 
-  const siblings = topLevelOrder.includes(currentId) ? { list: topLevelOrder, index: topLevelOrder.indexOf(currentId) } : { list: [], index: -1 };
+  // ---- Слайд между полями ----
+  const siblings = useMemo(() => (
+    topLevelOrder.includes(currentId)
+      ? { list: topLevelOrder, index: topLevelOrder.indexOf(currentId) }
+      : { list: [], index: -1 }
+  ), [topLevelOrder, currentId]);
+
+  const siblingsRef = useRef(siblings);
+  siblingsRef.current = siblings;
+
   const goSibling = useCallback((dir) => {
     const target = topLevelOrder[topLevelOrder.indexOf(currentId) + dir];
     if (target) setCurrentId(target);
   }, [topLevelOrder, currentId]);
 
+  const animateSlide = useCallback((direction) => {
+    if (isAnimatingRef.current) return;
+    isAnimatingRef.current = true;
+
+    const target = direction > 0 ? screenWidth : -screenWidth;
+
+    Animated.timing(slideX, {
+      toValue: target,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => {
+      goSibling(direction > 0 ? -1 : 1);
+      slideX.setValue(-target);
+
+      Animated.timing(slideX, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }).start(() => {
+        isAnimatingRef.current = false;
+      });
+    });
+  }, [screenWidth, goSibling, slideX]);
+
   const swipeResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder: (evt, g) => !editMode && Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-    onPanResponderRelease: (evt, g) => {
-      if (editMode) return;
-      if (g.dx < -60) goSibling(1);
-      else if (g.dx > 60) goSibling(-1);
+    onMoveShouldSetPanResponder: (evt, g) => {
+      if (editMode || isAnimatingRef.current) return false;
+      return Math.abs(g.dx) > 15 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5;
     },
-  }), [editMode, goSibling]);
+    onPanResponderMove: (evt, g) => {
+      const sib = siblingsRef.current;
+      const canGoLeft = sib.index > 0;
+      const canGoRight = sib.index !== -1 && sib.index < sib.list.length - 1;
+      let dx = g.dx;
+      if ((dx > 0 && !canGoLeft) || (dx < 0 && !canGoRight)) {
+        dx = dx * 1;
+	  if ((dx > 0 && !canGoLeft) || (dx < 0 && !canGoRight)) {
+	  dx = dx * SWIPE_EDGE_RESISTANCE;
+	  }}
+      slideX.setValue(dx);
+    },
+    onPanResponderRelease: (evt, g) => {
+      const sib = siblingsRef.current;
+      const threshold = screenWidth * 0.25;
+      const goRight = g.dx < -threshold && sib.index !== -1 && sib.index < sib.list.length - 1;
+      const goLeft  = g.dx > threshold && sib.index > 0;
 
+      if (goRight || goLeft) {
+        animateSlide(goLeft ? 1 : -1);
+      } else {
+        Animated.spring(slideX, {
+          toValue: 0,
+          useNativeDriver: true,
+          friction: 8,
+          tension: 60,
+        }).start();
+      }
+    },
+    onPanResponderTerminate: () => {
+      Animated.spring(slideX, { toValue: 0, useNativeDriver: true }).start();
+    },
+  }), [editMode, animateSlide, screenWidth, slideX]);
+
+  // ---- Меню, нижняя панель ----
   const handleBottomAction = (action) => {
     switch (action) {
       case "menu": setShowSideMenu(true); break;
@@ -546,8 +625,9 @@ function AppShell({ onThemeChange }) {
       case "edit-field":
         setEditingField(screen);
         break;
-      case "reset-bg":
-        setPendingResetBg(true);
+      case "open-bg-picker":
+        resetNav();
+        pushNav(NAV.BACKGROUND_PICKER);
         break;
       case "delete-field":
         if (topLevelOrder.includes(currentId) && currentId !== "main") {
@@ -606,6 +686,27 @@ function AppShell({ onThemeChange }) {
         return <ThemePickerOverlay current={themeName} onSelect={(key) => { onThemeChange(key); }} onClose={popNav} />;
       case NAV.GUIDES_LIST:
         return <GuidesListOverlay onSelect={(key) => { popNav(); openGuide(key); }} onClose={popNav} />;
+      case NAV.BACKGROUND_PICKER:
+        return (
+          <BackgroundPickerOverlay
+            current={screen.image}
+            onSelect={(value) => {
+              if (value === "__DEFAULT__") {
+                const def =
+                  currentId === "main"
+                    ? MAP_DEFAULT_BG
+                    : currentId === "home"
+                    ? DOM_DEFAULT_BG
+                    : null;
+                updateScreenImage(currentId, def);
+              } else {
+                updateScreenImage(currentId, value);
+              }
+              popNav();
+            }}
+            onClose={popNav}
+          />
+        );
       case NAV.GUIDE_TASKS:
         return (
           <GuideTasksOverlay
@@ -637,8 +738,22 @@ function AppShell({ onThemeChange }) {
   if (!screen) return null;
 
   return (
-    <Animated.View style={{ flex: 1, backgroundColor: paper, transform: [{ translateY: keyboardOffset }] }}>
-      <SafeAreaView key={themeName} style={{ flex: 1, backgroundColor: paper }} edges={["top", "bottom"]}>
+    <Animated.View
+      style={{
+        flex: 1,
+        backgroundColor: paper,
+        transform: [{ translateY: keyboardOffset }],
+      }}
+    >
+      <SafeAreaView
+        key={themeName}
+        style={{
+          flex: 1,
+          backgroundColor: fieldBg,
+          overflow: "hidden",
+        }}
+        edges={["top", "bottom"]}
+      >
         <StatusBar barStyle="dark-content" />
 
         {/* Красная полоска "режим удаления" — над шапкой */}
@@ -666,21 +781,50 @@ function AppShell({ onThemeChange }) {
         )}
 
         {/* Шапка */}
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: bar }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            backgroundColor: bar,
+          }}
+        >
           {screen.parentId ? (
-            <Pressable onPress={() => { setEditMode(false); setCurrentId(screen.parentId); }} style={{ flexDirection: "row", alignItems: "center", gap: 6, minWidth: 46 }}>
+            <Pressable
+              onPress={() => { setEditMode(false); setCurrentId(screen.parentId); }}
+              style={{ flexDirection: "row", alignItems: "center", gap: 6, minWidth: 46 }}
+            >
               <Text style={{ color: ink }}>← Карта</Text>
             </Pressable>
-          ) : <View style={{ width: 46 }} />}
-          <Text style={{ fontSize: 16, fontWeight: "bold", color: ink, textAlign: "center", flex: 1 }} numberOfLines={1}>{screenTitle(screen)}</Text>
+          ) : (
+            <View style={{ width: 46 }} />
+          )}
+          <Text
+            style={{ fontSize: 16, fontWeight: "bold", color: ink, textAlign: "center", flex: 1 }}
+            numberOfLines={1}
+          >
+            {screenTitle(screen)}
+          </Text>
           <View style={{ width: 46 }} />
         </View>
 
-        {/* Карта */}
-        <View
+        {/* Карта — panHandlers и slideX здесь */}
+        <Animated.View
           {...swipeResponder.panHandlers}
-          style={{ flex: 1, backgroundColor: fieldBg, position: "relative" }}
-          onLayout={(e) => setMapSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
+          style={{
+            flex: 1,
+            backgroundColor: fieldBg,
+            position: "relative",
+            transform: [{ translateX: slideX }],
+          }}
+          onLayout={(e) =>
+            setMapSize({
+              width: e.nativeEvent.layout.width,
+              height: e.nativeEvent.layout.height,
+            })
+          }
         >
           {/* Пустой тап — выход из режима удаления/редактирования */}
           {editMode && (editAction === "delete" || editAction === "edit") && (
@@ -690,7 +834,14 @@ function AppShell({ onThemeChange }) {
             />
           )}
 
-          {screen.image && <Image source={resolveImageSource(screen.image)} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} resizeMode="cover" />}
+          {screen.image && (
+            <Image
+              source={resolveImageSource(screen.image)}
+              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+              resizeMode="cover"
+            />
+          )}
+
           {screen.markers.map((m) => (
             <Pin
               key={m.id}
@@ -706,12 +857,28 @@ function AppShell({ onThemeChange }) {
           ))}
 
           {!editMode && siblings.index > 0 && (
-            <Pressable onPress={() => goSibling(-1)} style={{ position: "absolute", left: 10, top: "50%", marginTop: -17, width: 34, height: 34, borderRadius: 17, backgroundColor: card, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center", zIndex: 3 }}>
+            <Pressable
+              onPress={() => goSibling(-1)}
+              style={{
+                position: "absolute", left: 10, top: "50%", marginTop: -17,
+                width: 34, height: 34, borderRadius: 17,
+                backgroundColor: card, borderWidth: 2, borderColor: ink,
+                alignItems: "center", justifyContent: "center", zIndex: 3,
+              }}
+            >
               <Text style={{ color: GREEN, fontWeight: "bold", fontSize: 18 }}>‹</Text>
             </Pressable>
           )}
           {!editMode && siblings.index !== -1 && siblings.index < siblings.list.length - 1 && (
-            <Pressable onPress={() => goSibling(1)} style={{ position: "absolute", right: 10, top: "50%", marginTop: -17, width: 34, height: 34, borderRadius: 17, backgroundColor: card, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center", zIndex: 3 }}>
+            <Pressable
+              onPress={() => goSibling(1)}
+              style={{
+                position: "absolute", right: 10, top: "50%", marginTop: -17,
+                width: 34, height: 34, borderRadius: 17,
+                backgroundColor: card, borderWidth: 2, borderColor: ink,
+                alignItems: "center", justifyContent: "center", zIndex: 3,
+              }}
+            >
               <Text style={{ color: GREEN, fontWeight: "bold", fontSize: 18 }}>›</Text>
             </Pressable>
           )}
@@ -720,24 +887,35 @@ function AppShell({ onThemeChange }) {
 
           {journalDetail && journalDetailEntry && topNav.type === NAV.JOURNAL && (
             <JournalDetail
-              entry={journalDetailEntry} onBack={() => setJournalDetail(null)}
+              entry={journalDetailEntry}
+              onBack={() => setJournalDetail(null)}
               onClose={() => { setJournalDetail(null); popNav(); }}
-              onAddNote={addNoteGlobal} onRemoveNote={removeNoteGlobal} onToggleNote={toggleNoteGlobal}
+              onAddNote={addNoteGlobal}
+              onRemoveNote={removeNoteGlobal}
+              onToggleNote={toggleNoteGlobal}
             />
           )}
 
           {/* AddTaskBar — поверх картинки, внизу карты */}
-          {!editMode && navStack.length === 1 && !showSideMenu && !pendingDelete && !pendingDeleteField && !pendingPlacement && !showExitConfirm && !placementConfirm && !titleUnlock && (
-            <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 10, elevation: 10 }}>
-              <AddTaskBar
-                visible={true}
-                targetMarkerId={null}
-                onSubmit={handleAddTaskFromBar}
-                bgColor="transparent"
-              />
-            </View>
-          )}
-        </View>
+          {!editMode &&
+            navStack.length === 1 &&
+            !showSideMenu &&
+            !pendingDelete &&
+            !pendingDeleteField &&
+            !pendingPlacement &&
+            !showExitConfirm &&
+            !placementConfirm &&
+            !titleUnlock && (
+              <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 10, elevation: 10 }}>
+                <AddTaskBar
+                  visible={true}
+                  targetMarkerId={null}
+                  onSubmit={handleAddTaskFromBar}
+                  bgColor="transparent"
+                />
+              </View>
+            )}
+        </Animated.View>
 
         {/* Нижняя секция — всегда BottomBar */}
         <BottomBar onAction={handleBottomAction} />
@@ -792,7 +970,7 @@ function AppShell({ onThemeChange }) {
             onClose={() => setEditingField(null)}
             onSave={saveFieldEdits}
           />
-        )}		
+        )}
 
         {titleUnlock && <TitleUnlockDialog title={titleUnlock} onClose={() => setTitleUnlock(null)} />}
         {pendingPlacement && (
@@ -803,9 +981,34 @@ function AppShell({ onThemeChange }) {
             onPick={(screenId, markerId) => placeTask(screenId, markerId)}
           />
         )}
-        {placementConfirm && <InfoDialog message={`«${placementConfirm.title}» добавлено в «${placementConfirm.markerName}».`} onClose={() => setPlacementConfirm(null)} />}
-        {pendingDelete && <ConfirmDialog message={`Удалить метку «${pendingDelete.name}»?`} onCancel={() => setPendingDelete(null)} onConfirm={() => { deleteMarker(pendingDelete.id); setPendingDelete(null); setEditMode(false); setEditAction("none"); }} />}
-        {pendingDeleteField && <ConfirmDialog message={`Удалить поле «${pendingDeleteField.name}» вместе со всеми метками?`} onCancel={() => setPendingDeleteField(null)} onConfirm={() => { deleteField(pendingDeleteField.id); setPendingDeleteField(null); }} />}
+        {placementConfirm && (
+          <InfoDialog
+            message={`«${placementConfirm.title}» добавлено в «${placementConfirm.markerName}».`}
+            onClose={() => setPlacementConfirm(null)}
+          />
+        )}
+        {pendingDelete && (
+          <ConfirmDialog
+            message={`Удалить метку «${pendingDelete.name}»?`}
+            onCancel={() => setPendingDelete(null)}
+            onConfirm={() => {
+              deleteMarker(pendingDelete.id);
+              setPendingDelete(null);
+              setEditMode(false);
+              setEditAction("none");
+            }}
+          />
+        )}
+        {pendingDeleteField && (
+          <ConfirmDialog
+            message={`Удалить поле «${pendingDeleteField.name}» вместе со всеми метками?`}
+            onCancel={() => setPendingDeleteField(null)}
+            onConfirm={() => {
+              deleteField(pendingDeleteField.id);
+              setPendingDeleteField(null);
+            }}
+          />
+        )}
         {pendingResetBg && (
           <ConfirmDialog
             message="Сбросить фон на стандартный?"
@@ -824,8 +1027,16 @@ function AppShell({ onThemeChange }) {
               setPendingResetBg(false);
             }}
           />
-        )}        
-		{showExitConfirm && <ConfirmDialog message="Выйти из приложения?" confirmLabel="Выйти" confirmColor={BLUE} onCancel={() => setShowExitConfirm(false)} onConfirm={() => { setShowExitConfirm(false); BackHandler.exitApp(); }} />}
+        )}
+        {showExitConfirm && (
+          <ConfirmDialog
+            message="Выйти из приложения?"
+            confirmLabel="Выйти"
+            confirmColor={BLUE}
+            onCancel={() => setShowExitConfirm(false)}
+            onConfirm={() => { setShowExitConfirm(false); BackHandler.exitApp(); }}
+          />
+        )}
 
         {/* Боковое меню */}
         <SideMenu

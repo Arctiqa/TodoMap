@@ -2,18 +2,18 @@ export const THEMES = {
   light: {
     label: "☀️ Светлая",
     ink: "#3B2F2F",
-    paper: "#FFFDF7",
-    card: "#FFF7E8",
+    paper: "#FFFFFF",
+    card: "#F7F3EC",
     bar: "#DCEFF6",
-    fieldBg: "#FCFAF4",       // ← чуть темнее paper
+    fieldBg: "#FAFAFA",
   },
   dark: {
     label: "🌙 Тёмная",
-	ink: "#E4E6E8",       // чуть синеватый
-	paper: "#18191C",     // холодный
+	ink: "#E4E6E8",
+	paper: "#18191C",
 	card: "#26282C",
 	bar: "#2C2E32",
-	fieldBg: "#1F2124",
+	fieldBg: "#26282C",
   },
   blue: {
     label: "🔵 Синяя",
@@ -58,3 +58,4 @@ export const GREEN = "#2ECC71";
 export const BLUE = "#2F6FDE";
 export const RED = "#C0392B";
 export const TEAL = "#2A9D8F";
+export const GREEN_SOFT = "#C8F0D2";

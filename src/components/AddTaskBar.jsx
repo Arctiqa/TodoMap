@@ -11,10 +11,10 @@ import {
 import { DueEditor } from "./DueEditor";
 import { PrimaryButton } from "./ui/PrimaryButton";
 import { useTheme } from "../theme/ThemeContext";
-import { GREEN } from "../theme/palettes";
+import { GREEN_SOFT } from "../theme/palettes";
 
 export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
-  const { ink, card, paper } = useTheme();
+  const { ink, card, paper, inputBg } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const [title, setTitle] = useState("");
   const [dueMode, setDueMode] = useState("none");
@@ -86,6 +86,7 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
     setExpanded(false);
   };
 
+  // --- Свёрнутое состояние ---
   if (!expanded) {
     return (
       <Pressable
@@ -100,8 +101,8 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
           borderBottomWidth: 0,
           borderTopLeftRadius: 18,
           borderTopRightRadius: 18,
-          paddingHorizontal: 14,
-          paddingVertical: 12,
+          paddingHorizontal: 16,
+          paddingVertical: 16, // ← крупнее
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
@@ -109,14 +110,15 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
           elevation: 4,
         }}
       >
-        <Text style={{ fontSize: 16, color: ink, opacity: 0.5 }}>＋</Text>
-        <Text style={{ fontSize: 14, color: ink, opacity: 0.5 }}>
+        <Text style={{ fontSize: 18, color: ink, opacity: 0.5 }}>＋</Text>
+        <Text style={{ fontSize: 15, color: ink, opacity: 0.5 }}>
           Новое дело...
         </Text>
       </Pressable>
     );
   }
 
+  // --- Развёрнутое состояние ---
   return (
     <Animated.View
       {...swipeDownResponder.panHandlers}
@@ -148,44 +150,40 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: 12,
-          paddingTop: 12,
-          paddingBottom: 12,
+          paddingHorizontal: 14,
+          paddingTop: 14,
+          paddingBottom: 14,
         }}
       >
         <View
           style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 8,
-          }}
-        >
-          <Text style={{ fontSize: 13, fontWeight: "bold", color: ink }}>
-            НОВОЕ ДЕЛО
-          </Text>
-          <Pressable onPress={cancel}>
-            <Text style={{ fontSize: 18, color: ink, opacity: 0.6 }}>✕</Text>
-          </Pressable>
-        </View>
-
-        <TextInput
-          value={title}
-          onChangeText={setTitle}
-          placeholder="Название..."
-          placeholderTextColor={ink}
-          style={{
-            borderWidth: 2,
-            borderColor: ink,
-            borderRadius: 8,
-            paddingHorizontal: 10,
-            paddingVertical: 8,
-            fontSize: 14,
-            marginBottom: 8,
-            color: ink,
-            backgroundColor: card,
+            alignSelf: "center",
+            width: 44,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: ink,
+            opacity: 0.2,
+            marginBottom: 12,
           }}
         />
+
+		<TextInput
+		  value={title}
+		  onChangeText={setTitle}
+		  placeholder="Новое дело..."
+		  placeholderTextColor="#9A9A9A"   // ← серый
+		  style={{
+			borderWidth: 1,
+			borderColor: ink,
+			borderRadius: 10,
+			paddingHorizontal: 14,
+			paddingVertical: 14,
+			fontSize: 16,
+			marginBottom: 12,
+			color: ink,
+			backgroundColor: inputBg,
+		  }}
+		/>
 
         <DueEditor
           dueMode={dueMode}
@@ -204,24 +202,24 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
             flexDirection: "row",
             alignItems: "center",
             gap: 8,
-            marginBottom: repeatOn ? 6 : 10,
+            marginBottom: repeatOn ? 8 : 12,
           }}
         >
           <View
             style={{
-              width: 18,
-              height: 18,
-              borderRadius: 5,
-              borderWidth: 1.5,
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              borderWidth: 1,
               borderColor: ink,
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: repeatOn ? ink : paper,
             }}
           >
-            {repeatOn && <Text style={{ color: paper, fontSize: 11 }}>✓</Text>}
+            {repeatOn && <Text style={{ color: paper, fontSize: 13 }}>✓</Text>}
           </View>
-          <Text style={{ fontSize: 11.5, color: ink }}>🔁 Серия повторов</Text>
+          <Text style={{ fontSize: 13.5, color: ink }}>🔁 Серия повторов</Text>
         </Pressable>
 
         {repeatOn && (
@@ -230,34 +228,36 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
               flexDirection: "row",
               alignItems: "center",
               gap: 10,
-              borderWidth: 1.5,
+              borderWidth: 1,
               borderColor: ink,
-              borderRadius: 8,
-              paddingHorizontal: 10,
-              paddingVertical: 6,
-              marginBottom: 10,
+              borderRadius: 10,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              marginBottom: 12,
+              backgroundColor: inputBg,
             }}
           >
             <Pressable
               onPress={() => setRepeatTarget((n) => Math.max(1, n - 1))}
               style={{
-                width: 24,
-                height: 24,
-                borderRadius: 6,
-                borderWidth: 2,
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                borderWidth: 1,
                 borderColor: ink,
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              <Text style={{ fontWeight: "bold", color: ink }}>−</Text>
+              <Text style={{ fontWeight: "bold", color: ink, fontSize: 16 }}>−</Text>
             </Pressable>
             <Text
               style={{
-                minWidth: 26,
+                minWidth: 30,
                 textAlign: "center",
                 fontWeight: "bold",
                 color: ink,
+                fontSize: 16,
               }}
             >
               {repeatTarget}
@@ -265,20 +265,19 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
             <Pressable
               onPress={() => setRepeatTarget((n) => n + 1)}
               style={{
-                width: 24,
-                height: 24,
-                borderRadius: 6,
-                borderWidth: 2,
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                borderWidth: 1,
                 borderColor: ink,
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              <Text style={{ fontWeight: "bold", color: ink }}>+</Text>
+              <Text style={{ fontWeight: "bold", color: ink, fontSize: 16 }}>+</Text>
             </Pressable>
-            <Text style={{ fontSize: 12, color: ink, opacity: 0.6 }}>
-              {" "}
-              раз до завершения
+            <Text style={{ fontSize: 13, color: ink, opacity: 0.6 }}>
+              {" "}раз до завершения
             </Text>
           </View>
         )}
@@ -289,15 +288,15 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
             flexDirection: "row",
             alignItems: "center",
             gap: 8,
-            marginBottom: 10,
+            marginBottom: 12,
           }}
         >
           <View
             style={{
-              width: 18,
-              height: 18,
-              borderRadius: 5,
-              borderWidth: 1.5,
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              borderWidth: 1,
               borderColor: ink,
               alignItems: "center",
               justifyContent: "center",
@@ -305,18 +304,18 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
             }}
           >
             {shareToPool && (
-              <Text style={{ color: paper, fontSize: 11 }}>✓</Text>
+              <Text style={{ color: paper, fontSize: 13 }}>✓</Text>
             )}
           </View>
-          <Text style={{ fontSize: 11.5, color: ink }}>
+          <Text style={{ fontSize: 13.5, color: ink }}>
             🌐 Поделиться задачей
           </Text>
         </Pressable>
 
         <PrimaryButton
           label="Добавить дело"
-          color={GREEN}
-          textColor="#fff"
+          color={GREEN_SOFT}
+          textColor="#000"          // ← чёрный текст (в т.ч. в тёмной теме)
           onPress={submit}
         />
       </ScrollView>

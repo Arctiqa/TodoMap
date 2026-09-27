@@ -13,3 +13,6 @@ export const RANDOM_REPEAT_SPAN = 5; // итог: 3..7
 
 // Игровые пороги
 export const GUIDE_TITLE_TIERS = [1, 3, 5, 7, 10];
+
+// Подкрутка
+export const SWIPE_EDGE_RESISTANCE = 0.7
