@@ -19,7 +19,7 @@ export function JournalDetail({ entry, onBack, onClose, onAddNote, onRemoveNote,
 
   return (
     <Overlay zIndex={58}>
-      <OverlayHeader onBack={onBack} backLabel="Журнал" title="" onClose={onClose} />
+      <OverlayHeader onBack={onBack} title="" onClose={onClose} />
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <Text style={{ fontSize: 19, fontWeight: "bold", color: ink, marginBottom: 4 }}>
           {entry.markerEmoji} {entry.task.title}

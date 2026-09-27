@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useCallback } from "react";
-import { View, Text, Pressable, PanResponder, Image } from "react-native";
+import React, { useMemo, useRef, useCallback, useEffect } from "react";
+import { View, Text, Pressable, PanResponder, Image, Animated } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 import { PIN_BOUNDS, PIN_SIZE } from "../constants/config";
@@ -7,78 +7,157 @@ import { shortLabel } from "../utils/text";
 import { isTaskExpired } from "../utils/date";
 import { BLUE } from "../theme/palettes";
 
-function PinInner({ marker, editMode, editAction, containerSize, onOpen, onDragMove, onDelete, onEdit }) {
-  const { ink, card, paper } = useTheme();
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+// Преобразование процентов в пиксели с учётом размера контейнера
+function pctToPx(pct, total) {
+  return (pct / 100) * total;
+}
+
+function PinInner({
+  marker,
+  editMode,
+  editAction,
+  containerSize,
+  onOpen,
+  onDragMove,
+  onDelete,
+  onEdit,
+}) {
+  const { ink, card } = useTheme();
 
   const isBig = !!marker.linkTo;
   const size = isBig ? PIN_SIZE.special : PIN_SIZE.normal;
 
-  const dragRef = useRef({ x: marker.x, y: marker.y, active: false });
-  const [, forceRender] = React.useState(0);
+  // --- Актуальные значения в ref, чтобы PanResponder не зависел от них ---
+  const markerRef = useRef(marker);
+  markerRef.current = marker;
 
   const containerRef = useRef(containerSize);
   containerRef.current = containerSize;
 
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (evt, g) => Math.abs(g.dx) > 8 || Math.abs(g.dy) > 8,
-        onPanResponderGrant: () => {
-          dragRef.current = { x: marker.x, y: marker.y, active: true };
-        },
-        onPanResponderMove: (evt, g) => {
-          const cs = containerRef.current;
-          if (!cs.width || !cs.height) return;
-          const dxPct = (g.dx / cs.width) * 100;
-          const dyPct = (g.dy / cs.height) * 100;
-          const nx = Math.min(PIN_BOUNDS.maxX, Math.max(PIN_BOUNDS.minX, marker.x + dxPct));
-          const ny = Math.min(PIN_BOUNDS.maxY, Math.max(PIN_BOUNDS.minY, marker.y + dyPct));
-          dragRef.current = { x: nx, y: ny, active: true };
-          forceRender((n) => n + 1);
-        },
-        onPanResponderRelease: () => {
-          const { x, y, active } = dragRef.current;
-          if (active) onDragMove(marker.id, x, y);
-          dragRef.current.active = false;
-        },
-        onPanResponderTerminate: () => {
-          dragRef.current.active = false;
-        },
-      }),
-    [marker.id, marker.x, marker.y, onDragMove]
-  );
+  const onDragMoveRef = useRef(onDragMove);
+  onDragMoveRef.current = onDragMove;
 
-  const px = dragRef.current.active ? dragRef.current.x : marker.x;
-  const py = dragRef.current.active ? dragRef.current.y : marker.y;
+  // --- Позиция в пикселях через Animated.ValueXY ---
+  const pan = useRef(
+    new Animated.ValueXY({
+      x: pctToPx(marker.x, containerSize.width || 1),
+      y: pctToPx(marker.y, containerSize.height || 1),
+    })
+  ).current;
 
+  // Базовое смещение на момент начала жеста (пиксели)
+  const dragStartRef = useRef({ x: 0, y: 0 });
+
+  // Синхронизация при внешних изменениях marker.x/y или размера контейнера
+  useEffect(() => {
+    if (!containerSize.width || !containerSize.height) return;
+    pan.setValue({
+      x: pctToPx(marker.x, containerSize.width),
+      y: pctToPx(marker.y, containerSize.height),
+    });
+  }, [marker.x, marker.y, containerSize.width, containerSize.height, pan]);
+
+  // --- PanResponder создаётся ОДИН РАЗ ---
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, g) =>
+        Math.abs(g.dx) > 8 || Math.abs(g.dy) > 8,
+
+      onPanResponderGrant: () => {
+        // Запоминаем текущую позицию как стартовую
+        pan.stopAnimation((value) => {
+          dragStartRef.current = { x: value.x, y: value.y };
+        });
+      },
+
+      onPanResponderMove: (_, g) => {
+        const cs = containerRef.current;
+        if (!cs.width || !cs.height) return;
+
+        const minX = pctToPx(PIN_BOUNDS.minX, cs.width);
+        const maxX = pctToPx(PIN_BOUNDS.maxX, cs.width);
+        const minY = pctToPx(PIN_BOUNDS.minY, cs.height);
+        const maxY = pctToPx(PIN_BOUNDS.maxY, cs.height);
+
+        const nx = Math.min(maxX, Math.max(minX, dragStartRef.current.x + g.dx));
+        const ny = Math.min(maxY, Math.max(minY, dragStartRef.current.y + g.dy));
+
+        pan.setValue({ x: nx, y: ny });
+      },
+
+      onPanResponderRelease: (_, g) => {
+        const cs = containerRef.current;
+        if (!cs.width || !cs.height) return;
+
+        // Переводим пиксели обратно в проценты для хранения
+        pan.stopAnimation((value) => {
+          const xPct = (value.x / cs.width) * 100;
+          const yPct = (value.y / cs.height) * 100;
+          onDragMoveRef.current(markerRef.current.id, xPct, yPct);
+        });
+      },
+
+      onPanResponderTerminate: () => {
+        // Ничего — позиция уже в pan
+      },
+
+      // Не терять жест при скролле родителя
+      onPanResponderTerminationRequest: () => false,
+
+      // Забирать жест сразу, как только начался (иначе родитель может перехватить)
+      onShouldBlockNativeResponder: () => true,
+    })
+  ).current;
+
+  // --- Данные для отображения ---
   const doneCount = marker.tasks ? marker.tasks.filter((t) => t.done).length : 0;
   const total = marker.tasks ? marker.tasks.length : 0;
-  const previewTasks = marker.tasks ? marker.tasks.filter((t) => !t.done).slice(0, 2) : [];
+  const previewTasks = marker.tasks
+    ? marker.tasks.filter((t) => !t.done).slice(0, 2)
+    : [];
 
   const handlePress = useCallback(() => {
     if (editMode) {
-      if (editAction === "delete") { onDelete(marker); return; }
-      if (editAction === "edit") { onEdit && onEdit(marker); return; }
+      if (editAction === "delete") {
+        onDelete(marker);
+        return;
+      }
+      if (editAction === "edit") {
+        onEdit && onEdit(marker);
+        return;
+      }
       return;
     }
     onOpen(marker);
   }, [editMode, editAction, onDelete, onEdit, onOpen, marker]);
 
+  // Не рендерим, пока не знаем размер контейнера —
+  // иначе позиция «прыгнет» из (0,0)
+  if (!containerSize.width || !containerSize.height) return null;
+
   return (
-    <View
+    <Animated.View
       {...panResponder.panHandlers}
       style={{
         position: "absolute",
-        left: `${px}%`,
-        top: `${py}%`,
-        marginLeft: -size / 2,
-        marginTop: -size / 2,
+        left: 0,
+        top: 0,
+        // Компенсируем половину размера пина, чтобы центр был в точке
+        transform: [
+          { translateX: Animated.subtract(pan.x, size / 2) },
+          { translateY: Animated.subtract(pan.y, size / 2) },
+        ],
         alignItems: "center",
         zIndex: 2,
       }}
     >
-      <Pressable onPress={handlePress} style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.88 : 1 }] }]}>
+      <Pressable
+        onPress={handlePress}
+        style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.88 : 1 }] }]}
+      >
         <View
           style={{
             width: size,
@@ -178,7 +257,12 @@ function PinInner({ marker, editMode, editAction, containerSize, onOpen, onDragM
       >
         <Text style={{ fontSize: 11, fontWeight: "bold", color: ink }}>
           {marker.name}
-          {total > 0 ? <Text style={{ fontWeight: "normal", opacity: 0.6 }}> {doneCount}/{total}</Text> : null}
+          {total > 0 ? (
+            <Text style={{ fontWeight: "normal", opacity: 0.6 }}>
+              {" "}
+              {doneCount}/{total}
+            </Text>
+          ) : null}
         </Text>
       </View>
 
@@ -212,7 +296,7 @@ function PinInner({ marker, editMode, editAction, containerSize, onOpen, onDragM
           ))}
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 

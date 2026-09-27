@@ -1,8 +1,9 @@
 import React from "react";
 import { View, Text, Pressable } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "../../theme/ThemeContext";
 
-export function OverlayHeader({ onBack, backLabel = "Назад", title, onClose }) {
+export function OverlayHeader({ onBack, title, onClose }) {
   const { ink } = useTheme();
   return (
     <View
@@ -16,16 +17,13 @@ export function OverlayHeader({ onBack, backLabel = "Назад", title, onClose
         borderColor: ink,
       }}
     >
-      <Pressable onPress={onBack} style={{ flexDirection: "row", alignItems: "center", gap: 6, minWidth: 60 }}>
-        <Text style={{ fontSize: 16 }}>←</Text>
-        <Text style={{ fontWeight: "bold", color: ink }}>{backLabel}</Text>
+      <Pressable onPress={onBack} style={{ minWidth: 40, alignItems: "flex-start" }}>
+        <MaterialIcons name="arrow-back" size={24} color={ink} />
       </Pressable>
       <Text style={{ fontSize: 15, fontWeight: "bold", color: ink, textAlign: "center", flex: 1 }} numberOfLines={1}>
         {title}
       </Text>
-      <Pressable onPress={onClose || onBack} style={{ minWidth: 60, alignItems: "flex-end" }}>
-        <Text style={{ fontSize: 18 }}>✕</Text>
-      </Pressable>
+      <View style={{ minWidth: 40 }} />
     </View>
   );
 }

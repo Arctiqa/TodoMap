@@ -52,7 +52,7 @@ export function GuideTasksOverlay({
 
   return (
     <Overlay zIndex={74} background={paper}>
-      <OverlayHeader onBack={onBack} backLabel="Гиды" title={meta.name} onClose={onClose} />
+      <OverlayHeader onBack={onBack} title="" onClose={onClose} />
       <ScrollView contentContainerStyle={{ padding: 18 }}>
         <View style={{ alignItems: "center", marginBottom: 16 }}>
           <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: meta.color, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
