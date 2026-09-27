@@ -7,9 +7,9 @@ import { shortLabel } from "../utils/text";
 import { isTaskExpired } from "../utils/date";
 import { BLUE } from "../theme/palettes";
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const OUTER_RING = 7;   // ← толщина внешнего кольца
+const BADGE = 22;       // ← размер бейджа-«папки»
 
-// Преобразование процентов в пиксели с учётом размера контейнера
 function pctToPx(pct, total) {
   return (pct / 100) * total;
 }
@@ -24,10 +24,11 @@ function PinInner({
   onDelete,
   onEdit,
 }) {
-  const { ink, card } = useTheme();
+  const { ink, card, paper, ring } = useTheme();
 
   const isBig = !!marker.linkTo;
   const size = isBig ? PIN_SIZE.special : PIN_SIZE.normal;
+  const outerSize = size + OUTER_RING * 2;
 
   const markerRef = useRef(marker);
   markerRef.current = marker;
@@ -46,8 +47,10 @@ function PinInner({
   ).current;
 
   const dragStartRef = useRef({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
 
   useEffect(() => {
+    if (isDraggingRef.current) return;
     if (!containerSize.width || !containerSize.height) return;
     pan.setValue({
       x: pctToPx(marker.x, containerSize.width),
@@ -62,7 +65,7 @@ function PinInner({
         Math.abs(g.dx) > 8 || Math.abs(g.dy) > 8,
 
       onPanResponderGrant: () => {
-        // Запоминаем текущую позицию как стартовую
+        isDraggingRef.current = true;
         pan.stopAnimation((value) => {
           dragStartRef.current = { x: value.x, y: value.y };
         });
@@ -83,23 +86,22 @@ function PinInner({
         pan.setValue({ x: nx, y: ny });
       },
 
-      onPanResponderRelease: (_, g) => {
+      onPanResponderRelease: () => {
         const cs = containerRef.current;
         if (!cs.width || !cs.height) return;
-
         pan.stopAnimation((value) => {
           const xPct = (value.x / cs.width) * 100;
           const yPct = (value.y / cs.height) * 100;
           onDragMoveRef.current(markerRef.current.id, xPct, yPct);
         });
+        isDraggingRef.current = false;
       },
 
       onPanResponderTerminate: () => {
-
+        isDraggingRef.current = false;
       },
 
       onPanResponderTerminationRequest: () => false,
-
       onShouldBlockNativeResponder: () => true,
     })
   ).current;
@@ -112,14 +114,8 @@ function PinInner({
 
   const handlePress = useCallback(() => {
     if (editMode) {
-      if (editAction === "delete") {
-        onDelete(marker);
-        return;
-      }
-      if (editAction === "edit") {
-        onEdit && onEdit(marker);
-        return;
-      }
+      if (editAction === "delete") { onDelete(marker); return; }
+      if (editAction === "edit") { onEdit && onEdit(marker); return; }
       return;
     }
     onOpen(marker);
@@ -134,10 +130,9 @@ function PinInner({
         position: "absolute",
         left: 0,
         top: 0,
-
         transform: [
-          { translateX: Animated.subtract(pan.x, size / 2) },
-          { translateY: Animated.subtract(pan.y, size / 2) },
+          { translateX: Animated.subtract(pan.x, outerSize / 2) },
+          { translateY: Animated.subtract(pan.y, outerSize / 2) },
         ],
         alignItems: "center",
         zIndex: 2,
@@ -147,37 +142,56 @@ function PinInner({
         onPress={handlePress}
         style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.88 : 1 }] }]}
       >
+        {/* Внешний контейнер — без overflow, чтобы бейджи не обрезались */}
         <View
           style={{
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            backgroundColor: marker.color,
+            width: outerSize,
+            height: outerSize,
             alignItems: "center",
             justifyContent: "center",
-            overflow: "hidden",
-            shadowColor: "#000",
-            shadowOffset: { width: 2, height: 3 },
-            shadowOpacity: 0.35,
-            shadowRadius: 3,
-            elevation: 5,
           }}
         >
-          {marker.image ? (
-            <Image source={{ uri: marker.image }} style={{ width: size, height: size }} />
-          ) : (
-            <Text style={{ fontSize: isBig ? 26 : 19 }}>{marker.emoji}</Text>
-          )}
+          {/* Внешнее кольцо */}
+          <View
+            style={{
+              position: "absolute",
+              width: outerSize,
+              height: outerSize,
+              borderRadius: outerSize / 2,
+              borderWidth: OUTER_RING,
+              borderColor: ring,
+            }}
+          />
 
+          {/* Внутренний круг — с overflow: hidden для картинки/эмодзи */}
+          <View
+            style={{
+              width: size,
+              height: size,
+              borderRadius: size / 2,
+              backgroundColor: marker.color,
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+            }}
+          >
+            {marker.image ? (
+              <Image source={{ uri: marker.image }} style={{ width: size, height: size }} />
+            ) : (
+              <Text style={{ fontSize: isBig ? 26 : 19 }}>{marker.emoji}</Text>
+            )}
+          </View>
+
+          {/* Бейдж «папка» — вложенный пин, рисуется ПОВЕРХ, не обрезается */}
           {marker.linkTo && (
             <View
               style={{
                 position: "absolute",
-                bottom: -3,
-                right: -3,
-                width: 22,
-                height: 22,
-                borderRadius: 11,
+                bottom: 0,
+                right: 0,
+                width: BADGE,
+                height: BADGE,
+                borderRadius: BADGE / 2,
                 backgroundColor: card,
                 borderWidth: 2,
                 borderColor: ink,
@@ -189,12 +203,13 @@ function PinInner({
             </View>
           )}
 
+          {/* Бейдж картинки */}
           {marker.image && (
             <View
               style={{
                 position: "absolute",
-                bottom: -2,
-                right: -2,
+                bottom: 0,
+                right: 0,
                 width: 18,
                 height: 18,
                 borderRadius: 9,
@@ -209,15 +224,16 @@ function PinInner({
             </View>
           )}
 
+          {/* Бейдж режима редактирования — поверх */}
           {editMode && (
             <View
               style={{
                 position: "absolute",
-                bottom: -5,
-                right: -5,
-                width: 18,
-                height: 18,
-                borderRadius: 9,
+                bottom: 0,
+                left: 0,
+                width: 20,
+                height: 20,
+                borderRadius: 10,
                 backgroundColor: editAction === "delete" ? "#E4572E" : card,
                 borderWidth: 2,
                 borderColor: ink,
@@ -225,7 +241,7 @@ function PinInner({
                 justifyContent: "center",
               }}
             >
-              <Text style={{ fontSize: 9 }}>
+              <Text style={{ fontSize: 10 }}>
                 {editAction === "delete" ? "🗑" : editAction === "edit" ? "✎" : "✥"}
               </Text>
             </View>
@@ -233,6 +249,7 @@ function PinInner({
         </View>
       </Pressable>
 
+      {/* Подпись */}
       <View
         style={{
           marginTop: 4,
@@ -248,13 +265,13 @@ function PinInner({
           {marker.name}
           {total > 0 ? (
             <Text style={{ fontWeight: "normal", opacity: 0.6 }}>
-              {" "}
-              {doneCount}/{total}
+              {" "}{doneCount}/{total}
             </Text>
           ) : null}
         </Text>
       </View>
 
+      {/* Превью дел */}
       {!editMode && previewTasks.length > 0 && (
         <View style={{ marginTop: 3, alignItems: "center" }}>
           {previewTasks.map((t) => (

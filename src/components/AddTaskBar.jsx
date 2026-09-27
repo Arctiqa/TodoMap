@@ -102,7 +102,7 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
           borderTopLeftRadius: 18,
           borderTopRightRadius: 18,
           paddingHorizontal: 16,
-          paddingVertical: 16, // ← крупнее
+          paddingVertical: 13, // ← крупнее
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,

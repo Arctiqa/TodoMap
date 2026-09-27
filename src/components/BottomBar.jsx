@@ -18,8 +18,8 @@ export function BottomBar({ onAction, activeKey }) {
     <View
       style={{
         backgroundColor: bar,
-        paddingTop: 8,
-        paddingBottom: 10,
+        paddingTop: 3,
+        paddingBottom: 3,
         paddingHorizontal: 6,
         shadowColor: ink,
         shadowOffset: { width: 0, height: -3 },

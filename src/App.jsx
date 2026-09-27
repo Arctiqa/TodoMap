@@ -4,6 +4,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
+import { MaterialIcons } from "@expo/vector-icons";
 
 import { ThemeProvider, useTheme } from "./theme/ThemeContext";
 import { GREEN, BLUE, RED } from "./theme/palettes";
@@ -826,6 +827,58 @@ function AppShell({ onThemeChange }) {
             })
           }
         >
+		
+
+
+
+{!editMode && siblings.list.length > 1 && (
+  <View
+    pointerEvents="box-none"
+    style={{
+      position: "absolute",
+      top: 10,
+      left: 0,
+      right: 0,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      zIndex: 5,
+    }}
+  >
+    {/* Назад */}
+    {siblings.index > 0 ? (
+      <Pressable
+        onPress={() => animateSlide(1)}
+        hitSlop={10}
+        style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+      >
+        <MaterialIcons name="arrow-back" size={30} color={ink} />
+      </Pressable>
+    ) : (
+      <View style={{ width: 30 }} />
+    )}
+
+    {/* Вперёд */}
+    {siblings.index !== -1 && siblings.index < siblings.list.length - 1 ? (
+      <Pressable
+        onPress={() => animateSlide(-1)}
+        hitSlop={10}
+        style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+      >
+        <MaterialIcons name="arrow-forward" size={30} color={ink} />
+      </Pressable>
+    ) : (
+      <View style={{ width: 30 }} />
+    )}
+  </View>
+)}
+
+
+
+
+
+		
+		
           {/* Пустой тап — выход из режима удаления/редактирования */}
           {editMode && (editAction === "delete" || editAction === "edit") && (
             <Pressable
@@ -855,33 +908,6 @@ function AppShell({ onThemeChange }) {
               onEdit={(mk) => setEditingMarker(mk)}
             />
           ))}
-
-          {!editMode && siblings.index > 0 && (
-            <Pressable
-              onPress={() => goSibling(-1)}
-              style={{
-                position: "absolute", left: 10, top: "50%", marginTop: -17,
-                width: 34, height: 34, borderRadius: 17,
-                backgroundColor: card, borderWidth: 2, borderColor: ink,
-                alignItems: "center", justifyContent: "center", zIndex: 3,
-              }}
-            >
-              <Text style={{ color: GREEN, fontWeight: "bold", fontSize: 18 }}>‹</Text>
-            </Pressable>
-          )}
-          {!editMode && siblings.index !== -1 && siblings.index < siblings.list.length - 1 && (
-            <Pressable
-              onPress={() => goSibling(1)}
-              style={{
-                position: "absolute", right: 10, top: "50%", marginTop: -17,
-                width: 34, height: 34, borderRadius: 17,
-                backgroundColor: card, borderWidth: 2, borderColor: ink,
-                alignItems: "center", justifyContent: "center", zIndex: 3,
-              }}
-            >
-              <Text style={{ color: GREEN, fontWeight: "bold", fontSize: 18 }}>›</Text>
-            </Pressable>
-          )}
 
           {renderTopNav()}
 
