@@ -1,7 +1,5 @@
-import React, { useState, useMemo, useReducer, useRef, useEffect, useCallback } from "react";
-import { View, Text, Pressable, PanResponder, StatusBar, Image, BackHandler, Animated, Keyboard, Dimensions } from "react-native";
-import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system";
+import React, { useState, useMemo, useReducer, useEffect, useCallback } from "react";
+import { View, Text, Pressable, StatusBar, Image, BackHandler, Animated } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -10,7 +8,7 @@ import { ThemeProvider, useTheme } from "./theme/ThemeContext";
 import { GREEN, BLUE, RED } from "./theme/palettes";
 import { useQuestStore } from "./state/useQuestStore";
 import { navReducer, NAV } from "./state/navigation";
-import { activeEntries, historyEntries, expiredEntries, doneEntries, findEntry } from "./state/selectors";
+import { activeEntries, expiredEntries, doneEntries, findEntry } from "./state/selectors";
 
 import { BottomBar } from "./components/BottomBar";
 import { SideMenu } from "./components/SideMenu";
@@ -34,17 +32,24 @@ import { TitleUnlockDialog } from "./screens/TitleUnlockDialog";
 import { ThemePickerOverlay } from "./screens/ThemePickerOverlay";
 import { BackgroundPickerOverlay } from "./screens/BackgroundPickerOverlay";
 
-import { SWIPE_EDGE_RESISTANCE } from "./constants/config";
-
-import { nextId } from "./utils/id";
 import { screenTitle } from "./utils/text";
-import { requestNotificationPermission, scheduleTaskNotifications, cancelTaskNotifications } from "./utils/notifications";
-
+import { historyEntries } from "./state/selectors";
 import { resolveImageSource, DOM_DEFAULT_BG, MAP_DEFAULT_BG } from "./data/initialScreens";
-import { SHARE_API, SHARE_POOL_KEY, RANDOM_REPEAT_MIN, RANDOM_REPEAT_SPAN } from "./constants/config";
-import { GUIDE_CHAINS, GUIDE_TITLES } from "./constants/guides";
 
-// ============ Корневой App: только тема ============
+// Хуки
+import { useOverlayState } from "./hooks/useOverlayState";
+import { useKeyboardOffset } from "./hooks/useKeyboardOffset";
+import { useThoughts } from "./hooks/useThoughts";
+import { useJournalActions } from "./hooks/useJournalActions";
+import { useGuides } from "./hooks/useGuides";
+import { useSharedPool } from "./hooks/useSharedPool";
+import { useTasks } from "./hooks/useTasks";
+import { useScreens } from "./hooks/useScreens";
+import { useSlide } from "./hooks/useSlide";
+import { useNotifications } from "./hooks/useNotifications";
+import { useBackHandler } from "./hooks/useBackHandler";
+
+// ============ Корневой App ============
 export default function App() {
   const [themeName, setThemeName] = useState("light");
 
@@ -56,7 +61,9 @@ export default function App() {
 
   const handleThemeChange = useCallback((key) => {
     setThemeName(key);
-    AsyncStorage.setItem("questmap_theme", key).catch((e) => console.warn("QuestMap: тема не сохранилась", e));
+    AsyncStorage.setItem("questmap_theme", key).catch((e) =>
+      console.warn("QuestMap: тема не сохранилась", e)
+    );
   }, []);
 
   return (
@@ -68,750 +75,301 @@ export default function App() {
   );
 }
 
-// ============ Всё приложение ============
+// ============ AppShell ============
 function AppShell({ onThemeChange }) {
   const { name: themeName, ink, paper, card, bar, fieldBg } = useTheme();
-  const [showSideMenu, setShowSideMenu] = useState(false);
 
+  const store = useQuestStore();
   const {
     state, setScreens, updateScreen, setTopLevelOrder, setHistory, setThoughts,
     setGuideProgress, setGuideUsedOffers, setGuideTakenCount, setSharedPool,
-  } = useQuestStore();
+  } = store;
+  const {
+    screens, topLevelOrder, historyLog, thoughts,
+    guideProgress, guideUsedOffers, guideTakenCount, sharedPool, loaded,
+  } = state;
 
-  const { screens, topLevelOrder, historyLog, thoughts, guideProgress, guideUsedOffers, guideTakenCount, sharedPool, loaded } = state;
-
-  const active = useMemo(() => activeEntries(screens), [screens]);
-  const expired = useMemo(() => expiredEntries(screens), [screens]);
-  const doneList = useMemo(() => doneEntries(screens), [screens]);
-  const archive = useMemo(() => historyLog, [historyLog]);
-
+  // Навигация
   const [navStack, navDispatch] = useReducer(navReducer, [{ type: NAV.ROOT }]);
   const pushNav = useCallback((navType, payload) => navDispatch({ type: "PUSH", navType, payload }), []);
   const popNav = useCallback(() => navDispatch({ type: "POP" }), []);
   const resetNav = useCallback(() => navDispatch({ type: "RESET" }), []);
-
-	const addOrUpdateThought = (text, id) => {
-	  if (id) {
-		setThoughts((prev) => prev.map((t) => (t.id === id ? { ...t, text } : t)));
-	  } else {
-		setThoughts((prev) => [
-		  ...prev,
-		  { id: `n_${nextId()}`, text, createdAt: Date.now() },
-		]);
-	  }
-	};
-
-	const deleteThought = (id) => {
-	  setThoughts((prev) => prev.filter((t) => t.id !== id));
-	};
-
-	const convertThoughtToTask = (thought) => {
-	  // Открываем форму размещения как обычно
-	  setPendingPlacement({
-		title: thought.text,
-		due: null,
-		notes: [],
-		source: undefined,
-		repeat: null,
-	  });
-	  // Удаляем мысль после превращения
-	  setThoughts((prev) => prev.filter((t) => t.id !== thought.id));
-	  popNav();
-	};
-	
-	const returnTaskToActive = (entry) => {
-	  const { screenId, markerId, taskId } = { screenId: entry.screenId, markerId: entry.markerId, taskId: entry.task.id };
-	  setScreens((prev) => {
-		const scr = prev[screenId];
-		if (!scr) return prev;
-		return {
-		  ...prev,
-		  [screenId]: {
-			...scr,
-			markers: scr.markers.map((m) =>
-			  m.id === markerId
-				? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, due: null, done: false, completedAt: null } : t)) }
-				: m
-			),
-		  },
-		};
-	  });
-	};
-
-	const completeTaskFromJournal = (entry) => {
-	  const { screenId, markerId } = entry;
-	  const taskId = entry.task.id;
-	  setScreens((prev) => {
-		const scr = prev[screenId];
-		if (!scr) return prev;
-		return {
-		  ...prev,
-		  [screenId]: {
-			...scr,
-			markers: scr.markers.map((m) =>
-			  m.id === markerId
-				? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, done: true, completedAt: Date.now() } : t)) }
-				: m
-			),
-		  },
-		};
-	  });
-	};
-
-	const deleteTaskFromJournal = (entry) => {
-	  const { screenId, markerId } = entry;
-	  const taskId = entry.task.id;
-	  setScreens((prev) => {
-		const scr = prev[screenId];
-		if (!scr) return prev;
-		return {
-		  ...prev,
-		  [screenId]: {
-			...scr,
-			markers: scr.markers.map((m) =>
-			  m.id === markerId
-				? { ...m, tasks: m.tasks.filter((t) => t.id !== taskId) }
-				: m
-			),
-		  },
-		};
-	  });
-	};	
-
-  const [currentId, setCurrentId] = useState("main");
-  const keyboardOffset = useRef(new Animated.Value(0)).current;
-
   const topNav = navStack[navStack.length - 1];
-  const [editMode, setEditMode] = useState(false);
-  const [editAction, setEditAction] = useState("none");
 
+  // Текущее поле
+  const [currentId, setCurrentId] = useState("main");
   const screen = screens[currentId];
+
+  // UI-состояние
+  const overlay = useOverlayState();
+  const {
+    showSideMenu, setShowSideMenu,
+    pendingDelete, setPendingDelete,
+    pendingDeleteField, setPendingDeleteField,
+    placementConfirm, setPlacementConfirm,
+    titleUnlock, setTitleUnlock,
+    pendingPlacement, setPendingPlacement,
+    showExitConfirm, setShowExitConfirm,
+    journalDetail, setJournalDetail,
+    editingMarker, setEditingMarker,
+    editingField, setEditingField,
+    pendingResetBg, setPendingResetBg,
+    editMode, setEditMode,
+    editAction, setEditAction,
+  } = overlay;
+
+  const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
+
+  // Активная метка (для TaskScreen)
   const activeTaskId = topNav.type === NAV.TASK ? topNav.payload.markerId : null;
   const activeMarker = activeTaskId ? (screen.markers || []).find((m) => m.id === activeTaskId) : null;
 
-  const [pendingDelete, setPendingDelete] = useState(null);
-  const [pendingDeleteField, setPendingDeleteField] = useState(null);
-  const [placementConfirm, setPlacementConfirm] = useState(null);
-  const [titleUnlock, setTitleUnlock] = useState(null);
-  const [pendingPlacement, setPendingPlacement] = useState(null);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
-  const [journalDetail, setJournalDetail] = useState(null);
-  const [editingMarker, setEditingMarker] = useState(null);
-  const [editingField, setEditingField] = useState(null);
-  const [pendingResetBg, setPendingResetBg] = useState(false);
+  // Хуки
+  const keyboardOffset = useKeyboardOffset();
 
-  const screenWidth = useRef(Dimensions.get("window").width).current;
-  const slideX = useRef(new Animated.Value(0)).current;
-  const isAnimatingRef = useRef(false);
+  const {
+    bumpProgress: bumpGuideProgress,
+    nextChainOfferFor,
+    takeChainOffer,
+    takeCustomInstead,
+    takeRandom: takeGuideRandom,
+    openGuide,
+  } = useGuides({
+    guideUsedOffers, setGuideUsedOffers,
+    setGuideTakenCount, setGuideProgress,
+    setTitleUnlock, setPendingPlacement,
+    pushNav, popNav, topNav,
+  });
 
-  const navRef = useRef(navStack);
-  navRef.current = navStack;
-  const overlayRef = useRef({});
-  overlayRef.current = {
-    placementConfirm, titleUnlock, pendingDeleteField, pendingDelete,
-    pendingPlacement, showExitConfirm, journalDetail, showSideMenu,
-    editingMarker, editingField, pendingResetBg,
-  };
+  const {
+    addTaskCore, toggleTask, incrementRepeat, deleteTask,
+    addNoteLocal, removeNoteLocal, toggleNoteLocal,
+    addNoteGlobal, removeNoteGlobal, toggleNoteGlobal,
+  } = useTasks({
+    screen, currentId, updateScreen, setScreens, setHistory,
+    bumpGuideProgress,
+  });
 
-  const cancelPendingPlacement = useCallback(() => {
-    setPendingPlacement(null);
-  }, []);
+  const {
+    createMarker, saveMarkerEdits, deleteMarker, handleOpen: handleOpenMarker, handleDragMove,
+    createScreen, saveFieldEdits, deleteField, updateScreenImage,
+    hardDeleteEntry,
+  } = useScreens({
+    screens, screen, currentId, setScreens, updateScreen,
+    setTopLevelOrder, setHistory, setEditMode, popNav, setCurrentId,
+  });
 
-  useEffect(() => {
-    if (!loaded) return;
-    requestNotificationPermission();
-  }, [loaded]);
+  const {
+    addOrUpdate: addOrUpdateThought,
+    remove: deleteThought,
+    convertToTask: convertThoughtToTask,
+  } = useThoughts({ setThoughts, setPendingPlacement, popNav });
 
-  useEffect(() => {
-    const onShow = (e) => {
-      Animated.timing(keyboardOffset, {
-        toValue: -e.endCoordinates.height,
-        duration: 335,
-        useNativeDriver: true,
-      }).start();
-    };
-    const onHide = () => {
-      Animated.timing(keyboardOffset, {
-        toValue: 0,
-        duration: 335,
-        useNativeDriver: true,
-      }).start();
-    };
-    const subShow = Keyboard.addListener("keyboardDidShow", onShow);
-    const subHide = Keyboard.addListener("keyboardDidHide", onHide);
-    return () => {
-      subShow.remove();
-      subHide.remove();
-    };
-  }, []);
+  const {
+    returnToActive: returnTaskToActive,
+    complete: completeTaskFromJournal,
+    remove: deleteTaskFromJournal,
+    hardDeleteArchive,
+  } = useJournalActions({ setScreens, setHistory });
 
-  useEffect(() => {
-    if (!loaded) return;
-    const allTasks = [];
-    Object.values(screens).forEach((scr) => {
-      (scr.markers || []).forEach((mk) => {
-        (mk.tasks || []).forEach((t) => {
-          if (!t.done && t.due) allTasks.push(t);
-        });
-      });
-    });
-    allTasks.forEach(scheduleTaskNotifications);
-  }, [loaded]);
+  const {
+    load: loadSharedPool,
+    share: shareTaskToPool,
+  } = useSharedPool({ setSharedPool });
 
-  useEffect(() => {
-    const onBackPress = () => {
-      const o = overlayRef.current;
-      if (o.showSideMenu) { setShowSideMenu(false); return true; }
-      if (o.editingField) { setEditingField(null); return true; }
-      if (o.editingMarker) { setEditingMarker(null); return true; }
-      if (o.pendingResetBg) { setPendingResetBg(false); return true; }
-      if (o.placementConfirm) { setPlacementConfirm(null); return true; }
-      if (o.titleUnlock) { setTitleUnlock(null); return true; }
-      if (o.pendingDeleteField) { setPendingDeleteField(null); return true; }
-      if (o.pendingDelete) { setPendingDelete(null); return true; }
-      if (o.pendingPlacement) { cancelPendingPlacement(); return true; }
-      if (o.journalDetail) { setJournalDetail(null); return true; }
+  const {
+    slideX, swipeResponder, siblings, goSibling, animateSlide,
+  } = useSlide({ topLevelOrder, currentId, setCurrentId, editMode });
 
-      const stack = navRef.current;
-      if (stack.length > 1) { navDispatch({ type: "POP" }); return true; }
-      if (editMode) { setEditMode(false); setEditAction("none"); return true; }
-      if (currentId !== "main") {
-        const parent = screens[currentId]?.parentId || "main";
-        setCurrentId(parent);
-        return true;
-      }
-      setShowExitConfirm(true);
-      return true;
-    };
-    const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => sub.remove();
-  }, [editMode, currentId, screens, cancelPendingPlacement]);
+  useNotifications({ screens, loaded });
 
-  // ---- Архив ----
-  const archiveTasks = (scr, mk) => {
-    const entries = (mk.tasks || []).map((task) => ({
-      screenId: scr.id, screenName: scr.name, markerId: mk.id, markerName: mk.name,
-      markerEmoji: mk.emoji, markerColor: mk.color, task, removedAt: Date.now(),
-    }));
-    if (entries.length) {
-      (mk.tasks || []).forEach((t) => cancelTaskNotifications(t.id));
-      setHistory((prev) => [...prev, ...entries]);
-    }
-  };
-  const archiveScreen = (scr) => (scr.markers || []).forEach((mk) => archiveTasks(scr, mk));
+  // Back handler
+  useBackHandler({
+    overlay: {
+      ...overlay,
+      pendingPlacement,
+    },
+    navStack, navDispatch,
+    editMode, setEditMode, setEditAction,
+    currentId, setCurrentId, screens,
+    cancelPendingPlacement: () => setPendingPlacement(null),
+  });
 
-  const handleOpen = (marker) => {
+  // Производные списки
+  const active = useMemo(() => activeEntries(screens), [screens]);
+  const expired = useMemo(() => expiredEntries(screens), [screens]);
+  const doneList = useMemo(() => doneEntries(screens), [screens]);
+  const archive = useMemo(() => historyLog, [historyLog]);
+  const journalDetailEntry = useMemo(() => findEntry(screens, journalDetail), [screens, journalDetail]);
+
+  // Обёртка handleOpen — она возвращает метку, если нужно открыть TaskScreen
+  const handleOpen = useCallback((marker) => {
     if (marker.linkTo) {
       setEditMode(false);
       setCurrentId(marker.linkTo);
       return;
     }
     pushNav(NAV.TASK, { markerId: marker.id });
-  };
+  }, [setEditMode, setCurrentId, pushNav]);
 
-  const handleDragMove = useCallback((markerId, x, y) => {
-    updateScreen(currentId, (s) => ({ ...s, markers: s.markers.map((m) => (m.id === markerId ? { ...m, x, y } : m)) }));
-  }, [currentId, updateScreen]);
-
-  const bumpGuideProgress = (guideKey) => {
-    setGuideProgress((prev) => {
-      const next = { ...prev, [guideKey]: (prev[guideKey] || 0) + 1 };
-      const tiers = GUIDE_TITLES[guideKey];
-      if (tiers && tiers[next[guideKey]]) setTitleUnlock(tiers[next[guideKey]]);
-      return next;
-    });
-  };
-
-  const toggleTask = (markerId, taskId) => {
-    const marker = screen.markers.find((m) => m.id === markerId);
-    const task = marker && marker.tasks.find((t) => t.id === taskId);
-    if (!task) return;
-    const willBeDone = !task.done;
-    if (willBeDone) { cancelTaskNotifications(task.id); }
-    else { scheduleTaskNotifications(task); }
-    const shouldAward = !!(task && !task.done && !task.titleAwarded && task.source && GUIDE_TITLES[task.source]);
-    if (shouldAward) bumpGuideProgress(task.source);
-    updateScreen(currentId, (s) => ({
-      ...s,
-      markers: s.markers.map((m) => m.id === markerId
-        ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId
-            ? {
-                ...t,
-                done: willBeDone,
-                completedAt: willBeDone ? Date.now() : null,
-                titleAwarded: shouldAward ? true : t.titleAwarded,
-              }
-            : t)) }
-        : m),
-    }));
-  };
-
-  const incrementRepeat = (markerId, taskId) => {
-    const marker = screen.markers.find((m) => m.id === markerId);
-    const task = marker && marker.tasks.find((t) => t.id === taskId);
-    if (!task || !task.repeat || task.done) return;
-    const nextCount = Math.min(task.repeat.target, task.repeat.count + 1);
-    const willFinish = nextCount >= task.repeat.target;
-    if (willFinish) { cancelTaskNotifications(task.id); }
-    const shouldAward = !!(willFinish && !task.titleAwarded && task.source && GUIDE_TITLES[task.source]);
-    if (shouldAward) bumpGuideProgress(task.source);
-    updateScreen(currentId, (s) => ({
-      ...s,
-      markers: s.markers.map((m) => m.id === markerId
-        ? { ...m, tasks: m.tasks.map((t) => t.id === taskId
-            ? { ...t, repeat: { ...t.repeat, count: nextCount }, done: willFinish, titleAwarded: shouldAward ? true : t.titleAwarded }
-            : t) }
-        : m),
-    }));
-  };
-
-  const addTaskCore = (screenId, markerId, payload) => {
-    const newTask = {
-      id: nextId(),
-      title: payload.title,
-      due: payload.due || null,
-      done: false,
-      notes: (payload.notes || []).map((t) => (typeof t === "string" ? { text: t, done: false } : t)),
-      createdAt: Date.now(),
-      source: payload.source || undefined,
-      repeat: payload.repeat || null,
-    };
-    setScreens((prev) => {
-      const scr = prev[screenId];
-      if (!scr) return prev;
-      return {
-        ...prev,
-        [screenId]: {
-          ...scr,
-          markers: scr.markers.map((m) =>
-            m.id === markerId ? { ...m, tasks: [...(m.tasks || []), newTask] } : m
-          ),
-        },
-      };
-    });
-    scheduleTaskNotifications(newTask);
-  };
-
-  const openGuide = (guideKey) => { pushNav(NAV.GUIDE_TASKS, { guideKey }); };
-
-  const nextChainOfferFor = (guideKey) => {
-    const chain = GUIDE_CHAINS[guideKey] || [];
-    return chain.find((o) => !guideUsedOffers.includes(o.id)) || null;
-  };
-
-  const takeChainOffer = (guideKey, offer) => {
-    if (guideUsedOffers.includes(offer.id)) return;
-    setGuideUsedOffers((prev) => (prev.includes(offer.id) ? prev : [...prev, offer.id]));
-    setGuideTakenCount((prev) => ({ ...prev, [guideKey]: (prev[guideKey] || 0) + 1 }));
-    setPendingPlacement({ title: offer.taskTitle, due: null, notes: offer.starterNotes || [], source: guideKey, repeat: null });
-    popNav();
-  };
-
-  const takeCustomInstead = (guideKey, text) => {
-    setPendingPlacement({ title: text, due: null, notes: [], source: undefined, repeat: null });
-    popNav();
-  };
-
-  const takeGuideRandom = (title) => {
-    if (!title) return;
-    const guideKey = topNav.payload.guideKey;
-    setGuideTakenCount((prev) => ({ ...prev, [guideKey]: (prev[guideKey] || 0) + 1 }));
-    const target = RANDOM_REPEAT_MIN + Math.floor(Math.random() * RANDOM_REPEAT_SPAN);
-    setPendingPlacement({ title, due: null, notes: [], source: guideKey, repeat: { count: 0, target } });
-  };
-
-  const placeTask = (screenId, markerId) => {
+  // Размещение задачи
+  const placeTask = useCallback((screenId, markerId) => {
     if (!pendingPlacement) return;
     addTaskCore(screenId, markerId, {
-      title: pendingPlacement.title, due: pendingPlacement.due, notes: pendingPlacement.notes,
-      source: pendingPlacement.source, repeat: pendingPlacement.repeat,
+      title: pendingPlacement.title,
+      due: pendingPlacement.due,
+      notes: pendingPlacement.notes,
+      source: pendingPlacement.source,
+      repeat: pendingPlacement.repeat,
     });
     const mk = screens[screenId]?.markers.find((m) => m.id === markerId);
     setPlacementConfirm({ title: pendingPlacement.title, markerName: mk ? mk.name : "" });
     setPendingPlacement(null);
-  };
+  }, [pendingPlacement, addTaskCore, screens, setPlacementConfirm, setPendingPlacement]);
 
-  const loadSharedPool = async () => {
-    if (SHARE_API.baseUrl) {
-      try { const res = await fetch(`${SHARE_API.baseUrl}/pool`); setSharedPool(await res.json()); return; }
-      catch (e) { console.warn("QuestMap: сервер недоступен", e); }
-    }
-    try {
-      const raw = await AsyncStorage.getItem(SHARE_POOL_KEY);
-      const items = raw ? JSON.parse(raw) : [];
-      const groups = {};
-      items.forEach((it) => {
-        const key = (it.title || "").trim().toLowerCase();
-        if (!key) return;
-        if (!groups[key]) groups[key] = { title: it.title, due: it.due, count: 0 };
-        groups[key].count += 1;
-        groups[key].due = it.due;
-      });
-      setSharedPool(Object.values(groups));
-    } catch (e) { console.warn("QuestMap: пул не загрузился", e); setSharedPool([]); }
-  };
+  const handleAddTaskFromBar = useCallback(({ title, due, repeat, share }) => {
+    setPendingPlacement({ title, due, notes: [], source: undefined, repeat });
+    if (share) shareTaskToPool(title, due);
+  }, [setPendingPlacement, shareTaskToPool]);
 
-  const shareTaskToPool = async (title, due) => {
-    if (SHARE_API.baseUrl) {
-      try {
-        await fetch(`${SHARE_API.baseUrl}/share`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, due }) });
-        return;
-      } catch (e) { console.warn("QuestMap: сервер недоступен, сохраняю локально", e); }
-    }
-    try {
-      const raw = await AsyncStorage.getItem(SHARE_POOL_KEY);
-      const items = raw ? JSON.parse(raw) : [];
-      items.push({ title, due });
-      await AsyncStorage.setItem(SHARE_POOL_KEY, JSON.stringify(items));
-    } catch (e) { console.warn("QuestMap: не сохранилось в пул", e); }
-  };
-
-  const deleteTask = (markerId, taskId) => {
-    cancelTaskNotifications(taskId);
-    const marker = screen.markers.find((m) => m.id === markerId);
-    const task = marker && marker.tasks.find((t) => t.id === taskId);
-    if (marker && task) {
-      setHistory((prev) => [...prev, { screenId: currentId, screenName: screen.name, markerId: marker.id, markerName: marker.name, markerEmoji: marker.emoji, markerColor: marker.color, task, removedAt: Date.now() }]);
-    }
-    updateScreen(currentId, (s) => ({ ...s, markers: s.markers.map((m) => (m.id === markerId ? { ...m, tasks: m.tasks.filter((t) => t.id !== taskId) } : m)) }));
-  };
-
-  const addNoteLocal = (markerId, taskId, text) => {
-    updateScreen(currentId, (s) => ({ ...s, markers: s.markers.map((m) => (m.id === markerId ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, notes: [...(t.notes || []), { text, done: false }] } : t)) } : m)) }));
-  };
-  const removeNoteLocal = (markerId, taskId, idx) => {
-    updateScreen(currentId, (s) => ({ ...s, markers: s.markers.map((m) => (m.id === markerId ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, notes: t.notes.filter((_, i) => i !== idx) } : t)) } : m)) }));
-  };
-  const toggleNoteLocal = (markerId, taskId, idx) => {
-    updateScreen(currentId, (s) => ({ ...s, markers: s.markers.map((m) => (m.id === markerId ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, notes: t.notes.map((n, i) => (i === idx ? { ...n, done: !n.done } : n)) } : t)) } : m)) }));
-  };
-
-  const createMarker = ({ name, emoji, color, type, image, asField }) => {
-    if (asField) {
-      const newScreenId = `s${nextId()}`;
-      const markerId = `m${nextId()}`;
-      setScreens((prev) => ({
-        ...prev,
-        [currentId]: { ...prev[currentId], markers: [...prev[currentId].markers, { id: markerId, name, emoji, color, type: type || "general", image: image || null, x: 50, y: 50, linkTo: newScreenId }] },
-        [newScreenId]: { id: newScreenId, emoji, name: `${name.toUpperCase()} — ДЕЛА`, theme: "city", parentId: currentId, markers: [] },
-      }));
-    } else {
-      updateScreen(currentId, (s) => ({ ...s, markers: [...s.markers, { id: `m${nextId()}`, name, emoji, color, type: type || "general", image: image || null, x: 50, y: 50, tasks: [] }] }));
-    }
-    popNav();
-  };
-
-  const saveMarkerEdits = (values) => {
-    if (!editingMarker) return;
-    updateScreen(currentId, (s) => ({
-      ...s,
-      markers: s.markers.map((m) =>
-        m.id === editingMarker.id
-          ? { ...m, name: values.name, emoji: values.emoji, color: values.color, image: values.image }
-          : m
-      ),
-    }));
-    setEditingMarker(null);
-  };
-
-  const saveFieldEdits = (values) => {
-    if (!editingField) return;
-    setScreens((prev) => ({
-      ...prev,
-      [editingField.id]: {
-        ...prev[editingField.id],
-        emoji: values.emoji || "",
-        name: values.name || "",
-        image: values.image ?? prev[editingField.id].image,
-      },
-    }));
-    setEditingField(null);
-  };
-
-  const createScreen = ({ name, emoji, image }) => {
-    const newId = `s${nextId()}`;
-    setScreens((prev) => ({ ...prev, [newId]: { id: newId, emoji, name: name.toUpperCase(), theme: "city", image: image || null, parentId: null, markers: [] } }));
-    setTopLevelOrder((prev) => [...prev, newId]);
-    popNav();
-    setEditMode(false);
-    setCurrentId(newId);
-  };
-
-  const updateScreenImage = (screenId, uri) => {
-    setScreens((prev) => ({ ...prev, [screenId]: { ...prev[screenId], image: uri } }));
-  };
-
-  const pickBackgroundImage = async (screenId) => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (perm.status !== "granted") return;
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7, allowsEditing: true, aspect: [9, 16] });
-    if (!result.canceled && result.assets && result.assets[0]) {
-      const src = result.assets[0].uri;
-      const ext = src.split(".").pop() || "jpg";
-      const dst = `${FileSystem.documentDirectory}bg_${Date.now()}.${ext}`;
-      try { await FileSystem.copyAsync({ from: src, to: dst }); updateScreenImage(screenId, dst); }
-      catch (e) { console.warn("QuestMap: фон не скопирован", e); updateScreenImage(screenId, src); }
-    }
-  };
-
-  const deleteField = (id) => {
-    const scr = screens[id];
-    if (scr) archiveScreen(scr);
-    setScreens((prev) => { const next = { ...prev }; delete next[id]; return next; });
-    setTopLevelOrder((prev) => prev.filter((x) => x !== id));
-    if (currentId === id) setCurrentId("main");
-  };
-
-  const deleteMarker = (markerId) => {
-    const marker = screen.markers.find((m) => m.id === markerId);
-    if (marker) archiveTasks(screen, marker);
-    if (marker && marker.linkTo && screens[marker.linkTo]) archiveScreen(screens[marker.linkTo]);
-    setScreens((prev) => {
-      const next = { ...prev, [currentId]: { ...prev[currentId], markers: prev[currentId].markers.filter((m) => m.id !== markerId) } };
-      if (marker && marker.linkTo && next[marker.linkTo]) delete next[marker.linkTo];
-      return next;
-    });
-  };
-
-  const journalDetailEntry = useMemo(() => findEntry(screens, journalDetail), [screens, journalDetail]);
-
-  const hardDeleteEntry = (entry) => {
-    if (entry.removedAt) {
-      setHistory((prev) => prev.filter((e) => !(e.task.id === entry.task.id && e.removedAt === entry.removedAt)));
-    } else {
-      cancelTaskNotifications(entry.task.id);
-      setScreens((prev) => {
-        const scr = prev[entry.screenId];
-        if (!scr) return prev;
-        return { ...prev, [entry.screenId]: { ...scr, markers: scr.markers.map((m) => (m.id === entry.markerId ? { ...m, tasks: m.tasks.filter((t) => t.id !== entry.task.id) } : m)) } };
-      });
-    }
-  };
-
-  const addNoteGlobal = (text) => {
-    if (!journalDetail) return;
-    const { screenId, markerId, taskId } = journalDetail;
-    setScreens((prev) => ({ ...prev, [screenId]: { ...prev[screenId], markers: prev[screenId].markers.map((m) => (m.id === markerId ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, notes: [...(t.notes || []), { text, done: false }] } : t)) } : m)) } }));
-  };
-  const removeNoteGlobal = (idx) => {
-    if (!journalDetail) return;
-    const { screenId, markerId, taskId } = journalDetail;
-    setScreens((prev) => ({ ...prev, [screenId]: { ...prev[screenId], markers: prev[screenId].markers.map((m) => (m.id === markerId ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, notes: t.notes.filter((_, i) => i !== idx) } : t)) } : m)) } }));
-  };
-  const toggleNoteGlobal = (idx) => {
-    if (!journalDetail) return;
-    const { screenId, markerId, taskId } = journalDetail;
-    setScreens((prev) => ({ ...prev, [screenId]: { ...prev[screenId], markers: prev[screenId].markers.map((m) => (m.id === markerId ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, notes: t.notes.map((n, i) => (i === idx ? { ...n, done: !n.done } : n)) } : t)) } : m)) } }));
-  };
-
-  // ---- Слайд между полями ----
-  const siblings = useMemo(() => (
-    topLevelOrder.includes(currentId)
-      ? { list: topLevelOrder, index: topLevelOrder.indexOf(currentId) }
-      : { list: [], index: -1 }
-  ), [topLevelOrder, currentId]);
-
-  const siblingsRef = useRef(siblings);
-  siblingsRef.current = siblings;
-
-  const goSibling = useCallback((dir) => {
-    const target = topLevelOrder[topLevelOrder.indexOf(currentId) + dir];
-    if (target) setCurrentId(target);
-  }, [topLevelOrder, currentId]);
-
-  const animateSlide = useCallback((direction) => {
-    if (isAnimatingRef.current) return;
-    isAnimatingRef.current = true;
-
-    const target = direction > 0 ? screenWidth : -screenWidth;
-
-    Animated.timing(slideX, {
-      toValue: target,
-      duration: 220,
-      useNativeDriver: true,
-    }).start(() => {
-      goSibling(direction > 0 ? -1 : 1);
-      slideX.setValue(-target);
-
-      Animated.timing(slideX, {
-        toValue: 0,
-        duration: 220,
-        useNativeDriver: true,
-      }).start(() => {
-        isAnimatingRef.current = false;
-      });
-    });
-  }, [screenWidth, goSibling, slideX]);
-
-  const swipeResponder = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder: (evt, g) => {
-      if (editMode || isAnimatingRef.current) return false;
-      return Math.abs(g.dx) > 15 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5;
-    },
-    onPanResponderMove: (evt, g) => {
-      const sib = siblingsRef.current;
-      const canGoLeft = sib.index > 0;
-      const canGoRight = sib.index !== -1 && sib.index < sib.list.length - 1;
-      let dx = g.dx;
-      if ((dx > 0 && !canGoLeft) || (dx < 0 && !canGoRight)) {
-        dx = dx * 1;
-	  if ((dx > 0 && !canGoLeft) || (dx < 0 && !canGoRight)) {
-	  dx = dx * SWIPE_EDGE_RESISTANCE;
-	  }}
-      slideX.setValue(dx);
-    },
-    onPanResponderRelease: (evt, g) => {
-      const sib = siblingsRef.current;
-      const threshold = screenWidth * 0.25;
-      const goRight = g.dx < -threshold && sib.index !== -1 && sib.index < sib.list.length - 1;
-      const goLeft  = g.dx > threshold && sib.index > 0;
-
-      if (goRight || goLeft) {
-        animateSlide(goLeft ? 1 : -1);
-      } else {
-        Animated.spring(slideX, {
-          toValue: 0,
-          useNativeDriver: true,
-          friction: 8,
-          tension: 60,
-        }).start();
-      }
-    },
-    onPanResponderTerminate: () => {
-      Animated.spring(slideX, { toValue: 0, useNativeDriver: true }).start();
-    },
-  }), [editMode, animateSlide, screenWidth, slideX]);
-
-  // ---- Меню, нижняя панель ----
-  const handleBottomAction = (action) => {
+  // Меню
+  const handleBottomAction = useCallback((action) => {
     switch (action) {
       case "menu": setShowSideMenu(true); break;
       case "journal": resetNav(); pushNav(NAV.JOURNAL); break;
       case "history": resetNav(); pushNav(NAV.HISTORY); break;
       case "others": resetNav(); pushNav(NAV.OTHERS); loadSharedPool(); break;
     }
-  };
+  }, [setShowSideMenu, resetNav, pushNav, loadSharedPool]);
 
-  const handleSideMenuAction = (key) => {
+  const handleSideMenuAction = useCallback((key) => {
     setShowSideMenu(false);
     switch (key) {
       case "add-marker":
-        resetNav();
-        pushNav(NAV.ADD_MARKER);
-        break;
+        resetNav(); pushNav(NAV.ADD_MARKER); break;
       case "edit-marker":
-        resetNav();
-        setEditMode(true);
-        setEditAction("edit");
-        break;
+        resetNav(); setEditMode(true); setEditAction("edit"); break;
       case "delete-marker":
-        resetNav();
-        setEditMode(true);
-        setEditAction("delete");
-        break;
+        resetNav(); setEditMode(true); setEditAction("delete"); break;
       case "add-field":
-        resetNav();
-        pushNav(NAV.ADD_SCREEN);
-        break;
+        resetNav(); pushNav(NAV.ADD_SCREEN); break;
       case "edit-field":
-        setEditingField(screen);
-        break;
+        setEditingField(screen); break;
       case "open-bg-picker":
-        resetNav();
-        pushNav(NAV.BACKGROUND_PICKER);
-        break;
+        resetNav(); pushNav(NAV.BACKGROUND_PICKER); break;
       case "delete-field":
         if (topLevelOrder.includes(currentId) && currentId !== "main") {
           setPendingDeleteField(screen);
         }
         break;
       case "guides":
-        resetNav();
-        pushNav(NAV.GUIDES_LIST);
-        break;
+        resetNav(); pushNav(NAV.GUIDES_LIST); break;
       case "titles":
-        resetNav();
-        pushNav(NAV.TITLES);
-        break;
+        resetNav(); pushNav(NAV.TITLES); break;
       case "settings":
-        resetNav();
-        pushNav(NAV.SETTINGS);
-        break;
+        resetNav(); pushNav(NAV.SETTINGS); break;
     }
-  };
+  }, [
+    screen, currentId, topLevelOrder, resetNav, pushNav,
+    setShowSideMenu, setEditMode, setEditAction,
+    setEditingField, setPendingDeleteField,
+  ]);
 
-  const handleAddTaskFromBar = ({ title, due, repeat, share }) => {
-    setPendingPlacement({ title, due, notes: [], source: undefined, repeat });
-    if (share) shareTaskToPool(title, due);
-  };
-
+  // renderTopNav
   const renderTopNav = () => {
     switch (topNav.type) {
       case NAV.TASK:
         return activeMarker ? (
           <TaskScreen
-            marker={activeMarker} onClose={popNav} onToggle={toggleTask}
+            marker={activeMarker}
+            onClose={popNav}
+            onToggle={toggleTask}
             onAdd={(markerId, title, due, repeat) => addTaskCore(currentId, markerId, { title, due, repeat })}
-            onDelete={deleteTask} onAddNote={addNoteLocal} onRemoveNote={removeNoteLocal}
-            onToggleNote={toggleNoteLocal} onShare={shareTaskToPool} onIncrementRepeat={incrementRepeat}
+            onDelete={deleteTask}
+            onAddNote={addNoteLocal}
+            onRemoveNote={removeNoteLocal}
+            onToggleNote={toggleNoteLocal}
+            onShare={shareTaskToPool}
+            onIncrementRepeat={incrementRepeat}
           />
         ) : null;
-	case NAV.JOURNAL:
-	  return (
-		<JournalList
-		  active={active}
-		  expired={expired}
-		  done={doneList}
-		  archive={archive}
-		  thoughts={thoughts}
-		  onClose={popNav}
-		  onOpenDetail={(e) => {
-			setCurrentId(e.screenId);
-			pushNav(NAV.TASK, { markerId: e.markerId });
-		  }}
-		  onAddThought={addOrUpdateThought}
-		  onDeleteThought={deleteThought}
-		  onConvertThought={convertThoughtToTask}
-		  onReturnTask={returnTaskToActive}
-		  onCompleteTask={completeTaskFromJournal}
-		  onDeleteTask={deleteTaskFromJournal}
-		  onHardDeleteArchive={(entry) => {
-			setHistory((prev) =>
-			  prev.filter((e) => !(e.task.id === entry.task.id && e.removedAt === entry.removedAt))
-			);
-		  }}		  
-		/>
-	  );
-	  case NAV.HISTORY:
-	    return (
-	      <HistoryList
-		    entries={historyEntries(screens, historyLog)}
-		    onClose={popNav}
-		    onClearHistory={() => setHistory([])}
-		  />
-	    );
+
+      case NAV.JOURNAL:
+        return (
+          <JournalList
+            active={active}
+            expired={expired}
+            done={doneList}
+            archive={archive}
+            thoughts={thoughts}
+            onClose={popNav}
+            onOpenDetail={(e) => {
+              setCurrentId(e.screenId);
+              pushNav(NAV.TASK, { markerId: e.markerId });
+            }}
+            onAddThought={addOrUpdateThought}
+            onDeleteThought={deleteThought}
+            onConvertThought={convertThoughtToTask}
+            onReturnTask={returnTaskToActive}
+            onCompleteTask={completeTaskFromJournal}
+            onDeleteTask={deleteTaskFromJournal}
+            onHardDeleteArchive={hardDeleteArchive}
+          />
+        );
+
+      case NAV.HISTORY:
+        return (
+          <HistoryList
+            entries={historyEntries(screens, historyLog)}
+            onClose={popNav}
+            onClearHistory={() => setHistory([])}
+          />
+        );
+
       case NAV.OTHERS:
-        return <OthersList pool={sharedPool} onClose={popNav} onRefresh={loadSharedPool} onTake={(p) => { setPendingPlacement({ title: p.title, due: p.due || null, notes: [], source: undefined }); popNav(); }} />;
+        return (
+          <OthersList
+            pool={sharedPool}
+            onClose={popNav}
+            onRefresh={loadSharedPool}
+            onTake={(p) => {
+              setPendingPlacement({ title: p.title, due: p.due || null, notes: [], source: undefined });
+              popNav();
+            }}
+          />
+        );
+
       case NAV.TITLES:
         return <TitlesOverlay guideProgress={guideProgress} onClose={popNav} />;
+
       case NAV.THEME_PICKER:
-        return <ThemePickerOverlay current={themeName} onSelect={(key) => { onThemeChange(key); }} onClose={popNav} />;
+        return (
+          <ThemePickerOverlay
+            current={themeName}
+            onSelect={(key) => onThemeChange(key)}
+            onClose={popNav}
+          />
+        );
+
       case NAV.GUIDES_LIST:
-        return <GuidesListOverlay onSelect={(key) => { popNav(); openGuide(key); }} onClose={popNav} />;
+        return (
+          <GuidesListOverlay
+            onSelect={(key) => { popNav(); openGuide(key); }}
+            onClose={popNav}
+          />
+        );
+
       case NAV.BACKGROUND_PICKER:
         return (
           <BackgroundPickerOverlay
             current={screen.image}
             onSelect={(value) => {
               if (value === "__DEFAULT__") {
-                const def =
-                  currentId === "main"
-                    ? MAP_DEFAULT_BG
-                    : currentId === "home"
-                    ? DOM_DEFAULT_BG
-                    : null;
+                const def = currentId === "main"
+                  ? MAP_DEFAULT_BG
+                  : currentId === "home"
+                  ? DOM_DEFAULT_BG
+                  : null;
                 updateScreenImage(currentId, def);
               } else {
                 updateScreenImage(currentId, value);
@@ -821,6 +379,7 @@ function AppShell({ onThemeChange }) {
             onClose={popNav}
           />
         );
+
       case NAV.GUIDE_TASKS:
         return (
           <GuideTasksOverlay
@@ -834,6 +393,7 @@ function AppShell({ onThemeChange }) {
             onClose={popNav}
           />
         );
+
       case NAV.SETTINGS:
         return (
           <SettingsOverlay
@@ -844,6 +404,7 @@ function AppShell({ onThemeChange }) {
             onOpenAbout={() => {}}
           />
         );
+
       default:
         return null;
     }
@@ -861,16 +422,12 @@ function AppShell({ onThemeChange }) {
     >
       <SafeAreaView
         key={themeName}
-        style={{
-          flex: 1,
-          backgroundColor: fieldBg,
-          overflow: "hidden",
-        }}
+        style={{ flex: 1, backgroundColor: fieldBg, overflow: "hidden" }}
         edges={["top", "bottom"]}
       >
         <StatusBar barStyle="dark-content" />
 
-        {/* Красная полоска "режим удаления" — над шапкой */}
+        {/* Красная полоска "режим удаления" */}
         {editMode && editAction === "delete" && (
           <Pressable
             onPress={() => { setEditMode(false); setEditAction("none"); }}
@@ -895,16 +452,10 @@ function AppShell({ onThemeChange }) {
         )}
 
         {/* Шапка */}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            backgroundColor: bar,
-          }}
-        >
+        <View style={{
+          flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+          paddingHorizontal: 16, paddingVertical: 12, backgroundColor: bar,
+        }}>
           {screen.parentId ? (
             <Pressable
               onPress={() => { setEditMode(false); setCurrentId(screen.parentId); }}
@@ -912,9 +463,7 @@ function AppShell({ onThemeChange }) {
             >
               <Text style={{ color: ink }}>← Карта</Text>
             </Pressable>
-          ) : (
-            <View style={{ width: 46 }} />
-          )}
+          ) : <View style={{ width: 46 }} />}
           <Text
             style={{ fontSize: 16, fontWeight: "bold", color: ink, textAlign: "center", flex: 1 }}
             numberOfLines={1}
@@ -924,66 +473,42 @@ function AppShell({ onThemeChange }) {
           <View style={{ width: 46 }} />
         </View>
 
-        {/* Карта — panHandlers и slideX здесь */}
+        {/* Карта */}
         <Animated.View
           {...swipeResponder.panHandlers}
           style={{
-            flex: 1,
-            backgroundColor: fieldBg,
-            position: "relative",
+            flex: 1, backgroundColor: fieldBg, position: "relative",
             transform: [{ translateX: slideX }],
           }}
           onLayout={(e) =>
-            setMapSize({
-              width: e.nativeEvent.layout.width,
-              height: e.nativeEvent.layout.height,
-            })
+            setMapSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })
           }
         >
+          {/* Стрелки переключения полей */}
+          {!editMode && siblings.list.length > 1 && (
+            <View
+              pointerEvents="box-none"
+              style={{
+                position: "absolute", top: 10, left: 0, right: 0,
+                flexDirection: "row", justifyContent: "space-between",
+                paddingHorizontal: 16, zIndex: 5,
+              }}
+            >
+              {siblings.index > 0 ? (
+                <Pressable onPress={() => animateSlide(1)} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+                  <MaterialIcons name="arrow-back" size={30} color={ink} />
+                </Pressable>
+              ) : <View style={{ width: 30 }} />}
 
-		{!editMode && siblings.list.length > 1 && (
-		  <View
-			pointerEvents="box-none"
-			style={{
-			  position: "absolute",
-			  top: 10,
-			  left: 0,
-			  right: 0,
-			  flexDirection: "row",
-			  justifyContent: "space-between",
-			  paddingHorizontal: 16,
-			  zIndex: 5,
-			}}
-		  >
-			{/* Назад */}
-			{siblings.index > 0 ? (
-			  <Pressable
-				onPress={() => animateSlide(1)}
-				hitSlop={10}
-				style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
-			  >
-				<MaterialIcons name="arrow-back" size={30} color={ink} />
-			  </Pressable>
-			) : (
-			  <View style={{ width: 30 }} />
-			)}
+              {siblings.index !== -1 && siblings.index < siblings.list.length - 1 ? (
+                <Pressable onPress={() => animateSlide(-1)} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+                  <MaterialIcons name="arrow-forward" size={30} color={ink} />
+                </Pressable>
+              ) : <View style={{ width: 30 }} />}
+            </View>
+          )}
 
-			{/* Вперёд */}
-			{siblings.index !== -1 && siblings.index < siblings.list.length - 1 ? (
-			  <Pressable
-				onPress={() => animateSlide(-1)}
-				hitSlop={10}
-				style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
-			  >
-				<MaterialIcons name="arrow-forward" size={30} color={ink} />
-			  </Pressable>
-			) : (
-			  <View style={{ width: 30 }} />
-			)}
-		  </View>
-		)}
-
-          {/* Пустой тап — выход из режима удаления/редактирования */}
+          {/* Пустой тап — выход из режима */}
           {editMode && (editAction === "delete" || editAction === "edit") && (
             <Pressable
               onPress={() => { setEditMode(false); setEditAction("none"); }}
@@ -1020,9 +545,9 @@ function AppShell({ onThemeChange }) {
               entry={journalDetailEntry}
               onBack={() => setJournalDetail(null)}
               onClose={() => { setJournalDetail(null); popNav(); }}
-              onAddNote={addNoteGlobal}
-              onRemoveNote={removeNoteGlobal}
-              onToggleNote={toggleNoteGlobal}
+              onAddNote={(text) => addNoteGlobal(journalDetail, text)}
+              onRemoveNote={(idx) => removeNoteGlobal(journalDetail, idx)}
+              onToggleNote={(idx) => toggleNoteGlobal(journalDetail, idx)}
             />
           )}
 
@@ -1047,7 +572,7 @@ function AppShell({ onThemeChange }) {
             )}
         </Animated.View>
 
-        {/* Нижняя секция — всегда BottomBar */}
+        {/* BottomBar */}
         <BottomBar onAction={handleBottomAction} />
 
         {/* Модалки */}
@@ -1084,9 +609,13 @@ function AppShell({ onThemeChange }) {
               image: editingMarker.image,
             }}
             onClose={() => setEditingMarker(null)}
-            onSave={saveMarkerEdits}
+            onSave={(values) => {
+              saveMarkerEdits(editingMarker, values);
+              setEditingMarker(null);
+            }}
           />
         )}
+
         {editingField && (
           <NewPinForm
             mode="editField"
@@ -1098,25 +627,31 @@ function AppShell({ onThemeChange }) {
               image: editingField.image,
             }}
             onClose={() => setEditingField(null)}
-            onSave={saveFieldEdits}
+            onSave={(values) => {
+              saveFieldEdits(editingField, values);
+              setEditingField(null);
+            }}
           />
         )}
 
         {titleUnlock && <TitleUnlockDialog title={titleUnlock} onClose={() => setTitleUnlock(null)} />}
+
         {pendingPlacement && (
           <MarkerPickerModal
             screens={screens}
             screenId={currentId}
-            onClose={cancelPendingPlacement}
+            onClose={() => setPendingPlacement(null)}
             onPick={(screenId, markerId) => placeTask(screenId, markerId)}
           />
         )}
+
         {placementConfirm && (
           <InfoDialog
             message={`«${placementConfirm.title}» добавлено в «${placementConfirm.markerName}».`}
             onClose={() => setPlacementConfirm(null)}
           />
         )}
+
         {pendingDelete && (
           <ConfirmDialog
             message={`Удалить метку «${pendingDelete.name}»?`}
@@ -1129,6 +664,7 @@ function AppShell({ onThemeChange }) {
             }}
           />
         )}
+
         {pendingDeleteField && (
           <ConfirmDialog
             message={`Удалить поле «${pendingDeleteField.name}» вместе со всеми метками?`}
@@ -1139,6 +675,7 @@ function AppShell({ onThemeChange }) {
             }}
           />
         )}
+
         {pendingResetBg && (
           <ConfirmDialog
             message="Сбросить фон на стандартный?"
@@ -1148,16 +685,15 @@ function AppShell({ onThemeChange }) {
             onConfirm={() => {
               updateScreenImage(
                 currentId,
-                currentId === "main"
-                  ? MAP_DEFAULT_BG
-                  : currentId === "home"
-                  ? DOM_DEFAULT_BG
+                currentId === "main" ? MAP_DEFAULT_BG
+                  : currentId === "home" ? DOM_DEFAULT_BG
                   : null
               );
               setPendingResetBg(false);
             }}
           />
         )}
+
         {showExitConfirm && (
           <ConfirmDialog
             message="Выйти из приложения?"
@@ -1168,7 +704,6 @@ function AppShell({ onThemeChange }) {
           />
         )}
 
-        {/* Боковое меню */}
         <SideMenu
           visible={showSideMenu}
           onClose={() => setShowSideMenu(false)}
