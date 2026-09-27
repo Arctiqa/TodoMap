@@ -57,3 +57,20 @@ export function findEntry(screens, loc) {
     task,
   };
 }
+
+export function expiredEntries(screens) {
+  return allEntries(screens).filter((e) => !e.task.done && isTaskExpired(e.task));
+}
+
+export function doneEntries(screens) {
+  return allEntries(screens).filter((e) => e.task.done);
+}
+
+export function countByStatus(screens, historyLog) {
+  const all = allEntries(screens);
+  const active = all.filter((e) => !e.task.done && !isTaskExpired(e.task)).length;
+  const expired = all.filter((e) => !e.task.done && isTaskExpired(e.task)).length;
+  const done = all.filter((e) => e.task.done).length;
+  const archived = historyLog.length;
+  return { active, expired, done, archived };
+}

@@ -8,6 +8,7 @@ const initialState = {
   screens: initialScreens,
   topLevelOrder: ["main"],
   historyLog: [],
+  thoughts: [],                       // ← новое
   guideProgress: { proper: 0, joper: 0 },
   guideUsedOffers: [],
   guideTakenCount: { proper: 0, joper: 0 },
@@ -34,6 +35,9 @@ function reducer(state, action) {
 
     case "SET_HISTORY":
       return { ...state, historyLog: typeof action.value === "function" ? action.value(state.historyLog) : action.value };
+
+    case "SET_THOUGHTS":
+      return { ...state, thoughts: typeof action.value === "function" ? action.value(state.thoughts) : action.value };
 
     case "SET_GUIDE_PROGRESS":
       return { ...state, guideProgress: typeof action.value === "function" ? action.value(state.guideProgress) : action.value };
@@ -66,6 +70,7 @@ export function useQuestStore() {
           if (data.screens) patch.screens = dedupeIds(data.screens);
           if (data.topLevelOrder) patch.topLevelOrder = data.topLevelOrder;
           if (data.historyLog) patch.historyLog = data.historyLog;
+          if (data.thoughts) patch.thoughts = data.thoughts;         // ← новое
           if (data.guideProgress) patch.guideProgress = data.guideProgress;
           if (data.guideUsedOffers) patch.guideUsedOffers = data.guideUsedOffers;
           if (data.guideTakenCount) patch.guideTakenCount = data.guideTakenCount;
@@ -90,6 +95,7 @@ export function useQuestStore() {
           screens: state.screens,
           topLevelOrder: state.topLevelOrder,
           historyLog: state.historyLog,
+          thoughts: state.thoughts,                                  // ← новое
           guideProgress: state.guideProgress,
           guideUsedOffers: state.guideUsedOffers,
           guideTakenCount: state.guideTakenCount,
@@ -102,6 +108,7 @@ export function useQuestStore() {
     state.screens,
     state.topLevelOrder,
     state.historyLog,
+    state.thoughts,                                                  // ← новое
     state.guideProgress,
     state.guideUsedOffers,
     state.guideTakenCount,
@@ -111,6 +118,7 @@ export function useQuestStore() {
   const updateScreen = useCallback((id, fn) => dispatch({ type: "UPDATE_SCREEN", id, fn }), []);
   const setTopLevelOrder = useCallback((value) => dispatch({ type: "SET_TOP_LEVEL_ORDER", value }), []);
   const setHistory = useCallback((value) => dispatch({ type: "SET_HISTORY", value }), []);
+  const setThoughts = useCallback((value) => dispatch({ type: "SET_THOUGHTS", value }), []);   // ← новое
   const setGuideProgress = useCallback((value) => dispatch({ type: "SET_GUIDE_PROGRESS", value }), []);
   const setGuideUsedOffers = useCallback((value) => dispatch({ type: "SET_GUIDE_USED_OFFERS", value }), []);
   const setGuideTakenCount = useCallback((value) => dispatch({ type: "SET_GUIDE_TAKEN_COUNT", value }), []);
@@ -123,6 +131,7 @@ export function useQuestStore() {
     updateScreen,
     setTopLevelOrder,
     setHistory,
+    setThoughts,                                                     // ← новое
     setGuideProgress,
     setGuideUsedOffers,
     setGuideTakenCount,

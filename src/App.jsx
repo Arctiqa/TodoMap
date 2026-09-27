@@ -10,7 +10,7 @@ import { ThemeProvider, useTheme } from "./theme/ThemeContext";
 import { GREEN, BLUE, RED } from "./theme/palettes";
 import { useQuestStore } from "./state/useQuestStore";
 import { navReducer, NAV } from "./state/navigation";
-import { activeEntries, historyEntries, findEntry } from "./state/selectors";
+import { activeEntries, historyEntries, expiredEntries, doneEntries, findEntry } from "./state/selectors";
 
 import { BottomBar } from "./components/BottomBar";
 import { SideMenu } from "./components/SideMenu";
@@ -74,16 +74,109 @@ function AppShell({ onThemeChange }) {
   const [showSideMenu, setShowSideMenu] = useState(false);
 
   const {
-    state, setScreens, updateScreen, setTopLevelOrder, setHistory,
+    state, setScreens, updateScreen, setTopLevelOrder, setHistory, setThoughts,
     setGuideProgress, setGuideUsedOffers, setGuideTakenCount, setSharedPool,
   } = useQuestStore();
 
-  const { screens, topLevelOrder, historyLog, guideProgress, guideUsedOffers, guideTakenCount, sharedPool, loaded } = state;
+  const { screens, topLevelOrder, historyLog, thoughts, guideProgress, guideUsedOffers, guideTakenCount, sharedPool, loaded } = state;
+
+  const active = useMemo(() => activeEntries(screens), [screens]);
+  const expired = useMemo(() => expiredEntries(screens), [screens]);
+  const doneList = useMemo(() => doneEntries(screens), [screens]);
+  const archive = useMemo(() => historyLog, [historyLog]);
 
   const [navStack, navDispatch] = useReducer(navReducer, [{ type: NAV.ROOT }]);
   const pushNav = useCallback((navType, payload) => navDispatch({ type: "PUSH", navType, payload }), []);
   const popNav = useCallback(() => navDispatch({ type: "POP" }), []);
   const resetNav = useCallback(() => navDispatch({ type: "RESET" }), []);
+
+	const addOrUpdateThought = (text, id) => {
+	  if (id) {
+		setThoughts((prev) => prev.map((t) => (t.id === id ? { ...t, text } : t)));
+	  } else {
+		setThoughts((prev) => [
+		  ...prev,
+		  { id: `n_${nextId()}`, text, createdAt: Date.now() },
+		]);
+	  }
+	};
+
+	const deleteThought = (id) => {
+	  setThoughts((prev) => prev.filter((t) => t.id !== id));
+	};
+
+	const convertThoughtToTask = (thought) => {
+	  // Открываем форму размещения как обычно
+	  setPendingPlacement({
+		title: thought.text,
+		due: null,
+		notes: [],
+		source: undefined,
+		repeat: null,
+	  });
+	  // Удаляем мысль после превращения
+	  setThoughts((prev) => prev.filter((t) => t.id !== thought.id));
+	  popNav();
+	};
+	
+	const returnTaskToActive = (entry) => {
+	  const { screenId, markerId, taskId } = { screenId: entry.screenId, markerId: entry.markerId, taskId: entry.task.id };
+	  setScreens((prev) => {
+		const scr = prev[screenId];
+		if (!scr) return prev;
+		return {
+		  ...prev,
+		  [screenId]: {
+			...scr,
+			markers: scr.markers.map((m) =>
+			  m.id === markerId
+				? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, due: null, done: false, completedAt: null } : t)) }
+				: m
+			),
+		  },
+		};
+	  });
+	};
+
+	const completeTaskFromJournal = (entry) => {
+	  const { screenId, markerId } = entry;
+	  const taskId = entry.task.id;
+	  setScreens((prev) => {
+		const scr = prev[screenId];
+		if (!scr) return prev;
+		return {
+		  ...prev,
+		  [screenId]: {
+			...scr,
+			markers: scr.markers.map((m) =>
+			  m.id === markerId
+				? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, done: true, completedAt: Date.now() } : t)) }
+				: m
+			),
+		  },
+		};
+	  });
+	};
+
+	const deleteTaskFromJournal = (entry) => {
+	  const { screenId, markerId } = entry;
+	  const taskId = entry.task.id;
+	  setScreens((prev) => {
+		const scr = prev[screenId];
+		if (!scr) return prev;
+		return {
+		  ...prev,
+		  [screenId]: {
+			...scr,
+			markers: scr.markers.map((m) =>
+			  m.id === markerId
+				? { ...m, tasks: m.tasks.filter((t) => t.id !== taskId) }
+				: m
+			),
+		  },
+		};
+	  });
+	};	
 
   const [currentId, setCurrentId] = useState("main");
   const keyboardOffset = useRef(new Animated.Value(0)).current;
@@ -481,7 +574,6 @@ function AppShell({ onThemeChange }) {
     });
   };
 
-  const active = useMemo(() => activeEntries(screens), [screens]);
   const journalDetailEntry = useMemo(() => findEntry(screens, journalDetail), [screens, journalDetail]);
 
   const hardDeleteEntry = (entry) => {
@@ -666,19 +758,40 @@ function AppShell({ onThemeChange }) {
             onToggleNote={toggleNoteLocal} onShare={shareTaskToPool} onIncrementRepeat={incrementRepeat}
           />
         ) : null;
-      case NAV.JOURNAL:
-        return (
-          <JournalList
-            entries={active}
-            onClose={popNav}
-            onOpenDetail={(e) => {
-              setCurrentId(e.screenId);
-              pushNav(NAV.TASK, { markerId: e.markerId });
-            }}
-          />
-        );
-      case NAV.HISTORY:
-        return <HistoryList entries={historyEntries(screens, historyLog)} onClose={popNav} onDeleteEntry={hardDeleteEntry} />;
+	case NAV.JOURNAL:
+	  return (
+		<JournalList
+		  active={active}
+		  expired={expired}
+		  done={doneList}
+		  archive={archive}
+		  thoughts={thoughts}
+		  onClose={popNav}
+		  onOpenDetail={(e) => {
+			setCurrentId(e.screenId);
+			pushNav(NAV.TASK, { markerId: e.markerId });
+		  }}
+		  onAddThought={addOrUpdateThought}
+		  onDeleteThought={deleteThought}
+		  onConvertThought={convertThoughtToTask}
+		  onReturnTask={returnTaskToActive}
+		  onCompleteTask={completeTaskFromJournal}
+		  onDeleteTask={deleteTaskFromJournal}
+		  onHardDeleteArchive={(entry) => {
+			setHistory((prev) =>
+			  prev.filter((e) => !(e.task.id === entry.task.id && e.removedAt === entry.removedAt))
+			);
+		  }}		  
+		/>
+	  );
+	  case NAV.HISTORY:
+	    return (
+	      <HistoryList
+		    entries={historyEntries(screens, historyLog)}
+		    onClose={popNav}
+		    onClearHistory={() => setHistory([])}
+		  />
+	    );
       case NAV.OTHERS:
         return <OthersList pool={sharedPool} onClose={popNav} onRefresh={loadSharedPool} onTake={(p) => { setPendingPlacement({ title: p.title, due: p.due || null, notes: [], source: undefined }); popNav(); }} />;
       case NAV.TITLES:
@@ -827,58 +940,49 @@ function AppShell({ onThemeChange }) {
             })
           }
         >
-		
 
+		{!editMode && siblings.list.length > 1 && (
+		  <View
+			pointerEvents="box-none"
+			style={{
+			  position: "absolute",
+			  top: 10,
+			  left: 0,
+			  right: 0,
+			  flexDirection: "row",
+			  justifyContent: "space-between",
+			  paddingHorizontal: 16,
+			  zIndex: 5,
+			}}
+		  >
+			{/* Назад */}
+			{siblings.index > 0 ? (
+			  <Pressable
+				onPress={() => animateSlide(1)}
+				hitSlop={10}
+				style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+			  >
+				<MaterialIcons name="arrow-back" size={30} color={ink} />
+			  </Pressable>
+			) : (
+			  <View style={{ width: 30 }} />
+			)}
 
+			{/* Вперёд */}
+			{siblings.index !== -1 && siblings.index < siblings.list.length - 1 ? (
+			  <Pressable
+				onPress={() => animateSlide(-1)}
+				hitSlop={10}
+				style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+			  >
+				<MaterialIcons name="arrow-forward" size={30} color={ink} />
+			  </Pressable>
+			) : (
+			  <View style={{ width: 30 }} />
+			)}
+		  </View>
+		)}
 
-{!editMode && siblings.list.length > 1 && (
-  <View
-    pointerEvents="box-none"
-    style={{
-      position: "absolute",
-      top: 10,
-      left: 0,
-      right: 0,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingHorizontal: 16,
-      zIndex: 5,
-    }}
-  >
-    {/* Назад */}
-    {siblings.index > 0 ? (
-      <Pressable
-        onPress={() => animateSlide(1)}
-        hitSlop={10}
-        style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
-      >
-        <MaterialIcons name="arrow-back" size={30} color={ink} />
-      </Pressable>
-    ) : (
-      <View style={{ width: 30 }} />
-    )}
-
-    {/* Вперёд */}
-    {siblings.index !== -1 && siblings.index < siblings.list.length - 1 ? (
-      <Pressable
-        onPress={() => animateSlide(-1)}
-        hitSlop={10}
-        style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
-      >
-        <MaterialIcons name="arrow-forward" size={30} color={ink} />
-      </Pressable>
-    ) : (
-      <View style={{ width: 30 }} />
-    )}
-  </View>
-)}
-
-
-
-
-
-		
-		
           {/* Пустой тап — выход из режима удаления/редактирования */}
           {editMode && (editAction === "delete" || editAction === "edit") && (
             <Pressable
