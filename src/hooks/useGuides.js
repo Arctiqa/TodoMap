@@ -48,8 +48,16 @@ export function useGuides({
     if (!guideKey) return;
     setGuideTakenCount((prev) => ({ ...prev, [guideKey]: (prev[guideKey] || 0) + 1 }));
     const target = RANDOM_REPEAT_MIN + Math.floor(Math.random() * RANDOM_REPEAT_SPAN);
-    setPendingPlacement({ title, due: null, notes: [], source: guideKey, repeat: { count: 0, target } });
-  }, [topNav, setGuideTakenCount, setPendingPlacement]);
+    setPendingPlacement({
+      title,
+      due: null,
+      notes: [],
+      source: guideKey,
+      repeat: { count: 0, target },
+    });
+    // ← фикс: закрываем оверлей гида, чтобы открылся MarkerPickerModal
+    popNav();
+  }, [topNav, setGuideTakenCount, setPendingPlacement, popNav]);
 
   const openGuide = useCallback((guideKey) => {
     pushNav(NAV.GUIDE_TASKS, { guideKey });

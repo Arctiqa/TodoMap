@@ -33,47 +33,38 @@ export function toDate(due) {
   return null;
 }
 
-export function formatRemaining(due) {
-  if (!due) return "без срока";
-
-  if (due.kind === "duration") {
-    if (!due.target) return "без срока";
-    const diffMs = due.target - Date.now();
-    if (diffMs <= 0) return "⏰ истекло";
-    if (diffMs < 60000) return "меньше минуты";
-    if (diffMs < 86400000) {
-      const diffMin = Math.round(diffMs / 60000);
-      if (diffMin < 60) return `через ${diffMin} мин`;
-      const diffH = Math.floor(diffMin / 60);
-      const remMin = diffMin % 60;
-
-      if (diffMin < 6 * 60) {
-        return remMin > 0 ? `через ${diffH} ч ${remMin} мин` : `через ${diffH} ч`;
-      }
-      return `через ${diffH} ч`;
-    }
-    const diffDays = Math.ceil(diffMs / 86400000);
-    return diffDays === 1 ? "через 1 день" : `через ${diffDays} дн.`;
-  }
-
-  const d = toDate(due);
-  if (!d) return "без срока";
-  const diffMs = d.getTime() - Date.now();
-  if (diffMs < 0) return "⏰ истекло";
+// Универсальное форматирование "сколько осталось" — общее для duration и date
+function formatDiff(diffMs) {
+  if (diffMs <= 0) return "⏰ истекло";
   if (diffMs < 60000) return "меньше минуты";
-  const diffMin = Math.round(diffMs / 60000);
-  if (diffMin < 60) return `через ${diffMin} мин`;
-  const diffH = Math.floor(diffMin / 60);
-  const remMin = diffMin % 60;
-  if (diffH < 24) {
+
+  if (diffMs < 86400000) {
+    const diffMin = Math.round(diffMs / 60000);
+    if (diffMin < 60) return `через ${diffMin} мин`;
+    const diffH = Math.floor(diffMin / 60);
+    const remMin = diffMin % 60;
 
     if (diffMin < 6 * 60) {
       return remMin > 0 ? `через ${diffH} ч ${remMin} мин` : `через ${diffH} ч`;
     }
     return `через ${diffH} ч`;
   }
-  const diffD = Math.floor(diffH / 24);
-  return `через ${diffD} дн.`;
+
+  const diffDays = Math.ceil(diffMs / 86400000);
+  return diffDays === 1 ? "через 1 день" : `через ${diffDays} дн.`;
+}
+
+export function formatRemaining(due) {
+  if (!due) return "без срока";
+
+  if (due.kind === "duration") {
+    if (!due.target) return "без срока";
+    return formatDiff(due.target - Date.now());
+  }
+
+  const d = toDate(due);
+  if (!d) return "без срока";
+  return formatDiff(d.getTime() - Date.now());
 }
 
 export function isTaskExpired(task) {

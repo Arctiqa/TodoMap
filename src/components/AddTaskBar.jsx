@@ -13,7 +13,7 @@ import { PrimaryButton } from "./ui/PrimaryButton";
 import { useTheme } from "../theme/ThemeContext";
 import { GREEN_SOFT } from "../theme/palettes";
 
-export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
+export function AddTaskBar({ targetMarkerId, onSubmit, visible = true, bgColor }) {
   const { ink, card, paper, inputBg } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const [title, setTitle] = useState("");
@@ -102,7 +102,7 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
           borderTopLeftRadius: 18,
           borderTopRightRadius: 18,
           paddingHorizontal: 16,
-          paddingVertical: 13, // ← крупнее
+          paddingVertical: 13,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
@@ -167,23 +167,23 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
           }}
         />
 
-		<TextInput
-		  value={title}
-		  onChangeText={setTitle}
-		  placeholder="Новое дело..."
-		  placeholderTextColor="#9A9A9A"   // ← серый
-		  style={{
-			borderWidth: 1,
-			borderColor: ink,
-			borderRadius: 10,
-			paddingHorizontal: 14,
-			paddingVertical: 14,
-			fontSize: 16,
-			marginBottom: 12,
-			color: ink,
-			backgroundColor: inputBg,
-		  }}
-		/>
+        <TextInput
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Новое дело..."
+          placeholderTextColor="#9A9A9A"
+          style={{
+            borderWidth: 1,
+            borderColor: ink,
+            borderRadius: 10,
+            paddingHorizontal: 14,
+            paddingVertical: 14,
+            fontSize: 16,
+            marginBottom: 12,
+            color: ink,
+            backgroundColor: inputBg,
+          }}
+        />
 
         <DueEditor
           dueMode={dueMode}
@@ -315,7 +315,7 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible, bgColor }) {
         <PrimaryButton
           label="Добавить дело"
           color={GREEN_SOFT}
-          textColor="#000"          // ← чёрный текст (в т.ч. в тёмной теме)
+          textColor="#000"
           onPress={submit}
         />
       </ScrollView>

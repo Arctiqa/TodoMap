@@ -6,9 +6,10 @@ import { PIN_BOUNDS, PIN_SIZE } from "../constants/config";
 import { shortLabel } from "../utils/text";
 import { isTaskExpired } from "../utils/date";
 import { BLUE } from "../theme/palettes";
+import { resolveImageSource } from "../data/initialScreens";
 
-const OUTER_RING = 7;   // ← толщина внешнего кольца
-const BADGE = 22;       // ← размер бейджа-«папки»
+const OUTER_RING = 7;
+const BADGE = 22;
 
 function pctToPx(pct, total) {
   return (pct / 100) * total;
@@ -112,6 +113,8 @@ function PinInner({
     ? marker.tasks.filter((t) => !t.done).slice(0, 2)
     : [];
 
+  const imageSource = useMemo(() => resolveImageSource(marker.image), [marker.image]);
+
   const handlePress = useCallback(() => {
     if (editMode) {
       if (editAction === "delete") { onDelete(marker); return; }
@@ -142,7 +145,6 @@ function PinInner({
         onPress={handlePress}
         style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.88 : 1 }] }]}
       >
-        {/* Внешний контейнер — без overflow, чтобы бейджи не обрезались */}
         <View
           style={{
             width: outerSize,
@@ -151,7 +153,6 @@ function PinInner({
             justifyContent: "center",
           }}
         >
-          {/* Внешнее кольцо */}
           <View
             style={{
               position: "absolute",
@@ -163,7 +164,6 @@ function PinInner({
             }}
           />
 
-          {/* Внутренний круг — с overflow: hidden для картинки/эмодзи */}
           <View
             style={{
               width: size,
@@ -175,14 +175,13 @@ function PinInner({
               overflow: "hidden",
             }}
           >
-            {marker.image ? (
-              <Image source={{ uri: marker.image }} style={{ width: size, height: size }} />
+            {imageSource ? (
+              <Image source={imageSource} style={{ width: size, height: size }} />
             ) : (
               <Text style={{ fontSize: isBig ? 26 : 19 }}>{marker.emoji}</Text>
             )}
           </View>
 
-          {/* Бейдж «папка» — вложенный пин, рисуется ПОВЕРХ, не обрезается */}
           {marker.linkTo && (
             <View
               style={{
@@ -203,7 +202,6 @@ function PinInner({
             </View>
           )}
 
-          {/* Бейдж картинки */}
           {marker.image && (
             <View
               style={{
@@ -224,7 +222,6 @@ function PinInner({
             </View>
           )}
 
-          {/* Бейдж режима редактирования — поверх */}
           {editMode && (
             <View
               style={{
@@ -249,7 +246,6 @@ function PinInner({
         </View>
       </Pressable>
 
-      {/* Подпись */}
       <View
         style={{
           marginTop: 4,
@@ -271,7 +267,6 @@ function PinInner({
         </Text>
       </View>
 
-      {/* Превью дел */}
       {!editMode && previewTasks.length > 0 && (
         <View style={{ marginTop: 3, alignItems: "center" }}>
           {previewTasks.map((t) => (

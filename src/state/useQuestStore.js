@@ -8,7 +8,7 @@ const initialState = {
   screens: initialScreens,
   topLevelOrder: ["main"],
   historyLog: [],
-  thoughts: [],                       // ← новое
+  thoughts: [],
   guideProgress: { proper: 0, joper: 0 },
   guideUsedOffers: [],
   guideTakenCount: { proper: 0, joper: 0 },
@@ -49,7 +49,7 @@ function reducer(state, action) {
       return { ...state, guideTakenCount: typeof action.value === "function" ? action.value(state.guideTakenCount) : action.value };
 
     case "SET_SHARED_POOL":
-      return { ...state, sharedPool: action.value };
+      return { ...state, sharedPool: typeof action.value === "function" ? action.value(state.sharedPool) : action.value };
 
     default:
       return state;
@@ -70,10 +70,11 @@ export function useQuestStore() {
           if (data.screens) patch.screens = dedupeIds(data.screens);
           if (data.topLevelOrder) patch.topLevelOrder = data.topLevelOrder;
           if (data.historyLog) patch.historyLog = data.historyLog;
-          if (data.thoughts) patch.thoughts = data.thoughts;         // ← новое
+          if (data.thoughts) patch.thoughts = data.thoughts;
           if (data.guideProgress) patch.guideProgress = data.guideProgress;
           if (data.guideUsedOffers) patch.guideUsedOffers = data.guideUsedOffers;
           if (data.guideTakenCount) patch.guideTakenCount = data.guideTakenCount;
+          if (data.sharedPool) patch.sharedPool = data.sharedPool;
           dispatch({ type: "HYDRATE", payload: patch });
         } else {
           dispatch({ type: "HYDRATE", payload: {} });
@@ -95,10 +96,11 @@ export function useQuestStore() {
           screens: state.screens,
           topLevelOrder: state.topLevelOrder,
           historyLog: state.historyLog,
-          thoughts: state.thoughts,                                  // ← новое
+          thoughts: state.thoughts,
           guideProgress: state.guideProgress,
           guideUsedOffers: state.guideUsedOffers,
           guideTakenCount: state.guideTakenCount,
+          sharedPool: state.sharedPool,
         })
       ).catch((e) => console.warn("QuestMap: не удалось сохранить", e));
     }, 400);
@@ -108,17 +110,18 @@ export function useQuestStore() {
     state.screens,
     state.topLevelOrder,
     state.historyLog,
-    state.thoughts,                                                  // ← новое
+    state.thoughts,
     state.guideProgress,
     state.guideUsedOffers,
     state.guideTakenCount,
+    state.sharedPool,
   ]);
 
   const setScreens = useCallback((value) => dispatch({ type: "SET_SCREENS", value }), []);
   const updateScreen = useCallback((id, fn) => dispatch({ type: "UPDATE_SCREEN", id, fn }), []);
   const setTopLevelOrder = useCallback((value) => dispatch({ type: "SET_TOP_LEVEL_ORDER", value }), []);
   const setHistory = useCallback((value) => dispatch({ type: "SET_HISTORY", value }), []);
-  const setThoughts = useCallback((value) => dispatch({ type: "SET_THOUGHTS", value }), []);   // ← новое
+  const setThoughts = useCallback((value) => dispatch({ type: "SET_THOUGHTS", value }), []);
   const setGuideProgress = useCallback((value) => dispatch({ type: "SET_GUIDE_PROGRESS", value }), []);
   const setGuideUsedOffers = useCallback((value) => dispatch({ type: "SET_GUIDE_USED_OFFERS", value }), []);
   const setGuideTakenCount = useCallback((value) => dispatch({ type: "SET_GUIDE_TAKEN_COUNT", value }), []);
@@ -131,7 +134,7 @@ export function useQuestStore() {
     updateScreen,
     setTopLevelOrder,
     setHistory,
-    setThoughts,                                                     // ← новое
+    setThoughts,
     setGuideProgress,
     setGuideUsedOffers,
     setGuideTakenCount,

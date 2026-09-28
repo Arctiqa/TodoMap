@@ -30,6 +30,8 @@ export function useBackHandler({
       if (o.pendingDeleteField) { o.setPendingDeleteField(null); return true; }
       if (o.pendingDelete) { o.setPendingDelete(null); return true; }
       if (o.pendingPlacement) { cancelPendingPlacement(); return true; }
+      // ← фикс: диалог выхода раньше, чем уход с экрана
+      if (o.showExitConfirm) { o.setShowExitConfirm(false); return true; }
 
       const stack = navRef.current;
       if (stack.length > 1) { navDispatch({ type: "POP" }); return true; }

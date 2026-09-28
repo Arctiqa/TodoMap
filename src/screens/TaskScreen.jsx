@@ -16,6 +16,7 @@ import { useTheme } from "../theme/ThemeContext";
 import { GREEN, BLUE } from "../theme/palettes";
 import { formatRemaining, isTaskExpired } from "../utils/date";
 import { AddTaskBar } from "../components/AddTaskBar";
+import { resolveImageSource } from "../data/initialScreens";
 
 if (
   Platform.OS === "android" &&
@@ -32,7 +33,7 @@ export function TaskScreen({
   onDelete,
   onShare,
   onIncrementRepeat,
-  onOpenDetail,        // ← новый колбэк
+  onOpenDetail,
 }) {
   const { ink, card, paper } = useTheme();
   const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState(null);
@@ -79,7 +80,7 @@ export function TaskScreen({
       {marker.image && (
         <View style={{ alignItems: "center", paddingTop: 10 }}>
           <Image
-            source={{ uri: marker.image }}
+            source={resolveImageSource(marker.image)}
             style={{
               width: 90,
               height: 90,
@@ -193,7 +194,6 @@ export function TaskScreen({
                   </Pressable>
                 )}
 
-                {/* Тап по делу → открыть TaskDetailOverlay */}
                 <Pressable style={{ flex: 1 }} onPress={() => onOpenDetail(t)}>
                   <Text
                     style={{

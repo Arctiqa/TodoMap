@@ -87,15 +87,6 @@ export function useScreens({
     });
   }, [screen, screens, currentId, setScreens, archiveTasks, archiveScreen]);
 
-  const handleOpen = useCallback((marker) => {
-    if (marker.linkTo) {
-      setEditMode(false);
-      setCurrentId(marker.linkTo);
-      return;
-    }
-    return marker; // сигнал наружу — открыть TaskScreen
-  }, [setEditMode, setCurrentId]);
-
   const handleDragMove = useCallback((markerId, x, y) => {
     updateScreen(currentId, (s) => ({
       ...s,
@@ -168,32 +159,9 @@ export function useScreens({
     }
   }, [updateScreenImage]);
 
-  // ---- Журнал: hard delete (было в App.jsx) ----
-  const hardDeleteEntry = useCallback((entry) => {
-    if (entry.removedAt) {
-      setHistory((prev) => prev.filter((e) => !(e.task.id === entry.task.id && e.removedAt === entry.removedAt)));
-    } else {
-      cancelTaskNotifications(entry.task.id);
-      setScreens((prev) => {
-        const scr = prev[entry.screenId];
-        if (!scr) return prev;
-        return {
-          ...prev,
-          [entry.screenId]: {
-            ...scr,
-            markers: scr.markers.map((m) => (m.id === entry.markerId
-              ? { ...m, tasks: m.tasks.filter((t) => t.id !== entry.task.id) }
-              : m)),
-          },
-        };
-      });
-    }
-  }, [setHistory, setScreens]);
-
   return {
     archiveTasks, archiveScreen,
-    createMarker, saveMarkerEdits, deleteMarker, handleOpen, handleDragMove,
+    createMarker, saveMarkerEdits, deleteMarker, handleDragMove,
     createScreen, saveFieldEdits, deleteField, updateScreenImage, pickBackgroundImage,
-    hardDeleteEntry,
   };
 }

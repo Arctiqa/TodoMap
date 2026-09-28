@@ -278,7 +278,7 @@ function AppShell({ onThemeChange }) {
   const {
     addTaskCore, toggleTask, incrementRepeat, decrementRepeat, deleteTask,
   } = useTasks({
-    screen, currentId, updateScreen, setScreens, setHistory,
+    updateScreen, setScreens, setHistory,
     bumpGuideProgress,
   });
 
@@ -380,9 +380,9 @@ function AppShell({ onThemeChange }) {
         resetNav(); pushNav(NAV.ADD_SCREEN); break;
       case "edit-field":
         setEditingField(screen); break;
-	  case "clear-bg":
-	    updateScreenImage(currentId, null);
-	    break;
+      case "clear-bg":
+        setPendingResetBg(true);
+        break;
       case "delete-field":
         if (topLevelOrder.includes(currentId) && currentId !== "main") {
           setPendingDeleteField(screen);
@@ -398,7 +398,7 @@ function AppShell({ onThemeChange }) {
   }, [
     screen, currentId, topLevelOrder, resetNav, pushNav,
     setShowSideMenu, setEditMode, setEditAction,
-    setEditingField, setPendingDeleteField,
+    setEditingField, setPendingDeleteField, setPendingResetBg,
   ]);
 
   const renderTopNav = () => {
@@ -408,11 +408,11 @@ function AppShell({ onThemeChange }) {
           <TaskScreen
             marker={activeMarker}
             onClose={popNav}
-            onToggle={toggleTask}
+            onToggle={(markerId, taskId) => toggleTask(currentId, markerId, taskId)}
             onAdd={(markerId, title, due, repeat) => addTaskCore(currentId, markerId, { title, due, repeat })}
-            onDelete={deleteTask}
+            onDelete={(markerId, taskId) => deleteTask(currentId, markerId, taskId)}
             onShare={shareTaskToPool}
-            onIncrementRepeat={incrementRepeat}
+            onIncrementRepeat={(markerId, taskId) => incrementRepeat(currentId, markerId, taskId)}
             onOpenDetail={(t) => openTaskDetail(t, activeMarker, currentId)}
           />
         ) : null;
@@ -827,8 +827,8 @@ function AppShell({ onThemeChange }) {
             onAddNote={addNoteGlobal}
             onRemoveNote={removeNoteGlobal}
             onToggleNote={toggleNoteGlobal}
-			onIncrementRepeat={() => incrementRepeat(taskDetailData.marker.id, taskDetailData.task.id)}
-			onDecrementRepeat={() => decrementRepeat(taskDetailData.marker.id, taskDetailData.task.id)}
+            onIncrementRepeat={() => incrementRepeat(taskDetailData.screen.id, taskDetailData.marker.id, taskDetailData.task.id)}
+            onDecrementRepeat={() => decrementRepeat(taskDetailData.screen.id, taskDetailData.marker.id, taskDetailData.task.id)}
             onDelete={deleteTaskFromDetail}
             onComplete={completeTaskFromDetail}
             onUncomplete={uncompleteTaskFromDetail}
