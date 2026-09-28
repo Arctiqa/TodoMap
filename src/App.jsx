@@ -380,8 +380,9 @@ function AppShell({ onThemeChange }) {
         resetNav(); pushNav(NAV.ADD_SCREEN); break;
       case "edit-field":
         setEditingField(screen); break;
-      case "open-bg-picker":
-        resetNav(); pushNav(NAV.BACKGROUND_PICKER); break;
+	  case "clear-bg":
+	    updateScreenImage(currentId, null);
+	    break;
       case "delete-field":
         if (topLevelOrder.includes(currentId) && currentId !== "main") {
           setPendingDeleteField(screen);

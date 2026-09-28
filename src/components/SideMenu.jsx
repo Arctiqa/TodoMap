@@ -23,7 +23,7 @@ const SECTIONS = [
     items: [
       { key: "add-field",    icon: "layers",         label: "Создать поле" },
       { key: "edit-field",    icon: "edit",          label: "Редактировать поле" },
-      { key: "open-bg-picker",     icon: "restore",        label: "Фон по умолчанию" },
+      { key: "clear-bg",     icon: "layers-clear",        label: "Очистить фон" },
       { key: "delete-field", icon: "delete-forever", label: "Удалить поле", color: "red" },
     ],
   },
