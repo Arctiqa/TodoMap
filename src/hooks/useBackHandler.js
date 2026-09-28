@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { BackHandler } from "react-native";
-import { NAV } from "../state/navigation";
 
 export function useBackHandler({
   overlay,
@@ -21,6 +20,7 @@ export function useBackHandler({
   useEffect(() => {
     const onBackPress = () => {
       const o = overlayRef.current;
+      if (o.taskDetail) { o.setTaskDetail(null); return true; }
       if (o.showSideMenu) { o.setShowSideMenu(false); return true; }
       if (o.editingField) { o.setEditingField(null); return true; }
       if (o.editingMarker) { o.setEditingMarker(null); return true; }
@@ -30,7 +30,6 @@ export function useBackHandler({
       if (o.pendingDeleteField) { o.setPendingDeleteField(null); return true; }
       if (o.pendingDelete) { o.setPendingDelete(null); return true; }
       if (o.pendingPlacement) { cancelPendingPlacement(); return true; }
-      if (o.journalDetail) { o.setJournalDetail(null); return true; }
 
       const stack = navRef.current;
       if (stack.length > 1) { navDispatch({ type: "POP" }); return true; }

@@ -91,6 +91,33 @@ export function useTasks({
         : m),
     }));
   }, [screen, currentId, updateScreen, bumpGuideProgress]);
+  
+	const decrementRepeat = useCallback((markerId, taskId) => {
+	  const marker = screen.markers.find((m) => m.id === markerId);
+	  const task = marker && marker.tasks.find((t) => t.id === taskId);
+	  if (!task || !task.repeat) return;
+	  const nextCount = Math.max(0, task.repeat.count - 1);
+	  // Если снимаем до target — снова "не выполнено"
+	  const wasDone = task.done;
+	  const willBeDone = nextCount >= task.repeat.target;
+
+	  updateScreen(currentId, (s) => ({
+		...s,
+		markers: s.markers.map((m) => m.id === markerId
+		  ? {
+			  ...m,
+			  tasks: m.tasks.map((t) => t.id === taskId
+				? {
+					...t,
+					repeat: { ...t.repeat, count: nextCount },
+					done: willBeDone,
+					completedAt: willBeDone ? (t.completedAt || Date.now()) : null,
+				  }
+				: t),
+			}
+		  : m),
+	  }));
+	}, [screen, currentId, updateScreen]);
 
   const deleteTask = useCallback((markerId, taskId) => {
     cancelTaskNotifications(taskId);
@@ -116,91 +143,7 @@ export function useTasks({
     }));
   }, [screen, currentId, updateScreen, setHistory]);
 
-  const addNoteLocal = useCallback((markerId, taskId, text) => {
-    updateScreen(currentId, (s) => ({
-      ...s,
-      markers: s.markers.map((m) => (m.id === markerId
-        ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId
-            ? { ...t, notes: [...(t.notes || []), { text, done: false }] }
-            : t)) }
-        : m)),
-    }));
-  }, [currentId, updateScreen]);
-
-  const removeNoteLocal = useCallback((markerId, taskId, idx) => {
-    updateScreen(currentId, (s) => ({
-      ...s,
-      markers: s.markers.map((m) => (m.id === markerId
-        ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId
-            ? { ...t, notes: t.notes.filter((_, i) => i !== idx) }
-            : t)) }
-        : m)),
-    }));
-  }, [currentId, updateScreen]);
-
-  const toggleNoteLocal = useCallback((markerId, taskId, idx) => {
-    updateScreen(currentId, (s) => ({
-      ...s,
-      markers: s.markers.map((m) => (m.id === markerId
-        ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId
-            ? { ...t, notes: t.notes.map((n, i) => (i === idx ? { ...n, done: !n.done } : n)) }
-            : t)) }
-        : m)),
-    }));
-  }, [currentId, updateScreen]);
-
-  // Глобальные (для JournalDetail)
-  const addNoteGlobal = useCallback((journalDetail, text) => {
-    if (!journalDetail) return;
-    const { screenId, markerId, taskId } = journalDetail;
-    setScreens((prev) => ({
-      ...prev,
-      [screenId]: {
-        ...prev[screenId],
-        markers: prev[screenId].markers.map((m) => (m.id === markerId
-          ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId
-              ? { ...t, notes: [...(t.notes || []), { text, done: false }] }
-              : t)) }
-          : m)),
-      },
-    }));
-  }, [setScreens]);
-
-  const removeNoteGlobal = useCallback((journalDetail, idx) => {
-    if (!journalDetail) return;
-    const { screenId, markerId, taskId } = journalDetail;
-    setScreens((prev) => ({
-      ...prev,
-      [screenId]: {
-        ...prev[screenId],
-        markers: prev[screenId].markers.map((m) => (m.id === markerId
-          ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId
-              ? { ...t, notes: t.notes.filter((_, i) => i !== idx) }
-              : t)) }
-          : m)),
-      },
-    }));
-  }, [setScreens]);
-
-  const toggleNoteGlobal = useCallback((journalDetail, idx) => {
-    if (!journalDetail) return;
-    const { screenId, markerId, taskId } = journalDetail;
-    setScreens((prev) => ({
-      ...prev,
-      [screenId]: {
-        ...prev[screenId],
-        markers: prev[screenId].markers.map((m) => (m.id === markerId
-          ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId
-              ? { ...t, notes: t.notes.map((n, i) => (i === idx ? { ...n, done: !n.done } : n)) }
-              : t)) }
-          : m)),
-      },
-    }));
-  }, [setScreens]);
-
   return {
-    addTaskCore, toggleTask, incrementRepeat, deleteTask,
-    addNoteLocal, removeNoteLocal, toggleNoteLocal,
-    addNoteGlobal, removeNoteGlobal, toggleNoteGlobal,
+    addTaskCore, toggleTask, incrementRepeat, deleteTask, decrementRepeat
   };
 }

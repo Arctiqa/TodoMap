@@ -8,12 +8,12 @@ export function useOverlayState() {
   const [titleUnlock, setTitleUnlock] = useState(null);
   const [pendingPlacement, setPendingPlacement] = useState(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [journalDetail, setJournalDetail] = useState(null);
   const [editingMarker, setEditingMarker] = useState(null);
   const [editingField, setEditingField] = useState(null);
   const [pendingResetBg, setPendingResetBg] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editAction, setEditAction] = useState("none");
+  const [taskDetail, setTaskDetail] = useState(null);
 
   return {
     showSideMenu, setShowSideMenu,
@@ -23,11 +23,11 @@ export function useOverlayState() {
     titleUnlock, setTitleUnlock,
     pendingPlacement, setPendingPlacement,
     showExitConfirm, setShowExitConfirm,
-    journalDetail, setJournalDetail,
     editingMarker, setEditingMarker,
     editingField, setEditingField,
     pendingResetBg, setPendingResetBg,
     editMode, setEditMode,
     editAction, setEditAction,
+    taskDetail, setTaskDetail,
   };
 }

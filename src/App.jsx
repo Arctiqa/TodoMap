@@ -8,7 +8,7 @@ import { ThemeProvider, useTheme } from "./theme/ThemeContext";
 import { GREEN, BLUE, RED } from "./theme/palettes";
 import { useQuestStore } from "./state/useQuestStore";
 import { navReducer, NAV } from "./state/navigation";
-import { activeEntries, expiredEntries, doneEntries, findEntry } from "./state/selectors";
+import { activeEntries, expiredEntries, doneEntries, historyEntries } from "./state/selectors";
 
 import { BottomBar } from "./components/BottomBar";
 import { SideMenu } from "./components/SideMenu";
@@ -21,7 +21,6 @@ import { AddTaskBar } from "./components/AddTaskBar";
 
 import { TaskScreen } from "./screens/TaskScreen";
 import { JournalList } from "./screens/JournalList";
-import { JournalDetail } from "./screens/JournalDetail";
 import { HistoryList } from "./screens/HistoryList";
 import { OthersList } from "./screens/OthersList";
 import { SettingsOverlay } from "./screens/SettingsOverlay";
@@ -31,9 +30,10 @@ import { TitlesOverlay } from "./screens/TitlesOverlay";
 import { TitleUnlockDialog } from "./screens/TitleUnlockDialog";
 import { ThemePickerOverlay } from "./screens/ThemePickerOverlay";
 import { BackgroundPickerOverlay } from "./screens/BackgroundPickerOverlay";
+import { TaskDetailOverlay } from "./screens/TaskDetailOverlay";
 
 import { screenTitle } from "./utils/text";
-import { historyEntries } from "./state/selectors";
+import { cancelTaskNotifications } from "./utils/notifications";
 import { resolveImageSource, DOM_DEFAULT_BG, MAP_DEFAULT_BG } from "./data/initialScreens";
 
 // Хуки
@@ -110,21 +110,155 @@ function AppShell({ onThemeChange }) {
     titleUnlock, setTitleUnlock,
     pendingPlacement, setPendingPlacement,
     showExitConfirm, setShowExitConfirm,
-    journalDetail, setJournalDetail,
     editingMarker, setEditingMarker,
     editingField, setEditingField,
     pendingResetBg, setPendingResetBg,
     editMode, setEditMode,
     editAction, setEditAction,
+    taskDetail, setTaskDetail,
   } = overlay;
+
+  const openTaskDetail = useCallback((task, marker, screenId) => {
+    setTaskDetail({
+      taskId: task.id,
+      markerId: marker.id,
+      screenId,
+    });
+  }, [setTaskDetail]);
+
+  const taskDetailData = useMemo(() => {
+    if (!taskDetail) return null;
+    const scr = screens[taskDetail.screenId];
+    if (!scr) return null;
+    const mk = scr.markers.find((m) => m.id === taskDetail.markerId);
+    if (!mk) return null;
+    const t = mk.tasks.find((x) => x.id === taskDetail.taskId);
+    if (!t) return null;
+    return { task: t, marker: mk, screen: scr };
+  }, [taskDetail, screens]);
+
+  // Переименование
+  const renameTask = useCallback((newTitle) => {
+    if (!taskDetail) return;
+    const { screenId, markerId, taskId } = taskDetail;
+    setScreens((prev) => ({
+      ...prev,
+      [screenId]: {
+        ...prev[screenId],
+        markers: prev[screenId].markers.map((m) =>
+          m.id === markerId
+            ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, title: newTitle } : t)) }
+            : m
+        ),
+      },
+    }));
+  }, [taskDetail, setScreens]);
+
+  // Пометки
+  const addNoteGlobal = useCallback((text) => {
+    if (!taskDetail) return;
+    const { screenId, markerId, taskId } = taskDetail;
+    setScreens((prev) => ({
+      ...prev,
+      [screenId]: {
+        ...prev[screenId],
+        markers: prev[screenId].markers.map((m) =>
+          m.id === markerId
+            ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, notes: [...(t.notes || []), { text, done: false }] } : t)) }
+            : m
+        ),
+      },
+    }));
+  }, [taskDetail, setScreens]);
+
+  const removeNoteGlobal = useCallback((idx) => {
+    if (!taskDetail) return;
+    const { screenId, markerId, taskId } = taskDetail;
+    setScreens((prev) => ({
+      ...prev,
+      [screenId]: {
+        ...prev[screenId],
+        markers: prev[screenId].markers.map((m) =>
+          m.id === markerId
+            ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, notes: t.notes.filter((_, i) => i !== idx) } : t)) }
+            : m
+        ),
+      },
+    }));
+  }, [taskDetail, setScreens]);
+
+  const toggleNoteGlobal = useCallback((idx) => {
+    if (!taskDetail) return;
+    const { screenId, markerId, taskId } = taskDetail;
+    setScreens((prev) => ({
+      ...prev,
+      [screenId]: {
+        ...prev[screenId],
+        markers: prev[screenId].markers.map((m) =>
+          m.id === markerId
+            ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, notes: t.notes.map((n, i) => (i === idx ? { ...n, done: !n.done } : n)) } : t)) }
+            : m
+        ),
+      },
+    }));
+  }, [taskDetail, setScreens]);
+
+  const completeTaskFromDetail = useCallback(() => {
+    if (!taskDetail) return;
+    const { screenId, markerId, taskId } = taskDetail;
+    setScreens((prev) => ({
+      ...prev,
+      [screenId]: {
+        ...prev[screenId],
+        markers: prev[screenId].markers.map((m) =>
+          m.id === markerId
+            ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, done: true, completedAt: Date.now() } : t)) }
+            : m
+        ),
+      },
+    }));
+    setTaskDetail(null);
+  }, [taskDetail, setScreens, setTaskDetail]);
+
+  const uncompleteTaskFromDetail = useCallback(() => {
+    if (!taskDetail) return;
+    const { screenId, markerId, taskId } = taskDetail;
+    setScreens((prev) => ({
+      ...prev,
+      [screenId]: {
+        ...prev[screenId],
+        markers: prev[screenId].markers.map((m) =>
+          m.id === markerId
+            ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, done: false, completedAt: null } : t)) }
+            : m
+        ),
+      },
+    }));
+  }, [taskDetail, setScreens]);
+
+  const deleteTaskFromDetail = useCallback(() => {
+    if (!taskDetail) return;
+    const { screenId, markerId, taskId } = taskDetail;
+    cancelTaskNotifications(taskId);
+    setScreens((prev) => ({
+      ...prev,
+      [screenId]: {
+        ...prev[screenId],
+        markers: prev[screenId].markers.map((m) =>
+          m.id === markerId
+            ? { ...m, tasks: m.tasks.filter((t) => t.id !== taskId) }
+            : m
+        ),
+      },
+    }));
+    setTaskDetail(null);
+  }, [taskDetail, setScreens, setTaskDetail]);
 
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
 
-  // Активная метка (для TaskScreen)
   const activeTaskId = topNav.type === NAV.TASK ? topNav.payload.markerId : null;
   const activeMarker = activeTaskId ? (screen.markers || []).find((m) => m.id === activeTaskId) : null;
 
-  // Хуки
   const keyboardOffset = useKeyboardOffset();
 
   const {
@@ -142,18 +276,15 @@ function AppShell({ onThemeChange }) {
   });
 
   const {
-    addTaskCore, toggleTask, incrementRepeat, deleteTask,
-    addNoteLocal, removeNoteLocal, toggleNoteLocal,
-    addNoteGlobal, removeNoteGlobal, toggleNoteGlobal,
+    addTaskCore, toggleTask, incrementRepeat, decrementRepeat, deleteTask,
   } = useTasks({
     screen, currentId, updateScreen, setScreens, setHistory,
     bumpGuideProgress,
   });
 
   const {
-    createMarker, saveMarkerEdits, deleteMarker, handleOpen: handleOpenMarker, handleDragMove,
+    createMarker, saveMarkerEdits, deleteMarker, handleDragMove,
     createScreen, saveFieldEdits, deleteField, updateScreenImage,
-    hardDeleteEntry,
   } = useScreens({
     screens, screen, currentId, setScreens, updateScreen,
     setTopLevelOrder, setHistory, setEditMode, popNav, setCurrentId,
@@ -178,12 +309,11 @@ function AppShell({ onThemeChange }) {
   } = useSharedPool({ setSharedPool });
 
   const {
-    slideX, swipeResponder, siblings, goSibling, animateSlide,
+    slideX, swipeResponder, siblings, animateSlide,
   } = useSlide({ topLevelOrder, currentId, setCurrentId, editMode });
 
   useNotifications({ screens, loaded });
 
-  // Back handler
   useBackHandler({
     overlay: {
       ...overlay,
@@ -195,14 +325,11 @@ function AppShell({ onThemeChange }) {
     cancelPendingPlacement: () => setPendingPlacement(null),
   });
 
-  // Производные списки
   const active = useMemo(() => activeEntries(screens), [screens]);
   const expired = useMemo(() => expiredEntries(screens), [screens]);
   const doneList = useMemo(() => doneEntries(screens), [screens]);
   const archive = useMemo(() => historyLog, [historyLog]);
-  const journalDetailEntry = useMemo(() => findEntry(screens, journalDetail), [screens, journalDetail]);
 
-  // Обёртка handleOpen — она возвращает метку, если нужно открыть TaskScreen
   const handleOpen = useCallback((marker) => {
     if (marker.linkTo) {
       setEditMode(false);
@@ -212,7 +339,6 @@ function AppShell({ onThemeChange }) {
     pushNav(NAV.TASK, { markerId: marker.id });
   }, [setEditMode, setCurrentId, pushNav]);
 
-  // Размещение задачи
   const placeTask = useCallback((screenId, markerId) => {
     if (!pendingPlacement) return;
     addTaskCore(screenId, markerId, {
@@ -232,7 +358,6 @@ function AppShell({ onThemeChange }) {
     if (share) shareTaskToPool(title, due);
   }, [setPendingPlacement, shareTaskToPool]);
 
-  // Меню
   const handleBottomAction = useCallback((action) => {
     switch (action) {
       case "menu": setShowSideMenu(true); break;
@@ -275,7 +400,6 @@ function AppShell({ onThemeChange }) {
     setEditingField, setPendingDeleteField,
   ]);
 
-  // renderTopNav
   const renderTopNav = () => {
     switch (topNav.type) {
       case NAV.TASK:
@@ -286,11 +410,9 @@ function AppShell({ onThemeChange }) {
             onToggle={toggleTask}
             onAdd={(markerId, title, due, repeat) => addTaskCore(currentId, markerId, { title, due, repeat })}
             onDelete={deleteTask}
-            onAddNote={addNoteLocal}
-            onRemoveNote={removeNoteLocal}
-            onToggleNote={toggleNoteLocal}
             onShare={shareTaskToPool}
             onIncrementRepeat={incrementRepeat}
+            onOpenDetail={(t) => openTaskDetail(t, activeMarker, currentId)}
           />
         ) : null;
 
@@ -304,8 +426,11 @@ function AppShell({ onThemeChange }) {
             thoughts={thoughts}
             onClose={popNav}
             onOpenDetail={(e) => {
-              setCurrentId(e.screenId);
-              pushNav(NAV.TASK, { markerId: e.markerId });
+              const scr = screens[e.screenId];
+              const mk = scr?.markers.find((m) => m.id === e.markerId);
+              if (mk) {
+                openTaskDetail(e.task, mk, e.screenId);
+              }
             }}
             onAddThought={addOrUpdateThought}
             onDeleteThought={deleteThought}
@@ -402,6 +527,12 @@ function AppShell({ onThemeChange }) {
             onOpenLanguage={() => {}}
             onOpenNotifications={() => {}}
             onOpenAbout={() => {}}
+            exportData={{
+              screens,
+              historyLog,
+              thoughts,
+              guideProgress,
+            }}
           />
         );
 
@@ -427,7 +558,6 @@ function AppShell({ onThemeChange }) {
       >
         <StatusBar barStyle="dark-content" />
 
-        {/* Красная полоска "режим удаления" */}
         {editMode && editAction === "delete" && (
           <Pressable
             onPress={() => { setEditMode(false); setEditAction("none"); }}
@@ -439,7 +569,6 @@ function AppShell({ onThemeChange }) {
           </Pressable>
         )}
 
-        {/* Синяя полоска "режим редактирования" */}
         {editMode && editAction === "edit" && (
           <Pressable
             onPress={() => { setEditMode(false); setEditAction("none"); }}
@@ -451,7 +580,6 @@ function AppShell({ onThemeChange }) {
           </Pressable>
         )}
 
-        {/* Шапка */}
         <View style={{
           flexDirection: "row", alignItems: "center", justifyContent: "space-between",
           paddingHorizontal: 16, paddingVertical: 12, backgroundColor: bar,
@@ -473,7 +601,6 @@ function AppShell({ onThemeChange }) {
           <View style={{ width: 46 }} />
         </View>
 
-        {/* Карта */}
         <Animated.View
           {...swipeResponder.panHandlers}
           style={{
@@ -484,7 +611,6 @@ function AppShell({ onThemeChange }) {
             setMapSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })
           }
         >
-          {/* Стрелки переключения полей */}
           {!editMode && siblings.list.length > 1 && (
             <View
               pointerEvents="box-none"
@@ -508,7 +634,6 @@ function AppShell({ onThemeChange }) {
             </View>
           )}
 
-          {/* Пустой тап — выход из режима */}
           {editMode && (editAction === "delete" || editAction === "edit") && (
             <Pressable
               onPress={() => { setEditMode(false); setEditAction("none"); }}
@@ -540,18 +665,6 @@ function AppShell({ onThemeChange }) {
 
           {renderTopNav()}
 
-          {journalDetail && journalDetailEntry && topNav.type === NAV.JOURNAL && (
-            <JournalDetail
-              entry={journalDetailEntry}
-              onBack={() => setJournalDetail(null)}
-              onClose={() => { setJournalDetail(null); popNav(); }}
-              onAddNote={(text) => addNoteGlobal(journalDetail, text)}
-              onRemoveNote={(idx) => removeNoteGlobal(journalDetail, idx)}
-              onToggleNote={(idx) => toggleNoteGlobal(journalDetail, idx)}
-            />
-          )}
-
-          {/* AddTaskBar — поверх картинки, внизу карты */}
           {!editMode &&
             navStack.length === 1 &&
             !showSideMenu &&
@@ -572,10 +685,8 @@ function AppShell({ onThemeChange }) {
             )}
         </Animated.View>
 
-        {/* BottomBar */}
         <BottomBar onAction={handleBottomAction} />
 
-        {/* Модалки */}
         <NewPinForm
           mode="create"
           title="Новая метка"
@@ -701,6 +812,25 @@ function AppShell({ onThemeChange }) {
             confirmColor={BLUE}
             onCancel={() => setShowExitConfirm(false)}
             onConfirm={() => { setShowExitConfirm(false); BackHandler.exitApp(); }}
+          />
+        )}
+
+        {taskDetailData && (
+          <TaskDetailOverlay
+            task={taskDetailData.task}
+            markerColor={taskDetailData.marker.color}
+            markerName={taskDetailData.marker.name}
+            screenName={taskDetailData.screen.name}
+            onBack={() => setTaskDetail(null)}
+            onRename={renameTask}
+            onAddNote={addNoteGlobal}
+            onRemoveNote={removeNoteGlobal}
+            onToggleNote={toggleNoteGlobal}
+			onIncrementRepeat={() => incrementRepeat(taskDetailData.marker.id, taskDetailData.task.id)}
+			onDecrementRepeat={() => decrementRepeat(taskDetailData.marker.id, taskDetailData.task.id)}
+            onDelete={deleteTaskFromDetail}
+            onComplete={completeTaskFromDetail}
+            onUncomplete={uncompleteTaskFromDetail}
           />
         )}
 
