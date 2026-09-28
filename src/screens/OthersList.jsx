@@ -1,42 +1,91 @@
 import React from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { Overlay } from "../components/ui/Overlay";
 import { OverlayHeader } from "../components/ui/OverlayHeader";
+import { EmptyState } from "../components/ui/EmptyState";
 import { useTheme } from "../theme/ThemeContext";
 import { GREEN, BLUE } from "../theme/palettes";
 import { formatRemaining } from "../utils/date";
 
 export function OthersList({ pool, onClose, onTake, onRefresh }) {
-  const { ink, card } = useTheme();
+  const { ink, card, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
+
   return (
     <Overlay zIndex={57}>
       <OverlayHeader onBack={onClose} title="🌐 ДРУГИЕ" onClose={onClose} />
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-          <Text style={{ fontSize: 11.5, color: ink, opacity: 0.6, flex: 1, paddingRight: 8 }}>
-            Задачи, которыми поделились другие (анонимно).
-          </Text>
-          <Pressable
-            onPress={onRefresh}
-            style={{ borderWidth: 1.5, borderColor: ink, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: card }}
-          >
-            <Text style={{ fontSize: 12, color: ink }}>🔄</Text>
-          </Pressable>
-        </View>
+
+      <View style={{ paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, flexDirection: "row", alignItems: "center", gap: SPACING.sm }}>
+        <Text style={{ flex: 1, ...TYPE.small, color: ink, opacity: 0.55 }}>
+          Задачи, которыми поделились другие.
+        </Text>
+        <Pressable
+          onPress={onRefresh}
+          style={({ pressed }) => ({
+            width: 36, height: 36, borderRadius: 18,
+            backgroundColor: card,
+            alignItems: "center", justifyContent: "center",
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <MaterialIcons name="refresh" size={20} color={ink} />
+        </Pressable>
+      </View>
+
+      <ScrollView contentContainerStyle={{ padding: SPACING.lg, gap: SPACING.sm }}>
         {pool.length === 0 && (
-          <Text style={{ color: ink, opacity: 0.5, fontSize: 13, fontStyle: "italic" }}>Пока никто ничего не расшарил.</Text>
+          <EmptyState
+            emoji="🌍"
+            title="Пока пусто"
+            subtitle="Никто ещё не поделился задачей. Будь первым — включи «Поделиться» при создании."
+          />
         )}
+
         {pool.map((p, idx) => (
-          <View key={`${p.title}-${idx}`} style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: card, borderWidth: 1.5, borderColor: ink, borderRadius: 10, padding: 10 }}>
+          <View
+            key={`${p.title}-${idx}`}
+            style={[
+              {
+                flexDirection: "row", alignItems: "center", gap: SPACING.sm,
+                backgroundColor: card,
+                borderRadius: RADIUS.lg,
+                padding: SPACING.md,
+              },
+              SHADOW.sm,
+            ]}
+          >
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 13.5, color: ink, fontWeight: "bold" }}>{p.title}</Text>
-              {p.due ? <Text style={{ fontSize: 10.5, color: ink, opacity: 0.6 }}>{formatRemaining(p.due)}</Text> : null}
+              <Text style={{ ...TYPE.bodyBold, color: ink }} numberOfLines={2}>{p.title}</Text>
+              {p.due ? (
+                <Text style={{ ...TYPE.small, color: ink, opacity: 0.55, marginTop: 2 }}>
+                  {formatRemaining(p.due)}
+                </Text>
+              ) : null}
             </View>
-            <View style={{ minWidth: 26, height: 26, borderRadius: 13, backgroundColor: BLUE, alignItems: "center", justifyContent: "center", paddingHorizontal: 6 }}>
-              <Text style={{ color: "#fff", fontSize: 11, fontWeight: "bold" }}>{p.count}</Text>
+
+            <View
+              style={{
+                minWidth: 30, height: 30, borderRadius: 15,
+                backgroundColor: BLUE,
+                alignItems: "center", justifyContent: "center",
+                paddingHorizontal: 8,
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "800" }}>{p.count}</Text>
             </View>
-            <Pressable onPress={() => onTake(p)} style={{ backgroundColor: GREEN, borderWidth: 1.5, borderColor: ink, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
-              <Text style={{ color: "#fff", fontSize: 11.5, fontWeight: "bold" }}>Взять</Text>
+
+            <Pressable
+              onPress={() => onTake(p)}
+              style={({ pressed }) => ({
+                backgroundColor: GREEN,
+                borderRadius: RADIUS.pill,
+                paddingHorizontal: SPACING.md,
+                paddingVertical: SPACING.sm,
+                opacity: pressed ? 0.85 : 1,
+                transform: [{ scale: pressed ? 0.96 : 1 }],
+              })}
+            >
+              <Text style={{ color: "#000", fontSize: 12, fontWeight: "800" }}>Взять</Text>
             </Pressable>
           </View>
         ))}

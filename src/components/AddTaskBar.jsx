@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -91,28 +92,27 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible = true, bgColor }
     return (
       <Pressable
         onPress={() => setExpanded(true)}
-        style={{
+        style={({ pressed }) => ({
           flexDirection: "row",
           alignItems: "center",
+          justifyContent: "center",
           gap: 8,
           backgroundColor: paper,
-          borderWidth: 1,
-          borderColor: ink,
-          borderBottomWidth: 0,
-          borderTopLeftRadius: 18,
-          borderTopRightRadius: 18,
-          paddingHorizontal: 16,
-          paddingVertical: 13,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          paddingHorizontal: 20,
+          paddingVertical: 15,
           shadowColor: "#000",
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 4,
-        }}
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.12,
+          shadowRadius: 6,
+          elevation: 6,
+          opacity: pressed ? 0.9 : 1,
+        })}
       >
-        <Text style={{ fontSize: 18, color: ink, opacity: 0.5 }}>＋</Text>
-        <Text style={{ fontSize: 15, color: ink, opacity: 0.5 }}>
-          Новое дело...
+        <MaterialIcons name="add" size={22} color={ink} />
+        <Text style={{ fontSize: 15, color: ink, fontWeight: "700" }}>
+          Добавить дело
         </Text>
       </Pressable>
     );

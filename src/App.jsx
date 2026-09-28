@@ -14,6 +14,7 @@ import { BottomBar } from "./components/BottomBar";
 import { SideMenu } from "./components/SideMenu";
 import { Pin } from "./components/Pin";
 import { MarkerPickerModal } from "./components/MarkerPickerModal";
+import { Overlay } from "./components/ui/Overlay";
 import { InfoDialog } from "./components/ui/InfoDialog";
 import { ConfirmDialog } from "./components/ui/ConfirmDialog";
 import { NewPinForm } from "./components/forms/NewPinForm";
@@ -31,6 +32,7 @@ import { TitleUnlockDialog } from "./screens/TitleUnlockDialog";
 import { ThemePickerOverlay } from "./screens/ThemePickerOverlay";
 import { BackgroundPickerOverlay } from "./screens/BackgroundPickerOverlay";
 import { TaskDetailOverlay } from "./screens/TaskDetailOverlay";
+import { OnboardingOverlay } from "./screens/OnboardingOverlay";
 
 import { screenTitle } from "./utils/text";
 import { cancelTaskNotifications } from "./utils/notifications";
@@ -88,6 +90,21 @@ function AppShell({ onThemeChange }) {
     screens, topLevelOrder, historyLog, thoughts,
     guideProgress, guideUsedOffers, guideTakenCount, sharedPool, loaded,
   } = state;
+
+  // Онбординг — после loaded
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (!loaded) return;
+    AsyncStorage.getItem("questmap_onboarded_v1")
+      .then((v) => { if (!v) setShowOnboarding(true); })
+      .catch(() => {});
+  }, [loaded]);
+
+  const finishOnboarding = useCallback(() => {
+    setShowOnboarding(false);
+    AsyncStorage.setItem("questmap_onboarded_v1", "1").catch(() => {});
+  }, []);
 
   // Навигация
   const [navStack, navDispatch] = useReducer(navReducer, [{ type: NAV.ROOT }]);
@@ -833,6 +850,12 @@ function AppShell({ onThemeChange }) {
             onComplete={completeTaskFromDetail}
             onUncomplete={uncompleteTaskFromDetail}
           />
+        )}
+
+        {showOnboarding && (
+          <Overlay zIndex={200}>
+            <OnboardingOverlay onDone={finishOnboarding} />
+          </Overlay>
         )}
 
         <SideMenu

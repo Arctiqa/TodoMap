@@ -25,6 +25,7 @@ function PinInner({
   onDelete,
   onEdit,
 }) {
+  const appear = useRef(new Animated.Value(0)).current;
   const { ink, card, paper, ring } = useTheme();
 
   const isBig = !!marker.linkTo;
@@ -50,6 +51,17 @@ function PinInner({
   const dragStartRef = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
 
+  // Появление пина — spring scale 0 → 1
+  useEffect(() => {
+    Animated.spring(appear, {
+      toValue: 1,
+      useNativeDriver: true,
+      friction: 6,
+      tension: 80,
+    }).start();
+  }, [appear]);
+
+  // Синхронизация позиции при изменении marker.x/y или размера контейнера
   useEffect(() => {
     if (isDraggingRef.current) return;
     if (!containerSize.width || !containerSize.height) return;
@@ -136,6 +148,7 @@ function PinInner({
         transform: [
           { translateX: Animated.subtract(pan.x, outerSize / 2) },
           { translateY: Animated.subtract(pan.y, outerSize / 2) },
+          { scale: appear },
         ],
         alignItems: "center",
         zIndex: 2,
@@ -153,6 +166,7 @@ function PinInner({
             justifyContent: "center",
           }}
         >
+          {/* Внешнее кольцо */}
           <View
             style={{
               position: "absolute",
@@ -164,6 +178,7 @@ function PinInner({
             }}
           />
 
+          {/* Внутренний круг с тенью */}
           <View
             style={{
               width: size,
@@ -173,6 +188,11 @@ function PinInner({
               alignItems: "center",
               justifyContent: "center",
               overflow: "hidden",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.15,
+              shadowRadius: 3,
+              elevation: 3,
             }}
           >
             {imageSource ? (
@@ -182,6 +202,7 @@ function PinInner({
             )}
           </View>
 
+          {/* Бейдж «папка» — вложенный пин */}
           {marker.linkTo && (
             <View
               style={{
@@ -202,6 +223,7 @@ function PinInner({
             </View>
           )}
 
+          {/* Бейдж картинки */}
           {marker.image && (
             <View
               style={{
@@ -222,6 +244,7 @@ function PinInner({
             </View>
           )}
 
+          {/* Бейдж режима редактирования */}
           {editMode && (
             <View
               style={{
@@ -246,6 +269,7 @@ function PinInner({
         </View>
       </Pressable>
 
+      {/* Подпись */}
       <View
         style={{
           marginTop: 4,
@@ -255,6 +279,11 @@ function PinInner({
           borderRadius: 8,
           paddingHorizontal: 7,
           paddingVertical: 2,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.08,
+          shadowRadius: 2,
+          elevation: 1,
         }}
       >
         <Text style={{ fontSize: 11, fontWeight: "bold", color: ink }}>
@@ -267,6 +296,7 @@ function PinInner({
         </Text>
       </View>
 
+      {/* Превью дел */}
       {!editMode && previewTasks.length > 0 && (
         <View style={{ marginTop: 3, alignItems: "center" }}>
           {previewTasks.map((t) => (

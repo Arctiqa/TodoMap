@@ -1,72 +1,40 @@
 import React, { useState, useMemo } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  Image,
-  LayoutAnimation,
-  Platform,
-  UIManager,
-} from "react-native";
+import { View, Text, Pressable, ScrollView, Image, LayoutAnimation, Platform, UIManager } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { Overlay } from "../components/ui/Overlay";
 import { OverlayHeader } from "../components/ui/OverlayHeader";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import { EmptyState } from "../components/ui/EmptyState";
+import { ProgressBar } from "../components/ui/ProgressBar";
 import { useTheme } from "../theme/ThemeContext";
-import { GREEN, BLUE } from "../theme/palettes";
+import { GREEN, BLUE, TEAL } from "../theme/palettes";
 import { formatRemaining, isTaskExpired } from "../utils/date";
 import { AddTaskBar } from "../components/AddTaskBar";
 import { resolveImageSource } from "../data/initialScreens";
 
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  try { UIManager.setLayoutAnimationEnabledExperimental(true); } catch (e) {}
 }
 
 export function TaskScreen({
-  marker,
-  onClose,
-  onToggle,
-  onAdd,
-  onDelete,
-  onShare,
-  onIncrementRepeat,
-  onOpenDetail,
+  marker, onClose, onToggle, onAdd, onDelete, onShare, onIncrementRepeat, onOpenDetail,
 }) {
-  const { ink, card, paper } = useTheme();
+  const { ink, card, paper, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
   const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState(null);
 
   const sortedTasks = useMemo(() => {
     if (!marker?.tasks) return [];
-    const active = marker.tasks
-      .filter((t) => !t.done)
-      .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-    const done = marker.tasks
-      .filter((t) => t.done)
-      .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+    const active = marker.tasks.filter((t) => !t.done).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    const done = marker.tasks.filter((t) => t.done).sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
     return [...active, ...done];
   }, [marker?.tasks]);
 
   if (!marker) return null;
 
-  const pendingTask =
-    marker.tasks && marker.tasks.find((t) => t.id === pendingDeleteTaskId);
+  const pendingTask = marker.tasks && marker.tasks.find((t) => t.id === pendingDeleteTaskId);
 
   const handleToggle = (taskId) => {
-    LayoutAnimation.configureNext({
-      duration: 350,
-      create: {
-        type: LayoutAnimation.Types.easeInEaseOut,
-        property: LayoutAnimation.Properties.opacity,
-      },
-      update: { type: LayoutAnimation.Types, springDamping: 0.7 },
-      delete: {
-        type: LayoutAnimation.Types.easeInEaseOut,
-        property: LayoutAnimation.Properties.opacity,
-      },
-    });
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     onToggle(marker.id, taskId);
   };
 
@@ -77,28 +45,28 @@ export function TaskScreen({
         title={`${marker.emoji} ${marker.name.toUpperCase()}`}
         onClose={onClose}
       />
+
       {marker.image && (
-        <View style={{ alignItems: "center", paddingTop: 10 }}>
+        <View style={{ alignItems: "center", paddingTop: SPACING.md }}>
           <Image
             source={resolveImageSource(marker.image)}
             style={{
-              width: 90,
-              height: 90,
-              borderRadius: 12,
-              borderWidth: 2,
-              borderColor: ink,
+              width: 90, height: 90,
+              borderRadius: RADIUS.lg,
+              borderWidth: 1,
+              borderColor: muted + "40",
             }}
           />
         </View>
       )}
+
       <Text
         style={{
-          paddingHorizontal: 16,
-          paddingTop: 10,
-          fontSize: 12,
-          letterSpacing: 1,
+          paddingHorizontal: SPACING.lg,
+          paddingTop: SPACING.md,
+          ...TYPE.caption,
           color: ink,
-          opacity: 0.55,
+          opacity: 0.5,
         }}
       >
         ДЕЛА
@@ -106,151 +74,163 @@ export function TaskScreen({
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, gap: 8, paddingBottom: 120 }}
+        contentContainerStyle={{ padding: SPACING.lg, gap: SPACING.sm, paddingBottom: 120 }}
       >
         {(!marker.tasks || marker.tasks.length === 0) && (
-          <Text
-            style={{
-              color: ink,
-              opacity: 0.5,
-              fontSize: 13,
-              fontStyle: "italic",
-            }}
-          >
-            Пока пусто — самое время добавить первое дело.
-          </Text>
+          <EmptyState
+            emoji="✨"
+            title="Пока пусто"
+            subtitle="Самое время добавить первое дело"
+          />
         )}
 
         {sortedTasks.map((t, index) => {
           const expired = isTaskExpired(t);
           const prev = sortedTasks[index - 1];
-
           const showActiveDivider = !t.done && (index === 0 || sortedTasks[index - 1].done);
           const showDoneDivider = t.done && index > 0 && !prev.done;
 
           return (
             <React.Fragment key={t.id}>
               {showActiveDivider && (
-                <View
+                <Text
                   style={{
-                    marginTop: 4, marginBottom: 6,
-                    flexDirection: "row", alignItems: "center", gap: 10,
+                    ...TYPE.caption,
+                    color: ink,
+                    opacity: 0.4,
+                    textAlign: "center",
+                    marginVertical: SPACING.sm,
                   }}
                 >
-                  <View style={{ flex: 1, height: 1, backgroundColor: ink, opacity: 0.2 }} />
-                  <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 2, color: ink, opacity: 0.5 }}>
-                    АКТИВНЫЕ
-                  </Text>
-                  <View style={{ flex: 1, height: 1, backgroundColor: ink, opacity: 0.2 }} />
-                </View>
+                  — АКТИВНЫЕ —
+                </Text>
               )}
-
               {showDoneDivider && (
-                <View
+                <Text
                   style={{
-                    marginTop: 18, marginBottom: 6,
-                    flexDirection: "row", alignItems: "center", gap: 10,
+                    ...TYPE.caption,
+                    color: ink,
+                    opacity: 0.4,
+                    textAlign: "center",
+                    marginTop: SPACING.lg,
+                    marginBottom: SPACING.sm,
                   }}
                 >
-                  <View style={{ flex: 1, height: 1, backgroundColor: ink, opacity: 0.2 }} />
-                  <Text style={{ fontSize: 10, fontWeight: "800", letterSpacing: 2, color: ink, opacity: 0.5 }}>
-                    ЗАВЕРШЁННЫЕ
-                  </Text>
-                  <View style={{ flex: 1, height: 1, backgroundColor: ink, opacity: 0.2 }} />
-                </View>
+                  — ЗАВЕРШЁННЫЕ —
+                </Text>
               )}
 
-              <View
-                style={{
-                  flexDirection: "row", alignItems: "flex-start", gap: 8,
-                  backgroundColor: card, opacity: t.done ? 0.55 : 1,
-                  borderWidth: 2, borderColor: ink, borderRadius: 10, padding: 10,
-                }}
+              <Pressable
+                onPress={() => onOpenDetail(t)}
+                style={({ pressed }) => [
+                  {
+                    flexDirection: "row",
+                    alignItems: "flex-start",
+                    gap: SPACING.sm,
+                    backgroundColor: card,
+                    opacity: t.done ? 0.55 : pressed ? 0.92 : 1,
+                    borderRadius: RADIUS.lg,
+                    padding: SPACING.md,
+                    transform: [{ scale: pressed ? 0.985 : 1 }],
+                  },
+                  SHADOW.sm,
+                ]}
               >
                 {t.repeat && !t.done ? (
                   <Pressable
-                    onPress={() => onIncrementRepeat(marker.id, t.id)}
+                    onPress={(ev) => { ev.stopPropagation?.(); onIncrementRepeat(marker.id, t.id); }}
+                    hitSlop={6}
                     style={{
-                      width: 28, height: 28, borderRadius: 7,
-                      borderWidth: 2, borderColor: ink,
+                      width: 28, height: 28, borderRadius: RADIUS.sm,
+                      borderWidth: 1.5, borderColor: muted + "80",
                       alignItems: "center", justifyContent: "center",
                       marginTop: 2, backgroundColor: paper,
                     }}
                   >
-                    <View style={{ width: 14, height: 2.5, borderRadius: 1.5, backgroundColor: ink, position: "absolute" }} />
-                    <View style={{ width: 2.5, height: 14, borderRadius: 1.5, backgroundColor: ink, position: "absolute" }} />
+                    <MaterialIcons name="add" size={18} color={ink} />
                   </Pressable>
                 ) : (
                   <Pressable
-                    onPress={() => handleToggle(t.id)}
+                    onPress={(ev) => { ev.stopPropagation?.(); handleToggle(t.id); }}
+                    hitSlop={6}
                     style={{
-                      width: 28, height: 28, borderRadius: 7,
-                      borderWidth: 2, borderColor: ink,
+                      width: 28, height: 28, borderRadius: RADIUS.sm,
+                      borderWidth: 1.5, borderColor: t.done ? TEAL : muted + "80",
                       alignItems: "center", justifyContent: "center",
-                      marginTop: 2, backgroundColor: t.done ? BLUE : "transparent",
+                      marginTop: 2, backgroundColor: t.done ? TEAL : "transparent",
                     }}
                   >
-                    {t.done && <Text style={{ color: "#fff", fontSize: 15 }}>✓</Text>}
+                    {t.done && <MaterialIcons name="check" size={18} color="#fff" />}
                   </Pressable>
                 )}
 
-                <Pressable style={{ flex: 1 }} onPress={() => onOpenDetail(t)}>
+                <View style={{ flex: 1 }}>
                   <Text
                     style={{
-                      fontSize: 14,
+                      ...TYPE.bodyBold,
                       color: expired ? BLUE : ink,
                       textDecorationLine: t.done ? "line-through" : "none",
-                      opacity: t.done ? 0.55 : 1,
-                      fontWeight: expired ? "bold" : "normal",
+                      opacity: t.done ? 0.65 : 1,
                     }}
+                    numberOfLines={2}
                   >
                     {t.title}
                   </Text>
 
                   {t.repeat && (
-                    <View style={{ marginTop: 4, marginBottom: 2 }}>
-                      <View style={{ height: 4, borderRadius: 2, backgroundColor: ink, opacity: 0.15, overflow: "hidden" }}>
-                        <View style={{ height: 4, borderRadius: 2, backgroundColor: GREEN, width: `${Math.min(100, (t.repeat.count / t.repeat.target) * 100)}%` }} />
-                      </View>
-                      <Text style={{ fontSize: 10.5, color: ink, opacity: 0.6, marginTop: 2 }}>
-                        {t.repeat.count}/{t.repeat.target}
+                    <View style={{ marginTop: SPACING.xs }}>
+                      <ProgressBar value={t.repeat.count} max={t.repeat.target} color={GREEN} height={4} />
+                      <Text style={{ ...TYPE.monoSm, color: ink, opacity: 0.55, marginTop: 2 }}>
+                        🔁 {t.repeat.count}/{t.repeat.target}
                       </Text>
                     </View>
                   )}
 
                   {t.notes && t.notes.length > 0 && (
-                    <View style={{ marginTop: 3, gap: 1 }}>
-                      {t.notes.map((n, i) => (
+                    <View style={{ marginTop: SPACING.xs, gap: 1 }}>
+                      {t.notes.slice(0, 3).map((n, i) => (
                         <Text
                           key={i}
                           style={{
-                            fontSize: 11.5, color: ink,
+                            fontSize: 11.5,
+                            color: ink,
                             opacity: n.done ? 0.4 : 0.75,
                             textDecorationLine: n.done ? "line-through" : "none",
                           }}
+                          numberOfLines={1}
                         >
-                          [{n.text}]
+                          · {n.text}
                         </Text>
                       ))}
+                      {t.notes.length > 3 && (
+                        <Text style={{ fontSize: 10.5, color: ink, opacity: 0.4 }}>
+                          и ещё {t.notes.length - 3}
+                        </Text>
+                      )}
                     </View>
                   )}
 
                   <Text
                     style={{
-                      fontSize: 11, marginTop: 3,
+                      fontSize: 11,
+                      marginTop: SPACING.xs,
                       color: expired ? BLUE : ink,
-                      opacity: expired ? 1 : 0.6,
-                      fontWeight: expired || t.due ? "bold" : "normal",
+                      opacity: expired ? 1 : 0.55,
+                      fontWeight: expired ? "700" : "400",
                     }}
                   >
                     {formatRemaining(t.due)}
                   </Text>
-                </Pressable>
+                </View>
 
-                <Pressable onPress={() => setPendingDeleteTaskId(t.id)} style={{ marginTop: 2 }}>
-                  <Text style={{ opacity: 0.5, color: ink }}>✕</Text>
+                <Pressable
+                  onPress={(ev) => { ev.stopPropagation?.(); setPendingDeleteTaskId(t.id); }}
+                  hitSlop={8}
+                  style={{ marginTop: 2 }}
+                >
+                  <MaterialIcons name="close" size={18} color={muted} />
                 </Pressable>
-              </View>
+              </Pressable>
             </React.Fragment>
           );
         })}
