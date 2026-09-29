@@ -5,10 +5,10 @@ import { useTheme } from "../theme/ThemeContext";
 import { GREEN } from "../theme/palettes";
 
 const ITEMS = [
-  { key: "menu",    icon: "menu",       label: "Меню",    action: "menu" },
-  { key: "journal", icon: "menu-book",  label: "Журнал",  action: "journal" },
-  { key: "history", icon: "history",    label: "История", action: "history" },
-  { key: "others",  icon: "public",     label: "Другие",  action: "others" },
+  { key: "menu",    icon: "menu",           label: "Меню",    action: "menu" },
+  { key: "journal", icon: "menu-book",      label: "Журнал",  action: "journal" },
+  { key: "marker",  icon: "add-location-alt", label: "Метка", action: "add-marker" },
+  { key: "others",  icon: "public",         label: "Другие",  action: "others" },
 ];
 
 export function BottomBar({ onAction, activeKey }) {

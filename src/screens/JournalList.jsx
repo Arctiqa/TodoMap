@@ -9,7 +9,6 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { TaskRow } from "../components/TaskRow";
 import { useTheme } from "../theme/ThemeContext";
 import { GREEN, BLUE, RED, TEAL } from "../theme/palettes";
-import { fmtDate } from "../utils/date";
 import { ThoughtsSection } from "./ThoughtsSection";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -17,9 +16,9 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 const SORTS = [
-  { key: "added",   label: "🕐 Добавление" },
-  { key: "alpha",   label: "🔤 А–Я" },
-  { key: "markers", label: "📍 По меткам" },
+  { key: "added",   label: "Добавление" },
+  { key: "alpha",   label: "А–Я" },
+  { key: "markers", label: "По меткам" },
 ];
 
 function byAdded(a, b) {
@@ -33,16 +32,16 @@ function byAlpha(a, b) {
   return d !== 0 ? d : byAdded(a, b);
 }
 
-const SectionHeader = memo(function SectionHeader({ title, count, color, open, onToggle, ink, muted, SPACING, RADIUS, TYPE }) {
+const SectionHeader = memo(function SectionHeader({ title, count, color, open, onToggle, ink, RADIUS, TYPE }) {
   return (
     <Pressable
       onPress={onToggle}
       style={({ pressed }) => ({
         flexDirection: "row",
         alignItems: "center",
-        gap: SPACING.sm,
-        paddingVertical: SPACING.sm,
-        paddingHorizontal: SPACING.xs,
+        gap: 8,
+        paddingVertical: 8,
+        paddingHorizontal: 4,
         opacity: pressed ? 0.7 : 1,
       })}
     >
@@ -67,65 +66,11 @@ const SectionHeader = memo(function SectionHeader({ title, count, color, open, o
   );
 });
 
-const ArchiveRow = memo(function ArchiveRow({ item, ink, card, muted, SPACING, RADIUS, SHADOW, TYPE, onDelete }) {
-  return (
-    <View
-      style={[
-        {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: SPACING.sm,
-          backgroundColor: card,
-          borderRadius: RADIUS.lg,
-          padding: SPACING.md,
-          marginBottom: SPACING.sm,
-          opacity: 0.75,
-        },
-        SHADOW.sm,
-      ]}
-    >
-      <View
-        style={{
-          width: 32, height: 32, borderRadius: 16,
-          backgroundColor: item.markerColor + "33",
-          alignItems: "center", justifyContent: "center",
-        }}
-      >
-        <Text style={{ fontSize: 14 }}>{item.markerEmoji}</Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text
-          style={{
-            ...TYPE.bodyBold,
-            color: ink,
-            textDecorationLine: "line-through",
-          }}
-          numberOfLines={1}
-        >
-          {item.task.title}
-        </Text>
-        <Text style={{ ...TYPE.small, color: ink, opacity: 0.5, marginTop: 2 }}>
-          {item.markerName} · {fmtDate(item.removedAt || item.task.createdAt)}
-        </Text>
-      </View>
-      <Text style={{ fontSize: 11, color: item.task.done ? TEAL : RED, fontWeight: "700" }}>
-        {item.task.done ? "✓" : "🗑"}
-      </Text>
-      {onDelete && (
-        <Pressable onPress={() => onDelete(item)} hitSlop={8} style={{ padding: 4 }}>
-          <MaterialIcons name="delete-outline" size={18} color={RED} />
-        </Pressable>
-      )}
-    </View>
-  );
-});
-
 export function JournalList({
-  active, expired, done, archive, thoughts,
+  active, expired, done, thoughts,
   onClose, onOpenDetail,
   onAddThought, onDeleteThought, onConvertThought,
   onReturnTask, onCompleteTask, onDeleteTask,
-  onHardDeleteArchive,
 }) {
   const { ink, card, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
   const [mode, setMode] = useState("added");
@@ -137,7 +82,6 @@ export function JournalList({
     expired: false,
     done: false,
     thoughts: false,
-    archive: false,
   });
 
   const toggle = useCallback((key) => {
@@ -166,15 +110,10 @@ export function JournalList({
       .sort((a, b) => (b.task.completedAt || 0) - (a.task.completedAt || 0));
   }, [done, doneFilter]);
 
-  const flatArchive = useMemo(
-    () => [...archive].sort((a, b) => (b.removedAt || 0) - (a.removedAt || 0)),
-    [archive]
-  );
-
   const items = useMemo(() => {
     const out = [];
 
-    out.push({ type: "header", key: "h_active", section: "active", title: "🔥 АКТИВНЫЕ", count: active.length, color: RED });
+    out.push({ type: "header", key: "h_active", section: "active", title: "АКТИВНЫЕ", count: active.length, color: RED });
     if (openSections.active) {
       out.push({ type: "sortChips", key: "sort_active" });
       if (flatActive.length === 0) {
@@ -203,7 +142,7 @@ export function JournalList({
       }
     }
 
-    out.push({ type: "header", key: "h_expired", section: "expired", title: "⏰ ПРОВАЛЕННЫЕ", count: expired.length, color: BLUE });
+    out.push({ type: "header", key: "h_expired", section: "expired", title: "ПРОВАЛЕННЫЕ", count: expired.length, color: BLUE });
     if (openSections.expired) {
       if (flatExpired.length === 0) {
         out.push({ type: "empty", key: "e_expired", emoji: "🎉", title: "Проваленных нет", subtitle: "Отлично справляешься!" });
@@ -212,7 +151,7 @@ export function JournalList({
       }
     }
 
-    out.push({ type: "header", key: "h_done", section: "done", title: "✅ ВЫПОЛНЕННЫЕ", count: done.length, color: TEAL });
+    out.push({ type: "header", key: "h_done", section: "done", title: "ВЫПОЛНЕННЫЕ", count: done.length, color: TEAL });
     if (openSections.done) {
       out.push({ type: "doneChips", key: "done_chips" });
       if (filteredDone.length === 0) {
@@ -222,22 +161,13 @@ export function JournalList({
       }
     }
 
-    out.push({ type: "header", key: "h_thoughts", section: "thoughts", title: "💭 МЫСЛИ", count: thoughts.length, color: ink });
+    out.push({ type: "header", key: "h_thoughts", section: "thoughts", title: "МЫСЛИ", count: thoughts.length, color: ink });
     if (openSections.thoughts) {
       out.push({ type: "thoughts", key: "thoughts_block" });
     }
 
-    out.push({ type: "header", key: "h_archive", section: "archive", title: "📦 АРХИВ", count: archive.length, color: ink });
-    if (openSections.archive) {
-      if (flatArchive.length === 0) {
-        out.push({ type: "empty", key: "e_archive", emoji: "📦", title: "Архив пуст" });
-      } else {
-        flatArchive.slice(0, 100).forEach((e, i) => out.push({ type: "archive", key: `ar_${e.task.id}_${e.removedAt || "live"}_${i}`, item: e }));
-      }
-    }
-
     return out;
-  }, [active, expired, done, archive, thoughts, flatActive, flatExpired, filteredDone, flatArchive, openSections, doneFilter, mode, ink]);
+  }, [active, expired, done, thoughts, flatActive, flatExpired, filteredDone, openSections, doneFilter, mode, ink]);
 
   const renderItem = useCallback(({ item }) => {
     switch (item.type) {
@@ -249,8 +179,7 @@ export function JournalList({
             color={item.color}
             open={openSections[item.section]}
             onToggle={() => toggle(item.section)}
-            ink={ink} muted={muted}
-            SPACING={SPACING} RADIUS={RADIUS} TYPE={TYPE}
+            ink={ink} RADIUS={RADIUS} TYPE={TYPE}
           />
         );
 
@@ -353,26 +282,16 @@ export function JournalList({
           />
         );
 
-      case "archive":
-        return (
-          <ArchiveRow
-            item={item.item}
-            ink={ink} card={card} muted={muted}
-            SPACING={SPACING} RADIUS={RADIUS} SHADOW={SHADOW} TYPE={TYPE}
-            onDelete={onHardDeleteArchive}
-          />
-        );
-
       default:
         return null;
     }
-  }, [openSections, ink, card, muted, SPACING, RADIUS, SHADOW, TYPE, mode, doneFilter, thoughts, onOpenDetail, onReturnTask, onCompleteTask, onAddThought, onDeleteThought, onConvertThought, onHardDeleteArchive, toggle]);
+  }, [openSections, ink, card, muted, SPACING, RADIUS, SHADOW, TYPE, mode, doneFilter, thoughts, onOpenDetail, onReturnTask, onCompleteTask, onAddThought, onDeleteThought, onConvertThought, toggle]);
 
   const keyExtractor = useCallback((item) => item.key, []);
 
   return (
     <Overlay zIndex={55}>
-      <OverlayHeader onBack={onClose} title="📖 ЖУРНАЛ" onClose={onClose} />
+      <OverlayHeader onBack={onClose} title="ЖУРНАЛ" onClose={onClose} />
       <FlatList
         data={items}
         renderItem={renderItem}

@@ -3,21 +3,28 @@ import {
   requestNotificationPermission,
   scheduleTaskNotifications,
   cancelTaskNotifications,
+  cancelAllNotifications,
 } from "../utils/notifications";
 
-export function useNotifications({ screens, loaded }) {
+export function useNotifications({ screens, loaded, enabled }) {
+  const scheduledRef = useRef(new Set());
+
   // Запрос разрешения
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !enabled) return;
     requestNotificationPermission();
-  }, [loaded]);
+  }, [loaded, enabled]);
 
-  // Множество id задач, для которых уже запланированы уведомления
-  const scheduledRef = useRef(new Set());
+  // При выключении — отменяем всё
+  useEffect(() => {
+    if (enabled) return;
+    cancelAllNotifications().catch(() => {});
+    scheduledRef.current.clear();
+  }, [enabled]);
 
   // Планирование при загрузке
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !enabled) return;
     const allTasks = [];
     Object.values(screens).forEach((scr) => {
       (scr.markers || []).forEach((mk) => {
@@ -25,28 +32,29 @@ export function useNotifications({ screens, loaded }) {
           if (!t.done && t.due) allTasks.push(t);
         });
       });
+      (scr.stickers || []).forEach((t) => {
+        if (!t.done && t.due) allTasks.push(t);
+      });
     });
     allTasks.forEach((t) => {
       scheduledRef.current.add(t.id);
       scheduleTaskNotifications(t);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded]);
+  }, [loaded, enabled]);
 
-  // Реакция на изменения screens: перепланирование изменённых, отмена удалённых
+  // Реакция на изменения screens
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !enabled) return;
 
     const presentIds = new Set();
     Object.values(screens).forEach((scr) => {
       (scr.markers || []).forEach((mk) => {
-        (mk.tasks || []).forEach((t) => {
-          presentIds.add(t.id);
-        });
+        (mk.tasks || []).forEach((t) => presentIds.add(t.id));
       });
+      (scr.stickers || []).forEach((t) => presentIds.add(t.id));
     });
 
-    // Отменяем у тех, кого больше нет в screens
     scheduledRef.current.forEach((id) => {
       if (!presentIds.has(id)) {
         cancelTaskNotifications(id);
@@ -54,7 +62,6 @@ export function useNotifications({ screens, loaded }) {
       }
     });
 
-    // Перепланируем все активные задачи с due (идемпотентно — scheduleTaskNotifications сам отменяет старые)
     Object.values(screens).forEach((scr) => {
       (scr.markers || []).forEach((mk) => {
         (mk.tasks || []).forEach((t) => {
@@ -69,6 +76,17 @@ export function useNotifications({ screens, loaded }) {
           }
         });
       });
+      (scr.stickers || []).forEach((t) => {
+        if (!t.done && t.due) {
+          scheduledRef.current.add(t.id);
+          scheduleTaskNotifications(t);
+        } else if (t.done) {
+          if (scheduledRef.current.has(t.id)) {
+            cancelTaskNotifications(t.id);
+            scheduledRef.current.delete(t.id);
+          }
+        }
+      });
     });
-  }, [loaded, screens]);
+  }, [loaded, enabled, screens]);
 }

@@ -9,7 +9,7 @@ import { GREEN, BLUE, RED, TEAL } from "./theme/palettes";
 import { useQuestStore } from "./state/useQuestStore";
 import { navReducer, NAV } from "./state/navigation";
 import { activeEntries, expiredEntries, doneEntries, historyEntries } from "./state/selectors";
-import { FIELD_MARKER_ID, STICKER_TRASH_ZONE_HEIGHT } from "./constants/config";
+import { FIELD_MARKER_ID, STICKER_TRASH_ZONE_HEIGHT, NOTIFICATIONS_KEY } from "./constants/config";
 
 import { BottomBar } from "./components/BottomBar";
 import { SideMenu } from "./components/SideMenu";
@@ -91,17 +91,26 @@ function AppShell({ onThemeChange }) {
   } = state;
 
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   useEffect(() => {
     if (!loaded) return;
     AsyncStorage.getItem("questmap_onboarded_v1")
       .then((v) => { if (!v) setShowOnboarding(true); })
       .catch(() => {});
+    AsyncStorage.getItem(NOTIFICATIONS_KEY)
+      .then((v) => { if (v === "0") setNotificationsEnabled(false); })
+      .catch(() => {});
   }, [loaded]);
 
   const finishOnboarding = useCallback(() => {
     setShowOnboarding(false);
     AsyncStorage.setItem("questmap_onboarded_v1", "1").catch(() => {});
+  }, []);
+
+  const toggleNotifications = useCallback((value) => {
+    setNotificationsEnabled(value);
+    AsyncStorage.setItem(NOTIFICATIONS_KEY, value ? "1" : "0").catch(() => {});
   }, []);
 
   const [navStack, navDispatch] = useReducer(navReducer, [{ type: NAV.ROOT }]);
@@ -112,6 +121,8 @@ function AppShell({ onThemeChange }) {
 
   const [currentId, setCurrentId] = useState("main");
   const screen = screens[currentId];
+
+  const [addTaskBarExpanded, setAddTaskBarExpanded] = useState(false);
 
   const overlay = useOverlayState();
   const {
@@ -172,7 +183,6 @@ function AppShell({ onThemeChange }) {
     returnToActive: returnTaskToActive,
     complete: completeTaskFromJournal,
     remove: deleteTaskFromJournal,
-    hardDeleteArchive,
   } = useJournalActions({ setScreens, setHistory });
 
   const {
@@ -184,7 +194,7 @@ function AppShell({ onThemeChange }) {
     slideX, swipeResponder, siblings, animateSlide,
   } = useSlide({ topLevelOrder, currentId, setCurrentId, editMode });
 
-  useNotifications({ screens, loaded });
+  useNotifications({ screens, loaded, enabled: notificationsEnabled });
 
   useBackHandler({
     overlay: { ...overlay, pendingPlacement },
@@ -192,9 +202,9 @@ function AppShell({ onThemeChange }) {
     editMode, setEditMode, setEditAction,
     currentId, setCurrentId, screens,
     cancelPendingPlacement: () => setPendingPlacement(null),
+    addTaskBarExpanded, setAddTaskBarExpanded,
   });
 
-  // Стикеры: drag
   const [draggingStickerId, setDraggingStickerId] = useState(null);
   const [trashActive, setTrashActive] = useState(false);
   const hoveredMarkerIdRef = useRef(null);
@@ -225,7 +235,7 @@ function AppShell({ onThemeChange }) {
     setTrashActive(false);
     setHoveredMarkerId(null);
   }, [setHoveredMarkerId]);
-  
+
   const handleDropStickerOnDoor = useCallback((stickerId, linkToId) => {
     moveStickerToField(currentId, stickerId, linkToId, 50, 50);
     setCurrentId(linkToId);
@@ -233,11 +243,11 @@ function AppShell({ onThemeChange }) {
 
   const handleExtractStickerToParent = useCallback((stickerId) => {
     const parentId = screen.parentId;
-    if (!parentId) return; // родителя нет — ничего не делаем
+    if (!parentId) return;
     moveStickerToField(currentId, stickerId, parentId, 50, 50);
     setCurrentId(parentId);
-  }, [screen, currentId, moveStickerToField, setCurrentId]);  
-  
+  }, [screen, currentId, moveStickerToField, setCurrentId]);
+
   const handleHoverMarker = useCallback((markerId) => {
     setHoveredMarkerId(markerId);
   }, []);
@@ -251,14 +261,13 @@ function AppShell({ onThemeChange }) {
     }
   }, []);
 
-  // Back прерывает drag стикера
   useEffect(() => {
     const onBackPress = () => {
       if (draggingStickerId) {
         setDraggingStickerId(null);
         isOverTrashRef.current = false;
         setTrashActive(false);
-		setHoveredMarkerId(null);
+        setHoveredMarkerId(null);
         return true;
       }
       return false;
@@ -267,7 +276,6 @@ function AppShell({ onThemeChange }) {
     return () => sub.remove();
   }, [draggingStickerId, setHoveredMarkerId]);
 
-  // taskDetail
   const openTaskDetail = useCallback((task, marker, screenId) => {
     setTaskDetail({
       taskId: task.id,
@@ -367,14 +375,10 @@ function AppShell({ onThemeChange }) {
         const sticker = (scr.stickers || []).find((s) => s.id === taskId);
         if (sticker) {
           setHistory((h) => [...h, {
-            screenId,
-            screenName: scr.name,
-            markerId: null,
-            markerName: "Свободное",
-            markerEmoji: scr.emoji || "📌",
-            markerColor: "#B08968",
-            task: sticker,
-            removedAt: Date.now(),
+            screenId, screenName: scr.name,
+            markerId: null, markerName: "Свободное",
+            markerEmoji: scr.emoji || "📌", markerColor: "#B08968",
+            task: sticker, removedAt: Date.now(),
           }]);
         }
         return {
@@ -390,14 +394,10 @@ function AppShell({ onThemeChange }) {
       const task = marker && marker.tasks.find((t) => t.id === taskId);
       if (marker && task) {
         setHistory((h) => [...h, {
-          screenId,
-          screenName: scr.name,
-          markerId: marker.id,
-          markerName: marker.name,
-          markerEmoji: marker.emoji,
-          markerColor: marker.color,
-          task,
-          removedAt: Date.now(),
+          screenId, screenName: scr.name,
+          markerId: marker.id, markerName: marker.name,
+          markerEmoji: marker.emoji, markerColor: marker.color,
+          task, removedAt: Date.now(),
         }]);
       }
       return {
@@ -424,7 +424,6 @@ function AppShell({ onThemeChange }) {
   const active = useMemo(() => activeEntries(screens), [screens]);
   const expired = useMemo(() => expiredEntries(screens), [screens]);
   const doneList = useMemo(() => doneEntries(screens), [screens]);
-  const archive = useMemo(() => historyLog, [historyLog]);
 
   const handleOpen = useCallback((marker) => {
     if (marker.linkTo) {
@@ -463,7 +462,7 @@ function AppShell({ onThemeChange }) {
     switch (action) {
       case "menu": setShowSideMenu(true); break;
       case "journal": resetNav(); pushNav(NAV.JOURNAL); break;
-      case "history": resetNav(); pushNav(NAV.HISTORY); break;
+      case "add-marker": resetNav(); pushNav(NAV.ADD_MARKER); break;
       case "others": resetNav(); pushNav(NAV.OTHERS); loadSharedPool(); break;
     }
   }, [setShowSideMenu, resetNav, pushNav, loadSharedPool]);
@@ -492,6 +491,8 @@ function AppShell({ onThemeChange }) {
         resetNav(); pushNav(NAV.GUIDES_LIST); break;
       case "titles":
         resetNav(); pushNav(NAV.TITLES); break;
+      case "history":
+        resetNav(); pushNav(NAV.HISTORY); break;
       case "settings":
         resetNav(); pushNav(NAV.SETTINGS); break;
     }
@@ -501,7 +502,6 @@ function AppShell({ onThemeChange }) {
     setEditingField, setPendingDeleteField, setPendingResetBg,
   ]);
 
-  // Хлебные крошки
   const breadcrumbs = useMemo(() => {
     const chain = [];
     let id = currentId;
@@ -514,7 +514,6 @@ function AppShell({ onThemeChange }) {
     return chain;
   }, [currentId, screens]);
 
-  // Коллбэки стикеров
   const handleOpenSticker = useCallback((sticker) => {
     setTaskDetail({
       taskId: sticker.id,
@@ -561,7 +560,6 @@ function AppShell({ onThemeChange }) {
             active={active}
             expired={expired}
             done={doneList}
-            archive={archive}
             thoughts={thoughts}
             onClose={popNav}
             onOpenDetail={(e) => {
@@ -583,7 +581,6 @@ function AppShell({ onThemeChange }) {
             onReturnTask={returnTaskToActive}
             onCompleteTask={completeTaskFromJournal}
             onDeleteTask={deleteTaskFromJournal}
-            onHardDeleteArchive={hardDeleteArchive}
           />
         );
 
@@ -673,6 +670,8 @@ function AppShell({ onThemeChange }) {
             onOpenNotifications={() => {}}
             onOpenAbout={() => {}}
             exportData={{ screens, historyLog, thoughts, guideProgress }}
+            notificationsEnabled={notificationsEnabled}
+            onToggleNotifications={toggleNotifications}
           />
         );
 
@@ -720,7 +719,6 @@ function AppShell({ onThemeChange }) {
           </Pressable>
         )}
 
-        {/* Шапка с хлебными крошками */}
         <View style={{
           flexDirection: "row", alignItems: "center", justifyContent: "space-between",
           paddingHorizontal: 12, paddingVertical: 10, backgroundColor: bar,
@@ -828,8 +826,8 @@ function AppShell({ onThemeChange }) {
             <Pin
               key={m.id}
               marker={m}
-			  markerId={m.id}
-			  subscribeHovered={subscribeHovered}
+              markerId={m.id}
+              subscribeHovered={subscribeHovered}
               editMode={editMode}
               editAction={editAction}
               containerSize={mapSize}
@@ -851,12 +849,12 @@ function AppShell({ onThemeChange }) {
               onDragEnd={handleStickerDragEnd}
               onDropOnField={handleDropStickerOnField}
               onDropOnMarker={handleDropStickerOnMarker}
-			  onDropOnDoor={handleDropStickerOnDoor}
+              onDropOnDoor={handleDropStickerOnDoor}
               onExtractToParent={handleExtractStickerToParent}
               onDelete={handleDeleteSticker}
               isOverTrashRef={isOverTrashRef}
               onMove={handleStickerMove}
-			  onHoverMarker={handleHoverMarker}
+              onHoverMarker={handleHoverMarker}
             />
           ))}
 
@@ -915,6 +913,9 @@ function AppShell({ onThemeChange }) {
                   targetMarkerId={null}
                   onSubmit={handleAddTaskFromBar}
                   bgColor="transparent"
+                  collapsed={!addTaskBarExpanded}
+                  onExpand={() => setAddTaskBarExpanded(true)}
+                  onCollapse={() => setAddTaskBarExpanded(false)}
                 />
               </View>
             )}
@@ -945,6 +946,7 @@ function AppShell({ onThemeChange }) {
 
         {editingMarker && (
           <NewPinForm
+            key={editingMarker.id}
             mode="edit"
             title="Редактировать метку"
             confirmLabel="Сохранить"
@@ -964,6 +966,7 @@ function AppShell({ onThemeChange }) {
 
         {editingField && (
           <NewPinForm
+            key={editingField.id}
             mode="editField"
             title="Редактировать поле"
             confirmLabel="Сохранить"
@@ -1052,6 +1055,7 @@ function AppShell({ onThemeChange }) {
 
         {taskDetailData && (
           <TaskDetailOverlay
+            key={taskDetailData.task.id}
             task={taskDetailData.task}
             markerColor={taskDetailData.marker ? taskDetailData.marker.color : "#B08968"}
             markerName={taskDetailData.marker ? taskDetailData.marker.name : "Свободное"}

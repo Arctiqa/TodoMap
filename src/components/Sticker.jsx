@@ -59,6 +59,9 @@ function StickerInner({
   const onExtractRef = useRef(onExtractToParent);
   onExtractRef.current = onExtractToParent;
 
+  const onOpenRef = useRef(onOpen);
+  onOpenRef.current = onOpen;
+
   const lastHoverCheckRef = useRef(0);
   const hoveredMarkerIdRef = useRef(null);
 
@@ -94,7 +97,6 @@ function StickerInner({
     }).start();
   }, [appear]);
 
-  // если id сменился или стикер вернулся — сброс анимации drop
   useEffect(() => {
     dropScale.setValue(1);
     dropOpacity.setValue(1);
@@ -128,8 +130,7 @@ function StickerInner({
       ]).start(() => {
         callback && callback();
       });
-    },
-    [dropScale, dropOpacity]
+    }, [dropScale, dropOpacity]
   );
 
   const endDrag = useCallback(
@@ -151,7 +152,6 @@ function StickerInner({
       const finalX = dragStartRef.current.x + (gx || 0);
       const finalY = dragStartRef.current.y + (gy || 0);
 
-      // над урной?
       if (isOverTrashRef && isOverTrashRef.current) {
         draggingRef.current = false;
         setDragging(false);
@@ -194,7 +194,6 @@ function StickerInner({
         return;
       }
 
-      // drop на поле
       const minX = pctToPx(PIN_BOUNDS.minX, cs.width);
       const maxX = pctToPx(PIN_BOUNDS.maxX, cs.width) - STICKER_SIZE.width;
       const minY = pctToPx(PIN_BOUNDS.minY, cs.height);
@@ -234,23 +233,23 @@ function StickerInner({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
 
-		onPanResponderGrant: () => {
-		  movedRef.current = false;
-		  heldLongRef.current = false;
+      onPanResponderGrant: () => {
+        movedRef.current = false;
+        heldLongRef.current = false;
 
-			holdTimer.current = setTimeout(() => {
-			  holdTimer.current = null;
-			  if (!movedRef.current) {
-				heldLongRef.current = true;
+        holdTimer.current = setTimeout(() => {
+          holdTimer.current = null;
+          if (!movedRef.current) {
+            heldLongRef.current = true;
 
-				onDragEnd && onDragEnd(sticker.id);
-				onMoveRef.current && onMoveRef.current(0, 0);
-				onExtractRef.current && onExtractRef.current(sticker.id);
-			  }
-			}, STICKER_LONG_PRESS);
+            onDragEnd && onDragEnd(sticker.id);
+            onMoveRef.current && onMoveRef.current(0, 0);
+            onExtractRef.current && onExtractRef.current(sticker.id);
+          }
+        }, STICKER_LONG_PRESS);
 
-		  beginDrag();
-		},
+        beginDrag();
+      },
 
       onPanResponderMove: (_, g) => {
         if (!movedRef.current && (Math.abs(g.dx) > 5 || Math.abs(g.dy) > 5)) {
@@ -327,11 +326,18 @@ function StickerInner({
         }
 
         if (movedRef.current) {
+          // был реальный drag — обрабатываем как drop
           endDrag(g.dx, g.dy);
         } else {
+          // чистый тап — открываем TaskDetail
           draggingRef.current = false;
           setDragging(false);
-          onOpen && onOpen(sticker);
+          onDragEnd && onDragEnd(sticker.id);
+          if (hoveredMarkerIdRef.current !== null) {
+            hoveredMarkerIdRef.current = null;
+            onHoverMarkerRef.current && onHoverMarkerRef.current(null);
+          }
+          onOpenRef.current && onOpenRef.current(sticker);
         }
         wasDraggingRef.current = false;
       },
@@ -428,7 +434,7 @@ function StickerInner({
 
         {notes.length > 0 && (
           <Text style={{ fontSize: 9.5, color: ink, opacity: 0.55, marginTop: 2, fontFamily: "monospace" }}>
-            📝 {notesDone}/{notes.length}
+            {notesDone}/{notes.length}
           </Text>
         )}
 

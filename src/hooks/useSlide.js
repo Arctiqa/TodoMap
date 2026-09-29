@@ -1,5 +1,5 @@
 import { useRef, useMemo, useCallback } from "react";
-import { PanResponder, Animated, Dimensions } from "react-native";
+import { PanResponder, Animated, Dimensions, Easing } from "react-native";
 import { SWIPE_EDGE_RESISTANCE } from "../constants/config";
 
 export function useSlide({ topLevelOrder, currentId, setCurrentId, editMode }) {
@@ -28,16 +28,23 @@ export function useSlide({ topLevelOrder, currentId, setCurrentId, editMode }) {
 
     const target = direction > 0 ? screenWidth : -screenWidth;
 
+    // Фаза 1: уводим текущий экран
     Animated.timing(slideX, {
       toValue: target,
-      duration: 220,
+      duration: 320,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
       useNativeDriver: true,
     }).start(() => {
       goSibling(direction > 0 ? -1 : 1);
+
+      // Мгновенно переставляем без визуального рывка — экран уже за пределами
       slideX.setValue(-target);
+
+      // Фаза 2: вводим новый экран
       Animated.timing(slideX, {
         toValue: 0,
-        duration: 220,
+        duration: 320,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
         useNativeDriver: true,
       }).start(() => {
         isAnimatingRef.current = false;
@@ -73,8 +80,8 @@ export function useSlide({ topLevelOrder, currentId, setCurrentId, editMode }) {
         Animated.spring(slideX, {
           toValue: 0,
           useNativeDriver: true,
-          friction: 8,
-          tension: 60,
+          friction: 9,
+          tension: 55,
         }).start();
       }
     },

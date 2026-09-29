@@ -22,16 +22,17 @@ const SECTIONS = [
     title: "ПОЛЕ",
     items: [
       { key: "add-field",    icon: "layers",         label: "Создать поле" },
-      { key: "edit-field",    icon: "edit",          label: "Редактировать поле" },
-      { key: "clear-bg",     icon: "layers-clear",        label: "Очистить фон" },
+      { key: "edit-field",   icon: "edit",           label: "Редактировать поле" },
+      { key: "clear-bg",     icon: "layers-clear",   label: "Очистить фон" },
       { key: "delete-field", icon: "delete-forever", label: "Удалить поле", color: "red" },
     ],
   },
   {
     title: "ПРОГРЕСС",
     items: [
-      { key: "guides", icon: "explore",      label: "Гиды" },
-      { key: "titles", icon: "emoji-events", label: "Титулы" },
+      { key: "guides",  icon: "explore",      label: "Гиды" },
+      { key: "titles",  icon: "emoji-events", label: "Титулы" },
+      { key: "history", icon: "history",      label: "История" },
     ],
   },
   {
@@ -118,7 +119,6 @@ export function SideMenu({ visible, onClose, onAction }) {
           transform: [{ translateX }],
         }}
       >
-        {/* Шапка — с отступом от статус-бара, тонкая граница снизу, без крестика */}
         <View
           style={{
             paddingHorizontal: 14,

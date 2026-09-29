@@ -11,7 +11,7 @@ export const TaskRow = memo(function TaskRow({
   showPath = true,
   isDone = false,
   withActions = false,
-  actionKind,     // "expired" | "done" | undefined
+  actionKind,
   onOpenDetail,
   onReturn,
   onComplete,
@@ -40,7 +40,6 @@ export const TaskRow = memo(function TaskRow({
         SHADOW.md,
       ]}
     >
-      {/* Строка 1: метка + заголовок + дата */}
       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: SPACING.sm }}>
         <View
           style={{
@@ -97,12 +96,10 @@ export const TaskRow = memo(function TaskRow({
         </View>
       </View>
 
-      {/* Прогрессы */}
       {(hasNotes || hasRepeat) && (
         <View style={{ marginTop: SPACING.sm, gap: SPACING.xs }}>
           {hasNotes && (
             <View style={{ flexDirection: "row", alignItems: "center", gap: SPACING.sm }}>
-              <Text style={{ ...TYPE.caption, color: ink, opacity: 0.5 }}>📝</Text>
               <ProgressBar
                 value={notesDone}
                 max={notes.length}
@@ -117,7 +114,6 @@ export const TaskRow = memo(function TaskRow({
           )}
           {hasRepeat && (
             <View style={{ flexDirection: "row", alignItems: "center", gap: SPACING.sm }}>
-              <Text style={{ ...TYPE.caption, color: ink, opacity: 0.5 }}>🔁</Text>
               <ProgressBar
                 value={t.repeat.count}
                 max={t.repeat.target}
@@ -133,7 +129,6 @@ export const TaskRow = memo(function TaskRow({
         </View>
       )}
 
-      {/* Кнопки действий */}
       {withActions && (onReturn || onComplete || onDelete) && (
         <View
           style={{
@@ -144,29 +139,13 @@ export const TaskRow = memo(function TaskRow({
           }}
         >
           {onReturn && (
-            <ActionButton
-              icon="undo"
-              label="Вернуть"
-              color={ink}
-              onPress={onReturn}
-            />
+            <ActionButton icon="undo" label="Вернуть" color={ink} onPress={onReturn} />
           )}
           {onComplete && (
-            <ActionButton
-              icon="check"
-              label="Выполнено"
-              color={TEAL}
-              filled
-              onPress={onComplete}
-            />
+            <ActionButton icon="check" label="Выполнено" color={TEAL} filled onPress={onComplete} />
           )}
           {onDelete && (
-            <ActionButton
-              icon="delete-outline"
-              label="Удалить"
-              color={RED}
-              onPress={onDelete}
-            />
+            <ActionButton icon="delete-outline" label="Удалить" color={RED} onPress={onDelete} />
           )}
         </View>
       )}
@@ -175,7 +154,7 @@ export const TaskRow = memo(function TaskRow({
 });
 
 function ActionButton({ icon, label, color, onPress, filled = false }) {
-  const { ink, card, RADIUS, SPACING } = useTheme();
+  const { RADIUS, SPACING } = useTheme();
   return (
     <Pressable
       onPress={(ev) => {

@@ -7,6 +7,7 @@ export function useBackHandler({
   editMode, setEditMode, setEditAction,
   currentId, setCurrentId, screens,
   cancelPendingPlacement,
+  addTaskBarExpanded, setAddTaskBarExpanded,
 }) {
   const navRef = useRef(navStack);
   navRef.current = navStack;
@@ -19,6 +20,12 @@ export function useBackHandler({
 
   useEffect(() => {
     const onBackPress = () => {
+      // 1) раскрытая панель «Новое дело» — закрываем
+      if (addTaskBarExpanded) {
+        setAddTaskBarExpanded(false);
+        return true;
+      }
+
       const o = overlayRef.current;
       if (o.taskDetail) { o.setTaskDetail(null); return true; }
       if (o.showSideMenu) { o.setShowSideMenu(false); return true; }
@@ -30,7 +37,6 @@ export function useBackHandler({
       if (o.pendingDeleteField) { o.setPendingDeleteField(null); return true; }
       if (o.pendingDelete) { o.setPendingDelete(null); return true; }
       if (o.pendingPlacement) { cancelPendingPlacement(); return true; }
-      // ← фикс: диалог выхода раньше, чем уход с экрана
       if (o.showExitConfirm) { o.setShowExitConfirm(false); return true; }
 
       const stack = navRef.current;
@@ -48,5 +54,5 @@ export function useBackHandler({
     };
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => sub.remove();
-  }, [navDispatch, cancelPendingPlacement, setEditMode, setEditAction, setCurrentId]);
+  }, [navDispatch, cancelPendingPlacement, setEditMode, setEditAction, setCurrentId, addTaskBarExpanded, setAddTaskBarExpanded]);
 }
