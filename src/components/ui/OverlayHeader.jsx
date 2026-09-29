@@ -3,7 +3,7 @@ import { View, Text, Pressable } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "../../theme/ThemeContext";
 
-export function OverlayHeader({ onBack, title, onClose, right }) {
+export function OverlayHeader({ onBack, title, onClose }) {
   const { ink } = useTheme();
   return (
     <View
@@ -20,15 +20,10 @@ export function OverlayHeader({ onBack, title, onClose, right }) {
       <Pressable onPress={onBack} style={{ minWidth: 40, alignItems: "flex-start" }}>
         <MaterialIcons name="arrow-back" size={24} color={ink} />
       </Pressable>
-      <Text
-        style={{ fontSize: 15, fontWeight: "bold", color: ink, textAlign: "center", flex: 1 }}
-        numberOfLines={1}
-      >
+      <Text style={{ fontSize: 15, fontWeight: "bold", color: ink, textAlign: "center", flex: 1 }} numberOfLines={1}>
         {title}
       </Text>
-      <View style={{ minWidth: 40, alignItems: "flex-end" }}>
-        {right}
-      </View>
+      <View style={{ minWidth: 40 }} />
     </View>
   );
 }
