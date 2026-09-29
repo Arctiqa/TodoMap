@@ -10,14 +10,14 @@ export function PrimaryButton({
   style,
   disabled = false,
   loading = false,
-  size = "md",      // "sm" | "md" | "lg"
+  size = "md",       // "sm" | "md" | "lg"
   variant = "solid", // "solid" | "outline" | "ghost"
 }) {
-  const { ink, RADIUS, SPACING, SHADOW, TYPE } = useTheme();
+  const { ink, RADIUS, SPACING, SHADOW } = useTheme();
 
   const heights = { sm: 36, md: 46, lg: 54 };
-  const fontSizes = { sm: 13, md: 15, lg: 16 };
-  const pads = { sm: 10, md: 14, lg: 18 };
+  const fontSizes = { sm: 13, md: 14, lg: 16 };
+  const pads = { sm: 10, md: 12, lg: 14 };
 
   const bg = variant === "solid" ? (color || ink) : "transparent";
   const border = variant === "ghost" ? 0 : 1.5;
@@ -36,7 +36,7 @@ export function PrimaryButton({
           borderRadius: RADIUS.md,
           minHeight: heights[size],
           paddingVertical: pads[size],
-          paddingHorizontal: SPACING.lg,
+          paddingHorizontal: SPACING.md,
           alignItems: "center",
           justifyContent: "center",
           flexDirection: "row",
@@ -51,7 +51,18 @@ export function PrimaryButton({
       {loading ? (
         <ActivityIndicator color={fg} size="small" />
       ) : (
-        <Text style={{ color: fg, fontWeight: "700", fontSize: fontSizes[size], letterSpacing: 0.3 }}>
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}
+          style={{
+            color: fg,
+            fontWeight: "700",
+            fontSize: fontSizes[size],
+            letterSpacing: 0,
+            textAlign: "center",
+          }}
+        >
           {label}
         </Text>
       )}
