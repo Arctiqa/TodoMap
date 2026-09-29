@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, Modal } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
 import { MiniCalendar } from "./MiniCalendar";
 import { TimeWheelPicker } from "./TimeWheelPicker";
@@ -43,16 +43,16 @@ export function DueEditor({
             style={{
               flex: 1,
               alignItems: "center",
-              paddingVertical: 10, // ← крупнее
+              paddingVertical: 10,
               borderRadius: 10,
-              borderWidth: 1,       // ← тоньше
+              borderWidth: 1,
               borderColor: ink,
               backgroundColor: dueMode === opt.key ? ink : inputBg,
             }}
           >
             <Text
               style={{
-                fontSize: 13,     // ← крупнее
+                fontSize: 13,
                 fontWeight: "bold",
                 color: dueMode === opt.key ? paper : ink,
               }}
@@ -68,7 +68,6 @@ export function DueEditor({
           <Pressable
             onPress={() => {
               setShowCalendar((v) => !v);
-              setShowTime(false);
             }}
             style={{
               flexDirection: "row",
@@ -78,7 +77,7 @@ export function DueEditor({
               borderColor: ink,
               borderRadius: 10,
               paddingHorizontal: 14,
-              paddingVertical: 14, // ← крупнее
+              paddingVertical: 14,
               marginBottom: 8,
               backgroundColor: inputBg,
             }}
@@ -86,7 +85,7 @@ export function DueEditor({
             <Text style={{ fontSize: 16 }}>📅</Text>
             <Text
               style={{
-                fontSize: 15,      // ← крупнее
+                fontSize: 15,
                 color: ink,
                 opacity: dueDate ? 1 : 0.5,
                 fontWeight: dueDate ? "bold" : "normal",
@@ -98,10 +97,7 @@ export function DueEditor({
           </Pressable>
 
           <Pressable
-            onPress={() => {
-              setShowTime((v) => !v);
-              setShowCalendar(false);
-            }}
+            onPress={() => setShowTime(true)}
             style={{
               flexDirection: "row",
               alignItems: "center",
@@ -110,7 +106,7 @@ export function DueEditor({
               borderColor: ink,
               borderRadius: 10,
               paddingHorizontal: 14,
-              paddingVertical: 14, // ← крупнее
+              paddingVertical: 14,
               marginBottom: 8,
               backgroundColor: inputBg,
             }}
@@ -118,7 +114,7 @@ export function DueEditor({
             <Text style={{ fontSize: 16 }}>🕐</Text>
             <Text
               style={{
-                fontSize: 15,      // ← крупнее
+                fontSize: 15,
                 color: ink,
                 opacity: dueTime ? 1 : 0.5,
                 fontWeight: dueTime ? "bold" : "normal",
@@ -138,18 +134,36 @@ export function DueEditor({
               }}
             />
           )}
-
-          {showTime && (
-            <View style={{ marginTop: 4 }}>
-              <TimeWheelPicker
-                value={dueTime || "00:00"}
-                onChange={(t) => setDueTime(t)}
-                onClose={() => setShowTime(false)}
-              />
-            </View>
-          )}
         </View>
       )}
+
+      {/* TimeWheelPicker в Modal — чтобы ScrollView не конфликтовал с родителем */}
+      <Modal
+        visible={showTime}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTime(false)}
+        statusBarTranslucent
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onPress={() => setShowTime(false)}
+        >
+          <Pressable onPress={() => {}} style={{ width: "100%", maxWidth: 320 }}>
+            <TimeWheelPicker
+              value={dueTime || "00:00"}
+              onChange={(t) => setDueTime(t)}
+              onClose={() => setShowTime(false)}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {dueMode === "duration" && (
         <View

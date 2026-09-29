@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback } from "react";
-import { View, Text, Pressable, ScrollView, Image, LayoutAnimation, Platform, UIManager, KeyboardAvoidingView } from "react-native";
+import { View, Text, Pressable, ScrollView, Image, LayoutAnimation, Platform, UIManager, KeyboardAvoidingView, BackHandler } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { Overlay } from "../components/ui/Overlay";
@@ -150,7 +150,6 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
         </Text>
       </View>
 
-      {/* Кнопка «+» повтора, если задача не done и есть repeat */}
       {!task.done && task.repeat && onIncrementRepeat && (
         <Pressable
           onPress={(e) => {
@@ -205,6 +204,7 @@ export function TaskScreen({
   const { ink, card, paper, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
   const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [addBarExpanded, setAddBarExpanded] = useState(false);
 
   const sortedTasks = useMemo(() => {
     if (!marker?.tasks) return [];
@@ -226,6 +226,22 @@ export function TaskScreen({
     setTimeout(() => setCopied(false), 1600);
   }, [marker]);
 
+  // Системный Back: сначала сворачиваем AddTaskBar, потом закрываем TaskScreen
+  React.useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (addBarExpanded) {
+        setAddBarExpanded(false);
+        return true;
+      }
+      if (pendingDeleteTaskId) {
+        setPendingDeleteTaskId(null);
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [addBarExpanded, pendingDeleteTaskId]);
+
   if (!marker) return null;
 
   const pendingTask = marker.tasks && marker.tasks.find((t) => t.id === pendingDeleteTaskId);
@@ -236,30 +252,32 @@ export function TaskScreen({
         onBack={onClose}
         title={`${marker.emoji} ${marker.name.toUpperCase()}`}
         onClose={onClose}
+        right={
+          <Pressable
+            onPress={handleCopy}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: RADIUS.pill,
+              borderWidth: 1.5,
+              borderColor: ink,
+              backgroundColor: card,
+            }}
+          >
+            <MaterialIcons
+              name={copied ? "check" : "content-copy"}
+              size={16}
+              color={copied ? GREEN : ink}
+            />
+            <Text style={{ fontSize: 11.5, fontWeight: "700", color: copied ? GREEN : ink }}>
+              {copied ? "OK" : "Копировать"}
+            </Text>
+          </Pressable>
+        }
       />
-
-      {/* Шапка действий — копирование */}
-      <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm }}>
-        <Pressable
-          onPress={handleCopy}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-            paddingHorizontal: 10,
-            paddingVertical: 6,
-            borderRadius: RADIUS.pill,
-            borderWidth: 1.5,
-            borderColor: ink,
-            backgroundColor: card,
-          }}
-        >
-          <MaterialIcons name={copied ? "check" : "content-copy"} size={16} color={copied ? GREEN : ink} />
-          <Text style={{ fontSize: 11.5, fontWeight: "700", color: copied ? GREEN : ink }}>
-            {copied ? "Скопировано" : "Копировать"}
-          </Text>
-        </Pressable>
-      </View>
 
       {marker.image && (
         <View style={{ alignItems: "center", paddingTop: SPACING.sm }}>
@@ -326,10 +344,14 @@ export function TaskScreen({
         <AddTaskBar
           visible={true}
           targetMarkerId={marker.id}
+          collapsed={!addBarExpanded}
+          onExpand={() => setAddBarExpanded(true)}
+          onCollapse={() => setAddBarExpanded(false)}
           onSubmit={({ title, due, repeat, share }) => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             onAdd(marker.id, title, due, repeat);
             if (share && onShare) onShare(title, due);
+            setAddBarExpanded(false);
           }}
         />
       </KeyboardAvoidingView>

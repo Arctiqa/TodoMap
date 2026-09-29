@@ -8,8 +8,6 @@ import {
   Animated,
   PanResponder,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { DueEditor } from "./DueEditor";
 import { PrimaryButton } from "./ui/PrimaryButton";
@@ -119,184 +117,179 @@ export function AddTaskBar({ targetMarkerId, onSubmit, visible = true, bgColor, 
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={0}
+    <Animated.View
+      {...swipeDownResponder.panHandlers}
+      style={{
+        borderTopLeftRadius: 18,
+        borderTopRightRadius: 18,
+        backgroundColor: paper,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 8,
+        overflow: "hidden",
+        borderWidth: 1,
+        borderBottomWidth: 0,
+        borderColor: ink,
+        maxHeight: animValue.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, 700],
+        }),
+        opacity: animValue.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [0, 0.5, 1],
+        }),
+      }}
     >
-      <Animated.View
-        {...swipeDownResponder.panHandlers}
-        style={{
-          borderTopLeftRadius: 18,
-          borderTopRightRadius: 18,
-          backgroundColor: paper,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
-          elevation: 8,
-          overflow: "hidden",
-          borderWidth: 1,
-          borderBottomWidth: 0,
-          borderColor: ink,
-          maxHeight: animValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, 700],
-          }),
-          opacity: animValue.interpolate({
-            inputRange: [0, 0.5, 1],
-            outputRange: [0, 0.5, 1],
-          }),
+      <ScrollView
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingHorizontal: 14,
+          paddingTop: 14,
+          paddingBottom: 14,
         }}
       >
-        <ScrollView
-          ref={scrollRef}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{
+        <View
+          style={{
+            alignSelf: "center",
+            width: 44,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: ink,
+            opacity: 0.2,
+            marginBottom: 12,
+          }}
+        />
+
+        <TextInput
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Новое дело..."
+          placeholderTextColor="#9A9A9A"
+          style={{
+            borderWidth: 1,
+            borderColor: ink,
+            borderRadius: 10,
             paddingHorizontal: 14,
-            paddingTop: 14,
-            paddingBottom: 14,
+            paddingVertical: 14,
+            fontSize: 16,
+            marginBottom: 12,
+            color: ink,
+            backgroundColor: inputBg,
+          }}
+        />
+
+        <DueEditor
+          dueMode={dueMode}
+          setDueMode={setDueMode}
+          dueDate={dueDate}
+          setDueDate={setDueDate}
+          dueTime={dueTime}
+          setDueTime={setDueTime}
+          dueDays={dueDays}
+          setDueDays={setDueDays}
+        />
+
+        <Pressable
+          onPress={() => setRepeatOn((v) => !v)}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: repeatOn ? 8 : 12,
           }}
         >
           <View
             style={{
-              alignSelf: "center",
-              width: 44,
-              height: 4,
-              borderRadius: 2,
-              backgroundColor: ink,
-              opacity: 0.2,
-              marginBottom: 12,
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              borderWidth: 1,
+              borderColor: ink,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: repeatOn ? ink : paper,
             }}
-          />
+          >
+            {repeatOn && <Text style={{ color: paper, fontSize: 13 }}>✓</Text>}
+          </View>
+          <Text style={{ fontSize: 13.5, color: ink }}>Серия повторов</Text>
+        </Pressable>
 
-          <TextInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Новое дело..."
-            placeholderTextColor="#9A9A9A"
+        {repeatOn && (
+          <View
             style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
               borderWidth: 1,
               borderColor: ink,
               borderRadius: 10,
-              paddingHorizontal: 14,
-              paddingVertical: 14,
-              fontSize: 16,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
               marginBottom: 12,
-              color: ink,
               backgroundColor: inputBg,
             }}
-          />
-
-          <DueEditor
-            dueMode={dueMode}
-            setDueMode={setDueMode}
-            dueDate={dueDate}
-            setDueDate={setDueDate}
-            dueTime={dueTime}
-            setDueTime={setDueTime}
-            dueDays={dueDays}
-            setDueDays={setDueDays}
-          />
-
-          <Pressable
-            onPress={() => setRepeatOn((v) => !v)}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-              marginBottom: repeatOn ? 8 : 12,
-            }}
           >
-            <View
+            <Pressable
+              onPress={() => setRepeatTarget((n) => Math.max(1, n - 1))}
               style={{
-                width: 22,
-                height: 22,
-                borderRadius: 6,
-                borderWidth: 1,
-                borderColor: ink,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: repeatOn ? ink : paper,
-              }}
-            >
-              {repeatOn && <Text style={{ color: paper, fontSize: 13 }}>✓</Text>}
-            </View>
-            <Text style={{ fontSize: 13.5, color: ink }}>Серия повторов</Text>
-          </Pressable>
-
-          {repeatOn && (
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 10,
-                borderWidth: 1,
-                borderColor: ink,
-                borderRadius: 10,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-                marginBottom: 12,
-                backgroundColor: inputBg,
-              }}
-            >
-              <Pressable
-                onPress={() => setRepeatTarget((n) => Math.max(1, n - 1))}
-                style={{
-                  width: 30, height: 30, borderRadius: 8,
-                  borderWidth: 1, borderColor: ink,
-                  alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <Text style={{ fontWeight: "bold", color: ink, fontSize: 16 }}>−</Text>
-              </Pressable>
-              <Text style={{ minWidth: 30, textAlign: "center", fontWeight: "bold", color: ink, fontSize: 16 }}>
-                {repeatTarget}
-              </Text>
-              <Pressable
-                onPress={() => setRepeatTarget((n) => n + 1)}
-                style={{
-                  width: 30, height: 30, borderRadius: 8,
-                  borderWidth: 1, borderColor: ink,
-                  alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <Text style={{ fontWeight: "bold", color: ink, fontSize: 16 }}>+</Text>
-              </Pressable>
-              <Text style={{ fontSize: 13, color: ink, opacity: 0.6 }}> раз до завершения</Text>
-            </View>
-          )}
-
-          <Pressable
-            onPress={() => setShareToPool((v) => !v)}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-              marginBottom: 12,
-            }}
-          >
-            <View
-              style={{
-                width: 22, height: 22, borderRadius: 6,
+                width: 30, height: 30, borderRadius: 8,
                 borderWidth: 1, borderColor: ink,
                 alignItems: "center", justifyContent: "center",
-                backgroundColor: shareToPool ? ink : paper,
               }}
             >
-              {shareToPool && <Text style={{ color: paper, fontSize: 13 }}>✓</Text>}
-            </View>
-            <Text style={{ fontSize: 13.5, color: ink }}>Поделиться задачей</Text>
-          </Pressable>
+              <Text style={{ fontWeight: "bold", color: ink, fontSize: 16 }}>−</Text>
+            </Pressable>
+            <Text style={{ minWidth: 30, textAlign: "center", fontWeight: "bold", color: ink, fontSize: 16 }}>
+              {repeatTarget}
+            </Text>
+            <Pressable
+              onPress={() => setRepeatTarget((n) => n + 1)}
+              style={{
+                width: 30, height: 30, borderRadius: 8,
+                borderWidth: 1, borderColor: ink,
+                alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <Text style={{ fontWeight: "bold", color: ink, fontSize: 16 }}>+</Text>
+            </Pressable>
+            <Text style={{ fontSize: 13, color: ink, opacity: 0.6 }}> раз до завершения</Text>
+          </View>
+        )}
 
-          <PrimaryButton
-            label="Добавить дело"
-            color={GREEN_SOFT}
-            textColor="#000"
-            onPress={submit}
-          />
-        </ScrollView>
-      </Animated.View>
-    </KeyboardAvoidingView>
+        <Pressable
+          onPress={() => setShareToPool((v) => !v)}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 12,
+          }}
+        >
+          <View
+            style={{
+              width: 22, height: 22, borderRadius: 6,
+              borderWidth: 1, borderColor: ink,
+              alignItems: "center", justifyContent: "center",
+              backgroundColor: shareToPool ? ink : paper,
+            }}
+          >
+            {shareToPool && <Text style={{ color: paper, fontSize: 13 }}>✓</Text>}
+          </View>
+          <Text style={{ fontSize: 13.5, color: ink }}>Поделиться задачей</Text>
+        </Pressable>
+
+        <PrimaryButton
+          label="Добавить дело"
+          color={GREEN_SOFT}
+          textColor="#000"
+          onPress={submit}
+        />
+      </ScrollView>
+    </Animated.View>
   );
 }
