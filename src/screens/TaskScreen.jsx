@@ -1,5 +1,8 @@
-import React, { useState, useMemo, useRef, useCallback } from "react";
-import { View, Text, Pressable, ScrollView, Image, LayoutAnimation, Platform, UIManager, KeyboardAvoidingView } from "react-native";
+import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import {
+  View, Text, Pressable, ScrollView, Image,
+  LayoutAnimation, Platform, UIManager, KeyboardAvoidingView, BackHandler,
+} from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { Overlay } from "../components/ui/Overlay";
@@ -74,7 +77,6 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
         SHADOW.sm,
       ]}
     >
-      {/* Галка — тап toggles done */}
       <Pressable
         onPress={(e) => {
           e.stopPropagation?.();
@@ -150,7 +152,6 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
         </Text>
       </View>
 
-      {/* Кнопка «+» повтора, если задача не done и есть repeat */}
       {!task.done && task.repeat && onIncrementRepeat && (
         <Pressable
           onPress={(e) => {
@@ -205,6 +206,17 @@ export function TaskScreen({
   const { ink, card, paper, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
   const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [addTaskBarExpanded, setAddTaskBarExpanded] = useState(false);
+
+
+  useEffect(() => {
+    if (!addTaskBarExpanded) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      setAddTaskBarExpanded(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [addTaskBarExpanded]);
 
   const sortedTasks = useMemo(() => {
     if (!marker?.tasks) return [];
@@ -236,33 +248,36 @@ export function TaskScreen({
         onBack={onClose}
         title={`${marker.emoji} ${marker.name.toUpperCase()}`}
         onClose={onClose}
+        right={
+          <Pressable
+            onPress={handleCopy}
+            hitSlop={8}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: RADIUS.pill,
+              borderWidth: 1.5,
+              borderColor: ink,
+              backgroundColor: card,
+            }}
+          >
+            <MaterialIcons
+              name={copied ? "check" : "content-copy"}
+              size={16}
+              color={copied ? GREEN : ink}
+            />
+            <Text style={{ fontSize: 11, fontWeight: "700", color: copied ? GREEN : ink }}>
+              {copied ? "ОК" : "Копия"}
+            </Text>
+          </Pressable>
+        }
       />
 
-      {/* Шапка действий — копирование */}
-      <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm }}>
-        <Pressable
-          onPress={handleCopy}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-            paddingHorizontal: 10,
-            paddingVertical: 6,
-            borderRadius: RADIUS.pill,
-            borderWidth: 1.5,
-            borderColor: ink,
-            backgroundColor: card,
-          }}
-        >
-          <MaterialIcons name={copied ? "check" : "content-copy"} size={16} color={copied ? GREEN : ink} />
-          <Text style={{ fontSize: 11.5, fontWeight: "700", color: copied ? GREEN : ink }}>
-            {copied ? "Скопировано" : "Копировать"}
-          </Text>
-        </Pressable>
-      </View>
-
       {marker.image && (
-        <View style={{ alignItems: "center", paddingTop: SPACING.sm }}>
+        <View style={{ alignItems: "center", paddingTop: SPACING.md }}>
           <Image
             source={resolveImageSource(marker.image)}
             style={{
@@ -278,12 +293,17 @@ export function TaskScreen({
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        keyboardVerticalOffset={0}
       >
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: SPACING.lg, gap: SPACING.sm, paddingBottom: 160 }}
+          contentContainerStyle={{
+            padding: SPACING.lg,
+            gap: SPACING.sm,
+            paddingBottom: addTaskBarExpanded ? 420 : 120,
+          }}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
           {(!marker.tasks || marker.tasks.length === 0) && (
             <EmptyState
@@ -326,6 +346,9 @@ export function TaskScreen({
         <AddTaskBar
           visible={true}
           targetMarkerId={marker.id}
+          collapsed={!addTaskBarExpanded}
+          onExpand={() => setAddTaskBarExpanded(true)}
+          onCollapse={() => setAddTaskBarExpanded(false)}
           onSubmit={({ title, due, repeat, share }) => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             onAdd(marker.id, title, due, repeat);
