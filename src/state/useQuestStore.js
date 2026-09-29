@@ -16,6 +16,18 @@ const initialState = {
   loaded: false,
 };
 
+function ensureStickers(screensObj) {
+  const result = {};
+  Object.entries(screensObj).forEach(([key, scr]) => {
+    result[key] = {
+      ...scr,
+      markers: scr.markers || [],
+      stickers: Array.isArray(scr.stickers) ? scr.stickers : [],
+    };
+  });
+  return result;
+}
+
 function reducer(state, action) {
   switch (action.type) {
     case "HYDRATE":
@@ -67,7 +79,7 @@ export function useQuestStore() {
         if (raw) {
           const data = JSON.parse(raw);
           const patch = {};
-          if (data.screens) patch.screens = dedupeIds(data.screens);
+          if (data.screens) patch.screens = ensureStickers(dedupeIds(data.screens));
           if (data.topLevelOrder) patch.topLevelOrder = data.topLevelOrder;
           if (data.historyLog) patch.historyLog = data.historyLog;
           if (data.thoughts) patch.thoughts = data.thoughts;

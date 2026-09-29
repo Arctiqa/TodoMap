@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useCallback, useEffect } from "react";
-import { View, Text, Pressable, PanResponder, Image, Animated } from "react-native";
+import React, { useMemo, useRef, useCallback, useEffect, useState  } from "react";
+import { View, Text, Pressable, PanResponder, Image, Animated, Easing } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 import { PIN_BOUNDS, PIN_SIZE } from "../constants/config";
@@ -10,6 +10,7 @@ import { resolveImageSource } from "../data/initialScreens";
 
 const OUTER_RING = 7;
 const BADGE = 22;
+const MAX_PREVIEW = 3;
 
 function pctToPx(pct, total) {
   return (pct / 100) * total;
@@ -17,6 +18,8 @@ function pctToPx(pct, total) {
 
 function PinInner({
   marker,
+  markerId,
+  subscribeHovered,  
   editMode,
   editAction,
   containerSize,
@@ -26,6 +29,7 @@ function PinInner({
   onEdit,
 }) {
   const appear = useRef(new Animated.Value(0)).current;
+  const hoverScale = useRef(new Animated.Value(1)).current;
   const { ink, card, paper, ring } = useTheme();
 
   const isBig = !!marker.linkTo;
@@ -34,6 +38,8 @@ function PinInner({
 
   const markerRef = useRef(marker);
   markerRef.current = marker;
+
+  const [hovered, setHovered] = useState(false);
 
   const containerRef = useRef(containerSize);
   containerRef.current = containerSize;
@@ -51,7 +57,6 @@ function PinInner({
   const dragStartRef = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
 
-  // Появление пина — spring scale 0 → 1
   useEffect(() => {
     Animated.spring(appear, {
       toValue: 1,
@@ -61,7 +66,22 @@ function PinInner({
     }).start();
   }, [appear]);
 
-  // Синхронизация позиции при изменении marker.x/y или размера контейнера
+  useEffect(() => {
+    if (!subscribeHovered || !markerId) return;
+    const cb = (id) => setHovered(id === markerId);
+    const unsubscribe = subscribeHovered(cb);
+    return unsubscribe;
+  }, [subscribeHovered, markerId]);
+
+  useEffect(() => {
+    Animated.timing(hoverScale, {
+      toValue: hovered ? 1.25 : 1,
+      duration: 150,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [hovered, hoverScale]);
+
   useEffect(() => {
     if (isDraggingRef.current) return;
     if (!containerSize.width || !containerSize.height) return;
@@ -121,9 +141,14 @@ function PinInner({
 
   const doneCount = marker.tasks ? marker.tasks.filter((t) => t.done).length : 0;
   const total = marker.tasks ? marker.tasks.length : 0;
-  const previewTasks = marker.tasks
-    ? marker.tasks.filter((t) => !t.done).slice(0, 2)
-    : [];
+
+  const previewTasks = useMemo(() => {
+    if (!marker.tasks) return [];
+    return marker.tasks.filter((t) => !t.done).slice(0, MAX_PREVIEW);
+  }, [marker.tasks]);
+
+  const activeCount = marker.tasks ? marker.tasks.filter((t) => !t.done).length : 0;
+  const hasMore = activeCount > MAX_PREVIEW;
 
   const imageSource = useMemo(() => resolveImageSource(marker.image), [marker.image]);
 
@@ -148,10 +173,10 @@ function PinInner({
         transform: [
           { translateX: Animated.subtract(pan.x, outerSize / 2) },
           { translateY: Animated.subtract(pan.y, outerSize / 2) },
-          { scale: appear },
+          { scale: Animated.multiply(appear, hoverScale) },
         ],
         alignItems: "center",
-        zIndex: 2,
+        zIndex: hovered ? 100 : 2,
       }}
     >
       <Pressable
@@ -166,7 +191,6 @@ function PinInner({
             justifyContent: "center",
           }}
         >
-          {/* Внешнее кольцо */}
           <View
             style={{
               position: "absolute",
@@ -174,11 +198,10 @@ function PinInner({
               height: outerSize,
               borderRadius: outerSize / 2,
               borderWidth: OUTER_RING,
-              borderColor: ring,
+              borderColor: hovered ? marker.color : ring,
             }}
           />
 
-          {/* Внутренний круг с тенью */}
           <View
             style={{
               width: size,
@@ -202,7 +225,6 @@ function PinInner({
             )}
           </View>
 
-          {/* Бейдж «папка» — вложенный пин */}
           {marker.linkTo && (
             <View
               style={{
@@ -223,7 +245,6 @@ function PinInner({
             </View>
           )}
 
-          {/* Бейдж картинки */}
           {marker.image && (
             <View
               style={{
@@ -244,7 +265,6 @@ function PinInner({
             </View>
           )}
 
-          {/* Бейдж режима редактирования */}
           {editMode && (
             <View
               style={{
@@ -269,7 +289,6 @@ function PinInner({
         </View>
       </Pressable>
 
-      {/* Подпись */}
       <View
         style={{
           marginTop: 4,
@@ -296,36 +315,50 @@ function PinInner({
         </Text>
       </View>
 
-      {/* Превью дел */}
       {!editMode && previewTasks.length > 0 && (
-        <View style={{ marginTop: 3, alignItems: "center" }}>
-          {previewTasks.map((t) => (
-            <View
+        <Pressable
+          onPress={handlePress}
+          style={{
+            marginTop: 3,
+            backgroundColor: card,
+            borderWidth: 1.5,
+            borderColor: ink,
+            paddingHorizontal: 6,
+            paddingVertical: 3,
+            maxWidth: 120,
+            borderRadius: 6,
+          }}
+        >
+          {previewTasks.map((t, i) => (
+            <Text
               key={t.id}
               style={{
+                fontSize: 9.5,
+                fontFamily: "monospace",
+                color: isTaskExpired(t) ? BLUE : ink,
+                opacity: isTaskExpired(t) ? 1 : 0.75,
+                marginTop: i === 0 ? 0 : 2,
+              }}
+              numberOfLines={1}
+            >
+              {shortLabel(t.title)}
+            </Text>
+          ))}
+          {hasMore && (
+            <Text
+              style={{
+                fontSize: 9.5,
+                fontFamily: "monospace",
+                color: ink,
+                opacity: 0.4,
                 marginTop: 2,
-                backgroundColor: card,
-                borderWidth: 1.5,
-                borderColor: ink,
-                paddingHorizontal: 6,
-                paddingVertical: 2,
-                maxWidth: 110,
+                textAlign: "center",
               }}
             >
-              <Text
-                style={{
-                  fontSize: 9.5,
-                  fontFamily: "monospace",
-                  color: isTaskExpired(t) ? BLUE : ink,
-                  opacity: isTaskExpired(t) ? 1 : 0.75,
-                }}
-                numberOfLines={1}
-              >
-                {shortLabel(t.title)}
-              </Text>
-            </View>
-          ))}
-        </View>
+              ...
+            </Text>
+          )}
+        </Pressable>
       )}
     </Animated.View>
   );
@@ -334,6 +367,7 @@ function PinInner({
 export const Pin = React.memo(PinInner, (prev, next) => {
   return (
     prev.marker === next.marker &&
+    prev.markerId === next.markerId &&
     prev.editMode === next.editMode &&
     prev.editAction === next.editAction &&
     prev.containerSize.width === next.containerSize.width &&

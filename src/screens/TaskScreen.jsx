@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { View, Text, Pressable, ScrollView, Image, LayoutAnimation, Platform, UIManager } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Overlay } from "../components/ui/Overlay";
@@ -11,13 +11,169 @@ import { GREEN, BLUE, TEAL } from "../theme/palettes";
 import { formatRemaining, isTaskExpired } from "../utils/date";
 import { AddTaskBar } from "../components/AddTaskBar";
 import { resolveImageSource } from "../data/initialScreens";
+import { STICKER_LONG_PRESS } from "../constants/config";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   try { UIManager.setLayoutAnimationEnabledExperimental(true); } catch (e) {}
 }
 
+function TaskRowLongPress({ task, onOpen, onExtract }) {
+  const { ink, card, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
+  const expired = isTaskExpired(task);
+  const [pressing, setPressing] = useState(false);
+  const timerRef = useRef(null);
+  const longFiredRef = useRef(false);
+
+  const startPress = () => {
+    longFiredRef.current = false;
+    setPressing(true);
+    timerRef.current = setTimeout(() => {
+      longFiredRef.current = true;
+      setPressing(false);
+      onExtract && onExtract(task.id);
+    }, STICKER_LONG_PRESS);
+  };
+
+  const endPress = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setPressing(false);
+  };
+
+  const handlePress = () => {
+    if (!longFiredRef.current) {
+      onOpen && onOpen(task);
+    }
+    longFiredRef.current = false;
+  };
+
+  const notes = task.notes || [];
+  const notesDone = notes.filter((n) => n.done).length;
+
+  return (
+    <Pressable
+      onPressIn={startPress}
+      onPressOut={endPress}
+      onPress={handlePress}
+      style={({ pressed }) => [
+        {
+          flexDirection: "row",
+          alignItems: "flex-start",
+          gap: SPACING.sm,
+          backgroundColor: card,
+          opacity: task.done ? 0.55 : pressed || pressing ? 0.92 : 1,
+          borderRadius: RADIUS.lg,
+          padding: SPACING.md,
+          transform: [{ scale: pressing ? 0.98 : 1 }],
+          borderWidth: pressing ? 2 : 0,
+          borderColor: pressing ? ink : "transparent",
+        },
+        SHADOW.sm,
+      ]}
+    >
+      <View
+        style={{
+          width: 28, height: 28, borderRadius: RADIUS.sm,
+          borderWidth: 1.5, borderColor: task.done ? TEAL : muted + "80",
+          alignItems: "center", justifyContent: "center",
+          marginTop: 2, backgroundColor: task.done ? TEAL : "transparent",
+        }}
+      >
+        {task.done && <MaterialIcons name="check" size={18} color="#fff" />}
+      </View>
+
+      <View style={{ flex: 1 }}>
+        <Text
+          style={{
+            ...TYPE.bodyBold,
+            color: expired ? BLUE : ink,
+            textDecorationLine: task.done ? "line-through" : "none",
+            opacity: task.done ? 0.65 : 1,
+          }}
+          numberOfLines={2}
+        >
+          {task.title}
+        </Text>
+
+        {task.repeat && (
+          <View style={{ marginTop: SPACING.xs }}>
+            <ProgressBar value={task.repeat.count} max={task.repeat.target} color={GREEN} height={4} />
+            <Text style={{ ...TYPE.monoSm, color: ink, opacity: 0.55, marginTop: 2 }}>
+              🔁 {task.repeat.count}/{task.repeat.target}
+            </Text>
+          </View>
+        )}
+
+        {notes.length > 0 && (
+          <View style={{ marginTop: SPACING.xs, gap: 1 }}>
+            {notes.slice(0, 3).map((n, i) => (
+              <Text
+                key={i}
+                style={{
+                  fontSize: 11.5,
+                  color: ink,
+                  opacity: n.done ? 0.4 : 0.75,
+                  textDecorationLine: n.done ? "line-through" : "none",
+                }}
+                numberOfLines={1}
+              >
+                · {n.text}
+              </Text>
+            ))}
+            {notes.length > 3 && (
+              <Text style={{ fontSize: 10.5, color: ink, opacity: 0.4 }}>
+                и ещё {notes.length - 3}
+              </Text>
+            )}
+          </View>
+        )}
+
+        <Text
+          style={{
+            fontSize: 11,
+            marginTop: SPACING.xs,
+            color: expired ? BLUE : ink,
+            opacity: expired ? 1 : 0.55,
+            fontWeight: expired ? "700" : "400",
+          }}
+        >
+          {formatRemaining(task.due)}
+        </Text>
+      </View>
+
+      {!task.done && onExtract && (
+        <View
+          style={{
+            width: 22, height: 22, borderRadius: 11,
+            alignItems: "center", justifyContent: "center",
+            backgroundColor: pressing ? ink : "transparent",
+            marginTop: 2,
+          }}
+        >
+          <MaterialIcons
+            name="open-with"
+            size={pressing ? 16 : 14}
+            color={pressing ? "#fff" : ink}
+            style={{ opacity: pressing ? 1 : 0.3 }}
+          />
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
 export function TaskScreen({
-  marker, onClose, onToggle, onAdd, onDelete, onShare, onIncrementRepeat, onOpenDetail,
+  marker,
+  onClose,
+  onToggle,
+  onAdd,
+  onDelete,
+  onShare,
+  onIncrementRepeat,
+  onOpenDetail,
+  onExtractToField,
 }) {
   const { ink, card, paper, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
   const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState(null);
@@ -32,11 +188,6 @@ export function TaskScreen({
   if (!marker) return null;
 
   const pendingTask = marker.tasks && marker.tasks.find((t) => t.id === pendingDeleteTaskId);
-
-  const handleToggle = (taskId) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    onToggle(marker.id, taskId);
-  };
 
   return (
     <Overlay zIndex={50}>
@@ -85,7 +236,6 @@ export function TaskScreen({
         )}
 
         {sortedTasks.map((t, index) => {
-          const expired = isTaskExpired(t);
           const prev = sortedTasks[index - 1];
           const showActiveDivider = !t.done && (index === 0 || sortedTasks[index - 1].done);
           const showDoneDivider = t.done && index > 0 && !prev.done;
@@ -93,144 +243,21 @@ export function TaskScreen({
           return (
             <React.Fragment key={t.id}>
               {showActiveDivider && (
-                <Text
-                  style={{
-                    ...TYPE.caption,
-                    color: ink,
-                    opacity: 0.4,
-                    textAlign: "center",
-                    marginVertical: SPACING.sm,
-                  }}
-                >
+                <Text style={{ ...TYPE.caption, color: ink, opacity: 0.4, textAlign: "center", marginVertical: SPACING.sm }}>
                   — АКТИВНЫЕ —
                 </Text>
               )}
               {showDoneDivider && (
-                <Text
-                  style={{
-                    ...TYPE.caption,
-                    color: ink,
-                    opacity: 0.4,
-                    textAlign: "center",
-                    marginTop: SPACING.lg,
-                    marginBottom: SPACING.sm,
-                  }}
-                >
+                <Text style={{ ...TYPE.caption, color: ink, opacity: 0.4, textAlign: "center", marginTop: SPACING.lg, marginBottom: SPACING.sm }}>
                   — ЗАВЕРШЁННЫЕ —
                 </Text>
               )}
 
-              <Pressable
-                onPress={() => onOpenDetail(t)}
-                style={({ pressed }) => [
-                  {
-                    flexDirection: "row",
-                    alignItems: "flex-start",
-                    gap: SPACING.sm,
-                    backgroundColor: card,
-                    opacity: t.done ? 0.55 : pressed ? 0.92 : 1,
-                    borderRadius: RADIUS.lg,
-                    padding: SPACING.md,
-                    transform: [{ scale: pressed ? 0.985 : 1 }],
-                  },
-                  SHADOW.sm,
-                ]}
-              >
-                {t.repeat && !t.done ? (
-                  <Pressable
-                    onPress={(ev) => { ev.stopPropagation?.(); onIncrementRepeat(marker.id, t.id); }}
-                    hitSlop={6}
-                    style={{
-                      width: 28, height: 28, borderRadius: RADIUS.sm,
-                      borderWidth: 1.5, borderColor: muted + "80",
-                      alignItems: "center", justifyContent: "center",
-                      marginTop: 2, backgroundColor: paper,
-                    }}
-                  >
-                    <MaterialIcons name="add" size={18} color={ink} />
-                  </Pressable>
-                ) : (
-                  <Pressable
-                    onPress={(ev) => { ev.stopPropagation?.(); handleToggle(t.id); }}
-                    hitSlop={6}
-                    style={{
-                      width: 28, height: 28, borderRadius: RADIUS.sm,
-                      borderWidth: 1.5, borderColor: t.done ? TEAL : muted + "80",
-                      alignItems: "center", justifyContent: "center",
-                      marginTop: 2, backgroundColor: t.done ? TEAL : "transparent",
-                    }}
-                  >
-                    {t.done && <MaterialIcons name="check" size={18} color="#fff" />}
-                  </Pressable>
-                )}
-
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      ...TYPE.bodyBold,
-                      color: expired ? BLUE : ink,
-                      textDecorationLine: t.done ? "line-through" : "none",
-                      opacity: t.done ? 0.65 : 1,
-                    }}
-                    numberOfLines={2}
-                  >
-                    {t.title}
-                  </Text>
-
-                  {t.repeat && (
-                    <View style={{ marginTop: SPACING.xs }}>
-                      <ProgressBar value={t.repeat.count} max={t.repeat.target} color={GREEN} height={4} />
-                      <Text style={{ ...TYPE.monoSm, color: ink, opacity: 0.55, marginTop: 2 }}>
-                        🔁 {t.repeat.count}/{t.repeat.target}
-                      </Text>
-                    </View>
-                  )}
-
-                  {t.notes && t.notes.length > 0 && (
-                    <View style={{ marginTop: SPACING.xs, gap: 1 }}>
-                      {t.notes.slice(0, 3).map((n, i) => (
-                        <Text
-                          key={i}
-                          style={{
-                            fontSize: 11.5,
-                            color: ink,
-                            opacity: n.done ? 0.4 : 0.75,
-                            textDecorationLine: n.done ? "line-through" : "none",
-                          }}
-                          numberOfLines={1}
-                        >
-                          · {n.text}
-                        </Text>
-                      ))}
-                      {t.notes.length > 3 && (
-                        <Text style={{ fontSize: 10.5, color: ink, opacity: 0.4 }}>
-                          и ещё {t.notes.length - 3}
-                        </Text>
-                      )}
-                    </View>
-                  )}
-
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      marginTop: SPACING.xs,
-                      color: expired ? BLUE : ink,
-                      opacity: expired ? 1 : 0.55,
-                      fontWeight: expired ? "700" : "400",
-                    }}
-                  >
-                    {formatRemaining(t.due)}
-                  </Text>
-                </View>
-
-                <Pressable
-                  onPress={(ev) => { ev.stopPropagation?.(); setPendingDeleteTaskId(t.id); }}
-                  hitSlop={8}
-                  style={{ marginTop: 2 }}
-                >
-                  <MaterialIcons name="close" size={18} color={muted} />
-                </Pressable>
-              </Pressable>
+              <TaskRowLongPress
+                task={t}
+                onOpen={(task) => onOpenDetail(task)}
+                onExtract={!t.done ? onExtractToField : undefined}
+              />
             </React.Fragment>
           );
         })}

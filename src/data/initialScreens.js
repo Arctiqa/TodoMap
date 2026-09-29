@@ -19,6 +19,7 @@ export const initialScreens = {
     parentId: null,
     image: MAP_DEFAULT_BG,
     markers: [{ id: "dom", name: "Дом", emoji: "🏠", color: "#E4572E", x: 50, y: 75, linkTo: "home" }],
+    stickers: [],
   },
   home: {
     id: "home",
@@ -66,6 +67,7 @@ export const initialScreens = {
       },
       { id: "misc", name: "Разное", emoji: "✨", color: "#B08968", type: "general", x: 76, y: 64, tasks: [] },
     ],
+    stickers: [],
   },
 };
 
