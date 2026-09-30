@@ -5,7 +5,7 @@ import { useTheme } from "../theme/ThemeContext";
 import { GREEN, RED } from "../theme/palettes";
 import { fmtDate } from "../utils/date";
 
-export function ThoughtsSection({ thoughts, onAdd, onDelete, onConvert }) {
+export function ThoughtsSection({ thoughts, onAdd, onDelete, onConvert, onInputFocus }) {
   const { ink, card, paper, inputBg } = useTheme();
   const [text, setText] = useState("");
   const [editingId, setEditingId] = useState(null);
@@ -25,6 +25,7 @@ export function ThoughtsSection({ thoughts, onAdd, onDelete, onConvert }) {
         <TextInput
           value={text}
           onChangeText={setText}
+          onFocus={onInputFocus}
           placeholder="Новая мысль..."
           placeholderTextColor={ink}
           multiline

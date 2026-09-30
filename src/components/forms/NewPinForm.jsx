@@ -6,10 +6,10 @@ import {
   Pressable,
   Image,
   Modal,
-  KeyboardAvoidingView,
   ScrollView,
   Platform,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { PrimaryButton } from "../ui/PrimaryButton";

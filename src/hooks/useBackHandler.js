@@ -21,7 +21,6 @@ export function useBackHandler({
 
   useEffect(() => {
     const onBackPress = () => {
-      // 1) раскрытая панель «Новое дело» — закрываем
       if (addTaskBarExpanded) {
         setAddTaskBarExpanded(false);
         return true;

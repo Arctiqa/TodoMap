@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useReducer, useEffect, useCallback, useRef } from "react";
-import { View, Text, Pressable, StatusBar, Image, BackHandler, Animated, ScrollView } from "react-native";
+import { View, Text, Pressable, StatusBar, Image, BackHandler, Animated, ScrollView, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
+import { KeyboardProvider, KeyboardAvoidingView } from "react-native-keyboard-controller";
 
 import { ThemeProvider, useTheme } from "./theme/ThemeContext";
 import { GREEN, BLUE, RED, TEAL } from "./theme/palettes";
@@ -38,7 +39,6 @@ import { cancelTaskNotifications } from "./utils/notifications";
 import { resolveImageSource, DOM_DEFAULT_BG, MAP_DEFAULT_BG } from "./data/initialScreens";
 
 import { useOverlayState } from "./hooks/useOverlayState";
-import { useKeyboardOffset } from "./hooks/useKeyboardOffset";
 import { useThoughts } from "./hooks/useThoughts";
 import { useJournalActions } from "./hooks/useJournalActions";
 import { useGuides } from "./hooks/useGuides";
@@ -66,11 +66,13 @@ export default function App() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider name={themeName}>
-        <AppShell onThemeChange={handleThemeChange} />
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <KeyboardProvider>
+      <SafeAreaProvider>
+        <ThemeProvider name={themeName}>
+          <AppShell onThemeChange={handleThemeChange} />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </KeyboardProvider>
   );
 }
 
@@ -137,7 +139,6 @@ function AppShell({ onThemeChange }) {
     taskDetail, setTaskDetail,
   } = overlay;
 
-  // ref для стикеров от гидов/мыслей — объявлен ДО useGuides
   const takeStickerRef = useRef(null);
 
   const {
@@ -164,7 +165,6 @@ function AppShell({ onThemeChange }) {
     releaseGuideTask,
   });
 
-  // заполняем ref после того, как addSticker готов
   takeStickerRef.current = (payload) => {
     addSticker(currentId, payload, 50, 50);
   };
@@ -479,8 +479,6 @@ function AppShell({ onThemeChange }) {
   const activeTaskId = topNav.type === NAV.TASK ? topNav.payload.markerId : null;
   const activeMarker = activeTaskId ? (screen.markers || []).find((m) => m.id === activeTaskId) : null;
 
-  const keyboardOffset = useKeyboardOffset();
-
   const active = useMemo(() => activeEntries(screens), [screens]);
   const expired = useMemo(() => expiredEntries(screens), [screens]);
   const doneList = useMemo(() => doneEntries(screens), [screens]);
@@ -512,7 +510,7 @@ function AppShell({ onThemeChange }) {
       case "add-marker": resetNav(); pushNav(NAV.ADD_MARKER); break;
       case "others": resetNav(); pushNav(NAV.OTHERS); loadSharedPool(); break;
     }
-  }, [setShowSideMenu, resetNav, pushNav, loadSharedPool]);
+  }, [setShowSideMenu, resetNav, pushNav, loadSharedPool, setCurrentId, setEditMode, setEditAction]);
 
   const handleSideMenuAction = useCallback((key) => {
     setShowSideMenu(false);
@@ -729,407 +727,408 @@ function AppShell({ onThemeChange }) {
   if (!screen) return null;
 
   return (
-    <Animated.View
-      style={{
-        flex: 1,
-        backgroundColor: paper,
-        transform: [{ translateY: keyboardOffset }],
-      }}
-    >
-      <SafeAreaView
-        key={themeName}
-        style={{ flex: 1, backgroundColor: fieldBg, overflow: "hidden" }}
-        edges={["top", "bottom"]}
+    <View style={{ flex: 1, backgroundColor: paper }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <StatusBar barStyle="dark-content" />
-
-        {editMode && editAction === "delete" && (
-          <Pressable
-            onPress={() => { setEditMode(false); setEditAction("none"); }}
-            style={{ backgroundColor: RED, paddingVertical: 6, alignItems: "center" }}
-          >
-            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "bold" }}>
-              ТАПНИ МЕТКУ, ЧТОБЫ УДАЛИТЬ · НАЖМИ СЮДА, ЧТОБЫ ВЫЙТИ
-            </Text>
-          </Pressable>
-        )}
-
-        {editMode && editAction === "edit" && (
-          <Pressable
-            onPress={() => { setEditMode(false); setEditAction("none"); }}
-            style={{ backgroundColor: BLUE, paddingVertical: 6, alignItems: "center" }}
-          >
-            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "bold" }}>
-              ТАПНИ МЕТКУ, ЧТОБЫ РЕДАКТИРОВАТЬ · НАЖМИ СЮДА, ЧТОБЫ ВЫЙТИ
-            </Text>
-          </Pressable>
-        )}
-
-        <View style={{
-          flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-          paddingHorizontal: 12, paddingVertical: 10, backgroundColor: bar,
-        }}>
-          {screen.parentId ? (
-            <Pressable
-              onPress={() => { setEditMode(false); setCurrentId(screen.parentId); }}
-              style={{ flexDirection: "row", alignItems: "center", gap: 4, minWidth: 36 }}
-            >
-              <MaterialIcons name="arrow-back" size={22} color={ink} />
-            </Pressable>
-          ) : <View style={{ width: 36 }} />}
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ alignItems: "center", gap: 4, paddingHorizontal: 4 }}
-            style={{ flex: 1 }}
-          >
-            {breadcrumbs.map((crumb, i) => {
-              const isLast = i === breadcrumbs.length - 1;
-              return (
-                <React.Fragment key={crumb.id}>
-                  <Pressable
-                    onPress={() => {
-                      if (!isLast) {
-                        setEditMode(false);
-                        setCurrentId(crumb.id);
-                      }
-                    }}
-                    disabled={isLast}
-                  >
-                    <Text
-                      style={{
-                        fontSize: isLast ? 15 : 12.5,
-                        fontWeight: isLast ? "bold" : "600",
-                        color: ink,
-                        opacity: isLast ? 1 : 0.6,
-                      }}
-                      numberOfLines={1}
-                    >
-                      {crumb.emoji ? `${crumb.emoji} ` : ""}{crumb.name}
-                    </Text>
-                  </Pressable>
-                  {!isLast && (
-                    <Text style={{ fontSize: 12, color: ink, opacity: 0.35 }}>›</Text>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </ScrollView>
-
-          <View style={{ width: 36 }} />
-        </View>
-
-        <Animated.View
-          {...swipeResponder.panHandlers}
-          style={{
-            flex: 1, backgroundColor: fieldBg, position: "relative",
-            transform: [{ translateX: slideX }],
-          }}
-          onLayout={(e) =>
-            setMapSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })
-          }
+        <SafeAreaView
+          key={themeName}
+          style={{ flex: 1, backgroundColor: fieldBg, overflow: "hidden" }}
+          edges={["top"]}
         >
-          {!editMode && siblings.list.length > 1 && (
-            <View
-              pointerEvents="box-none"
-              style={{
-                position: "absolute", top: 10, left: 0, right: 0,
-                flexDirection: "row", justifyContent: "space-between",
-                paddingHorizontal: 16, zIndex: 5,
-              }}
-            >
-              {siblings.index > 0 ? (
-                <Pressable onPress={() => animateSlide(1)} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
-                  <MaterialIcons name="arrow-back" size={30} color={ink} />
-                </Pressable>
-              ) : <View style={{ width: 30 }} />}
+          <StatusBar barStyle="dark-content" />
 
-              {siblings.index !== -1 && siblings.index < siblings.list.length - 1 ? (
-                <Pressable onPress={() => animateSlide(-1)} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
-                  <MaterialIcons name="arrow-forward" size={30} color={ink} />
-                </Pressable>
-              ) : <View style={{ width: 30 }} />}
-            </View>
-          )}
-
-          {editMode && (editAction === "delete" || editAction === "edit") && (
+          {editMode && editAction === "delete" && (
             <Pressable
               onPress={() => { setEditMode(false); setEditAction("none"); }}
-              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}
-            />
-          )}
-
-          {screen.image && (
-            <Image
-              source={resolveImageSource(screen.image)}
-              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-              resizeMode="cover"
-            />
-          )}
-
-          {screen.markers.map((m) => (
-            <Pin
-              key={m.id}
-              marker={m}
-              markerId={m.id}
-              subscribeHovered={subscribeHovered}
-              editMode={editMode}
-              editAction={editAction}
-              containerSize={mapSize}
-              onOpen={handleOpen}
-              onDragMove={handleDragMove}
-              onDelete={(mk) => setPendingDelete(mk)}
-              onEdit={(mk) => setEditingMarker(mk)}
-            />
-          ))}
-
-          {!editMode && (screen.stickers || []).map((s) => (
-            <MemoSticker
-              key={s.id}
-              sticker={s}
-              containerSize={mapSize}
-              markers={screen.markers}
-              onOpen={handleOpenSticker}
-              onDragStart={handleStickerDragStart}
-              onDragEnd={handleStickerDragEnd}
-              onDropOnField={handleDropStickerOnField}
-              onDropOnMarker={handleDropStickerOnMarker}
-              onDropOnDoor={handleDropStickerOnDoor}
-              onExtractToParent={handleExtractStickerToParent}
-              onDelete={handleDeleteSticker}
-              isOverTrashRef={isOverTrashRef}
-              onMove={handleStickerMove}
-              onHoverMarker={handleHoverMarker}
-            />
-          ))}
-
-          {draggingStickerId && (
-            <View
-              pointerEvents="none"
-              style={{
-                position: "absolute",
-                left: 0, right: 0, bottom: 15,
-                height: STICKER_TRASH_ZONE_HEIGHT,
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 998,
-                elevation: 998,
-              }}
+              style={{ backgroundColor: RED, paddingVertical: 6, alignItems: "center" }}
             >
+              <Text style={{ color: "#fff", fontSize: 11, fontWeight: "bold" }}>
+                ТАПНИ МЕТКУ, ЧТОБЫ УДАЛИТЬ · НАЖМИ СЮДА, ЧТОБЫ ВЫЙТИ
+              </Text>
+            </Pressable>
+          )}
+
+          {editMode && editAction === "edit" && (
+            <Pressable
+              onPress={() => { setEditMode(false); setEditAction("none"); }}
+              style={{ backgroundColor: BLUE, paddingVertical: 6, alignItems: "center" }}
+            >
+              <Text style={{ color: "#fff", fontSize: 11, fontWeight: "bold" }}>
+                ТАПНИ МЕТКУ, ЧТОБЫ РЕДАКТИРОВАТЬ · НАЖМИ СЮДА, ЧТОБЫ ВЫЙТИ
+              </Text>
+            </Pressable>
+          )}
+
+          <View style={{
+            flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+            paddingHorizontal: 12, paddingVertical: 10, backgroundColor: bar,
+          }}>
+            {screen.parentId ? (
+              <Pressable
+                onPress={() => { setEditMode(false); setCurrentId(screen.parentId); }}
+                style={{ flexDirection: "row", alignItems: "center", gap: 4, minWidth: 36 }}
+              >
+                <MaterialIcons name="arrow-back" size={22} color={ink} />
+              </Pressable>
+            ) : <View style={{ width: 36 }} />}
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ alignItems: "center", gap: 4, paddingHorizontal: 4 }}
+              style={{ flex: 1 }}
+            >
+              {breadcrumbs.map((crumb, i) => {
+                const isLast = i === breadcrumbs.length - 1;
+                return (
+                  <React.Fragment key={crumb.id}>
+                    <Pressable
+                      onPress={() => {
+                        if (!isLast) {
+                          setEditMode(false);
+                          setCurrentId(crumb.id);
+                        }
+                      }}
+                      disabled={isLast}
+                    >
+                      <Text
+                        style={{
+                          fontSize: isLast ? 15 : 12.5,
+                          fontWeight: isLast ? "bold" : "600",
+                          color: ink,
+                          opacity: isLast ? 1 : 0.6,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {crumb.emoji ? `${crumb.emoji} ` : ""}{crumb.name}
+                      </Text>
+                    </Pressable>
+                    {!isLast && (
+                      <Text style={{ fontSize: 12, color: ink, opacity: 0.35 }}>›</Text>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </ScrollView>
+
+            <View style={{ width: 36 }} />
+          </View>
+
+          <Animated.View
+            {...swipeResponder.panHandlers}
+            style={{
+              flex: 1, backgroundColor: fieldBg, position: "relative",
+              transform: [{ translateX: slideX }],
+            }}
+            onLayout={(e) =>
+              setMapSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })
+            }
+          >
+            {!editMode && siblings.list.length > 1 && (
               <View
+                pointerEvents="box-none"
                 style={{
-                  width: 70, height: 70, borderRadius: 35,
-                  alignItems: "center", justifyContent: "center",
-                  backgroundColor: trashActive ? RED : card,
-                  borderWidth: 3,
-                  borderColor: trashActive ? RED : ink,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 8,
-                  elevation: 8,
-                  opacity: trashActive ? 1 : 0.85,
-                  transform: [{ scale: trashActive ? 1.15 : 1 }],
+                  position: "absolute", top: 10, left: 0, right: 0,
+                  flexDirection: "row", justifyContent: "space-between",
+                  paddingHorizontal: 16, zIndex: 5,
                 }}
               >
-                <MaterialIcons
-                  name="delete-forever"
-                  size={36}
-                  color={trashActive ? "#fff" : ink}
-                />
-              </View>
-            </View>
-          )}
+                {siblings.index > 0 ? (
+                  <Pressable onPress={() => animateSlide(1)} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+                    <MaterialIcons name="arrow-back" size={30} color={ink} />
+                  </Pressable>
+                ) : <View style={{ width: 30 }} />}
 
-          {renderTopNav()}
-
-          {!editMode &&
-            navStack.length === 1 &&
-            !showSideMenu &&
-            !pendingDelete &&
-            !pendingDeleteField &&
-            !pendingPlacement &&
-            !showExitConfirm &&
-            !placementConfirm && (
-              <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 10, elevation: 10 }}>
-                <AddTaskBar
-                  visible={true}
-                  onSubmit={handleAddTaskFromBar}
-                  bgColor="transparent"
-                  collapsed={!addTaskBarExpanded}
-                  onExpand={() => setAddTaskBarExpanded(true)}
-                  onCollapse={() => setAddTaskBarExpanded(false)}
-                />
+                {siblings.index !== -1 && siblings.index < siblings.list.length - 1 ? (
+                  <Pressable onPress={() => animateSlide(-1)} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+                    <MaterialIcons name="arrow-forward" size={30} color={ink} />
+                  </Pressable>
+                ) : <View style={{ width: 30 }} />}
               </View>
             )}
-        </Animated.View>
 
+            {editMode && (editAction === "delete" || editAction === "edit") && (
+              <Pressable
+                onPress={() => { setEditMode(false); setEditAction("none"); }}
+                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}
+              />
+            )}
+
+            {screen.image && (
+              <Image
+                source={resolveImageSource(screen.image)}
+                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+                resizeMode="cover"
+              />
+            )}
+
+            {screen.markers.map((m) => (
+              <Pin
+                key={m.id}
+                marker={m}
+                markerId={m.id}
+                subscribeHovered={subscribeHovered}
+                editMode={editMode}
+                editAction={editAction}
+                containerSize={mapSize}
+                onOpen={handleOpen}
+                onDragMove={handleDragMove}
+                onDelete={(mk) => setPendingDelete(mk)}
+                onEdit={(mk) => setEditingMarker(mk)}
+              />
+            ))}
+
+            {!editMode && (screen.stickers || []).map((s) => (
+              <MemoSticker
+                key={s.id}
+                sticker={s}
+                containerSize={mapSize}
+                markers={screen.markers}
+                onOpen={handleOpenSticker}
+                onDragStart={handleStickerDragStart}
+                onDragEnd={handleStickerDragEnd}
+                onDropOnField={handleDropStickerOnField}
+                onDropOnMarker={handleDropStickerOnMarker}
+                onDropOnDoor={handleDropStickerOnDoor}
+                onExtractToParent={handleExtractStickerToParent}
+                onDelete={handleDeleteSticker}
+                isOverTrashRef={isOverTrashRef}
+                onMove={handleStickerMove}
+                onHoverMarker={handleHoverMarker}
+              />
+            ))}
+
+            {draggingStickerId && (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  left: 0, right: 0, bottom: 15,
+                  height: STICKER_TRASH_ZONE_HEIGHT,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 998,
+                  elevation: 998,
+                }}
+              >
+                <View
+                  style={{
+                    width: 70, height: 70, borderRadius: 35,
+                    alignItems: "center", justifyContent: "center",
+                    backgroundColor: trashActive ? RED : card,
+                    borderWidth: 3,
+                    borderColor: trashActive ? RED : ink,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 8,
+                    elevation: 8,
+                    opacity: trashActive ? 1 : 0.85,
+                    transform: [{ scale: trashActive ? 1.15 : 1 }],
+                  }}
+                >
+                  <MaterialIcons
+                    name="delete-forever"
+                    size={36}
+                    color={trashActive ? "#fff" : ink}
+                  />
+                </View>
+              </View>
+            )}
+
+            {renderTopNav()}
+
+            {!editMode &&
+              navStack.length === 1 &&
+              !showSideMenu &&
+              !pendingDelete &&
+              !pendingDeleteField &&
+              !pendingPlacement &&
+              !showExitConfirm &&
+              !placementConfirm && (
+                <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 10, elevation: 10 }}>
+                  <AddTaskBar
+                    visible={true}
+                    onSubmit={handleAddTaskFromBar}
+                    bgColor="transparent"
+                    collapsed={!addTaskBarExpanded}
+                    onExpand={() => setAddTaskBarExpanded(true)}
+                    onCollapse={() => setAddTaskBarExpanded(false)}
+                  />
+                </View>
+              )}
+          </Animated.View>
+
+          <NewPinForm
+            mode="create"
+            title="Новая метка"
+            confirmLabel="Добавить метку"
+            showPlaceHints={currentId !== "home"}
+            onClose={popNav}
+            onCreate={createMarker}
+            visible={topNav.type === NAV.ADD_MARKER}
+          />
+
+          <NewPinForm
+            mode="create"
+            title="Новое поле"
+            confirmLabel="Создать поле"
+            showColor={false}
+            imageAspect={[9, 16]}
+            onClose={popNav}
+            onCreate={createScreen}
+            visible={topNav.type === NAV.ADD_SCREEN}
+          />
+
+          {editingMarker && (
+            <NewPinForm
+              key={editingMarker.id}
+              mode="edit"
+              title="Редактировать метку"
+              confirmLabel="Сохранить"
+              initialValues={{
+                name: editingMarker.name,
+                emoji: editingMarker.emoji,
+                color: editingMarker.color,
+                image: editingMarker.image,
+              }}
+              onClose={() => setEditingMarker(null)}
+              onSave={(values) => {
+                saveMarkerEdits(editingMarker, values);
+                setEditingMarker(null);
+              }}
+            />
+          )}
+
+          {editingField && (
+            <NewPinForm
+              key={editingField.id}
+              mode="editField"
+              title="Редактировать поле"
+              confirmLabel="Сохранить"
+              initialValues={{
+                name: editingField.name,
+                emoji: editingField.emoji,
+                image: editingField.image,
+              }}
+              onClose={() => setEditingField(null)}
+              onSave={(values) => {
+                saveFieldEdits(editingField, values);
+                setEditingField(null);
+              }}
+            />
+          )}
+
+          {placementConfirm && (
+            <InfoDialog
+              message={`«${placementConfirm.title}» добавлено в «${placementConfirm.markerName}».`}
+              onClose={() => setPlacementConfirm(null)}
+            />
+          )}
+
+          {pendingDelete && (
+            <ConfirmDialog
+              message={`Удалить метку «${pendingDelete.name}»?`}
+              onCancel={() => setPendingDelete(null)}
+              onConfirm={() => {
+                deleteMarker(pendingDelete.id);
+                setPendingDelete(null);
+                setEditMode(false);
+                setEditAction("none");
+              }}
+            />
+          )}
+
+          {pendingDeleteField && (
+            <ConfirmDialog
+              message={`Удалить поле «${pendingDeleteField.name}» вместе со всеми метками?`}
+              onCancel={() => setPendingDeleteField(null)}
+              onConfirm={() => {
+                deleteField(pendingDeleteField.id);
+                setPendingDeleteField(null);
+              }}
+            />
+          )}
+
+          {pendingResetBg && (
+            <ConfirmDialog
+              message="Сбросить фон на стандартный?"
+              confirmLabel="Сбросить"
+              confirmColor={RED}
+              onCancel={() => setPendingResetBg(false)}
+              onConfirm={() => {
+                updateScreenImage(
+                  currentId,
+                  currentId === "main" ? MAP_DEFAULT_BG
+                    : currentId === "home" ? DOM_DEFAULT_BG
+                    : null
+                );
+                setPendingResetBg(false);
+              }}
+            />
+          )}
+
+          {showExitConfirm && (
+            <ConfirmDialog
+              message="Выйти из приложения?"
+              confirmLabel="Выйти"
+              confirmColor={BLUE}
+              onCancel={() => setShowExitConfirm(false)}
+              onConfirm={() => { setShowExitConfirm(false); BackHandler.exitApp(); }}
+            />
+          )}
+
+          {taskDetailData && (
+            <TaskDetailOverlay
+              key={taskDetailData.task.id}
+              task={taskDetailData.task}
+              markerColor={taskDetailData.marker ? taskDetailData.marker.color : "#B08968"}
+              markerName={taskDetailData.marker ? taskDetailData.marker.name : "Свободное"}
+              screenName={taskDetailData.screen.name}
+              onBack={() => setTaskDetail(null)}
+              onRename={renameTask}
+              onAddNote={addNoteGlobal}
+              onRemoveNote={removeNoteGlobal}
+              onToggleNote={toggleNoteGlobal}
+              onIncrementRepeat={() => {
+                if (taskDetailData.isSticker) {
+                  incrementStickerRepeat(taskDetailData.screen.id, taskDetailData.task.id);
+                } else {
+                  incrementRepeat(taskDetailData.screen.id, taskDetailData.marker.id, taskDetailData.task.id);
+                }
+              }}
+              onDecrementRepeat={() => {
+                if (taskDetailData.isSticker) {
+                  decrementStickerRepeat(taskDetailData.screen.id, taskDetailData.task.id);
+                } else {
+                  decrementRepeat(taskDetailData.screen.id, taskDetailData.marker.id, taskDetailData.task.id);
+                }
+              }}
+              onDelete={deleteTaskFromDetail}
+              onComplete={completeTaskFromDetail}
+              onUncomplete={uncompleteTaskFromDetail}
+            />
+          )}
+
+          {showOnboarding && (
+            <Overlay zIndex={200}>
+              <OnboardingOverlay onDone={finishOnboarding} />
+            </Overlay>
+          )}
+
+          <SideMenu
+            visible={showSideMenu}
+            onClose={() => setShowSideMenu(false)}
+            onAction={handleSideMenuAction}
+          />
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+
+      <SafeAreaView edges={["bottom"]} style={{ backgroundColor: bar }}>
         <BottomBar onAction={handleBottomAction} />
-
-        <NewPinForm
-          mode="create"
-          title="Новая метка"
-          confirmLabel="Добавить метку"
-          showPlaceHints={currentId !== "home"}
-          onClose={popNav}
-          onCreate={createMarker}
-          visible={topNav.type === NAV.ADD_MARKER}
-        />
-
-        <NewPinForm
-          mode="create"
-          title="Новое поле"
-          confirmLabel="Создать поле"
-          showColor={false}
-          imageAspect={[9, 16]}
-          onClose={popNav}
-          onCreate={createScreen}
-          visible={topNav.type === NAV.ADD_SCREEN}
-        />
-
-        {editingMarker && (
-          <NewPinForm
-            key={editingMarker.id}
-            mode="edit"
-            title="Редактировать метку"
-            confirmLabel="Сохранить"
-            initialValues={{
-              name: editingMarker.name,
-              emoji: editingMarker.emoji,
-              color: editingMarker.color,
-              image: editingMarker.image,
-            }}
-            onClose={() => setEditingMarker(null)}
-            onSave={(values) => {
-              saveMarkerEdits(editingMarker, values);
-              setEditingMarker(null);
-            }}
-          />
-        )}
-
-        {editingField && (
-          <NewPinForm
-            key={editingField.id}
-            mode="editField"
-            title="Редактировать поле"
-            confirmLabel="Сохранить"
-            initialValues={{
-              name: editingField.name,
-              emoji: editingField.emoji,
-              image: editingField.image,
-            }}
-            onClose={() => setEditingField(null)}
-            onSave={(values) => {
-              saveFieldEdits(editingField, values);
-              setEditingField(null);
-            }}
-          />
-        )}
-
-        {placementConfirm && (
-          <InfoDialog
-            message={`«${placementConfirm.title}» добавлено в «${placementConfirm.markerName}».`}
-            onClose={() => setPlacementConfirm(null)}
-          />
-        )}
-
-        {pendingDelete && (
-          <ConfirmDialog
-            message={`Удалить метку «${pendingDelete.name}»?`}
-            onCancel={() => setPendingDelete(null)}
-            onConfirm={() => {
-              deleteMarker(pendingDelete.id);
-              setPendingDelete(null);
-              setEditMode(false);
-              setEditAction("none");
-            }}
-          />
-        )}
-
-        {pendingDeleteField && (
-          <ConfirmDialog
-            message={`Удалить поле «${pendingDeleteField.name}» вместе со всеми метками?`}
-            onCancel={() => setPendingDeleteField(null)}
-            onConfirm={() => {
-              deleteField(pendingDeleteField.id);
-              setPendingDeleteField(null);
-            }}
-          />
-        )}
-
-        {pendingResetBg && (
-          <ConfirmDialog
-            message="Сбросить фон на стандартный?"
-            confirmLabel="Сбросить"
-            confirmColor={RED}
-            onCancel={() => setPendingResetBg(false)}
-            onConfirm={() => {
-              updateScreenImage(
-                currentId,
-                currentId === "main" ? MAP_DEFAULT_BG
-                  : currentId === "home" ? DOM_DEFAULT_BG
-                  : null
-              );
-              setPendingResetBg(false);
-            }}
-          />
-        )}
-
-        {showExitConfirm && (
-          <ConfirmDialog
-            message="Выйти из приложения?"
-            confirmLabel="Выйти"
-            confirmColor={BLUE}
-            onCancel={() => setShowExitConfirm(false)}
-            onConfirm={() => { setShowExitConfirm(false); BackHandler.exitApp(); }}
-          />
-        )}
-
-        {taskDetailData && (
-          <TaskDetailOverlay
-            key={taskDetailData.task.id}
-            task={taskDetailData.task}
-            markerColor={taskDetailData.marker ? taskDetailData.marker.color : "#B08968"}
-            markerName={taskDetailData.marker ? taskDetailData.marker.name : "Свободное"}
-            screenName={taskDetailData.screen.name}
-            onBack={() => setTaskDetail(null)}
-            onRename={renameTask}
-            onAddNote={addNoteGlobal}
-            onRemoveNote={removeNoteGlobal}
-            onToggleNote={toggleNoteGlobal}
-            onIncrementRepeat={() => {
-              if (taskDetailData.isSticker) {
-                incrementStickerRepeat(taskDetailData.screen.id, taskDetailData.task.id);
-              } else {
-                incrementRepeat(taskDetailData.screen.id, taskDetailData.marker.id, taskDetailData.task.id);
-              }
-            }}
-            onDecrementRepeat={() => {
-              if (taskDetailData.isSticker) {
-                decrementStickerRepeat(taskDetailData.screen.id, taskDetailData.task.id);
-              } else {
-                decrementRepeat(taskDetailData.screen.id, taskDetailData.marker.id, taskDetailData.task.id);
-              }
-            }}
-            onDelete={deleteTaskFromDetail}
-            onComplete={completeTaskFromDetail}
-            onUncomplete={uncompleteTaskFromDetail}
-          />
-        )}
-
-        {showOnboarding && (
-          <Overlay zIndex={200}>
-            <OnboardingOverlay onDone={finishOnboarding} />
-          </Overlay>
-        )}
-
-        <SideMenu
-          visible={showSideMenu}
-          onClose={() => setShowSideMenu(false)}
-          onAction={handleSideMenuAction}
-        />
       </SafeAreaView>
-    </Animated.View>
+    </View>
   );
 }

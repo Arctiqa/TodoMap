@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useCallback, memo } from "react";
+import React, { useState, useMemo, useCallback, memo, useRef } from "react";
 import { View, Text, Pressable, FlatList, LayoutAnimation, Platform, UIManager } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Overlay } from "../components/ui/Overlay";
 import { OverlayHeader } from "../components/ui/OverlayHeader";
 import { Chip } from "../components/ui/Chip";
@@ -76,6 +77,7 @@ export function JournalList({
   const [mode, setMode] = useState("added");
   const [doneFilter, setDoneFilter] = useState("all");
   const [pendingDelete, setPendingDelete] = useState(null);
+  const scrollRef = useRef(null);
 
   const [openSections, setOpenSections] = useState({
     active: false,
@@ -292,17 +294,18 @@ export function JournalList({
   return (
     <Overlay zIndex={55}>
       <OverlayHeader onBack={onClose} title="ЖУРНАЛ" onClose={onClose} />
-      <FlatList
-        data={items}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
+
+      <KeyboardAwareScrollView
+        ref={scrollRef}
+        style={{ flex: 1 }}
         contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 40 }}
-        initialNumToRender={12}
-        maxToRenderPerBatch={10}
-        windowSize={7}
-        removeClippedSubviews={true}
         keyboardShouldPersistTaps="handled"
-      />
+        bottomOffset={20}
+      >
+        {items.map((item) => (
+          <View key={item.key}>{renderItem({ item })}</View>
+        ))}
+      </KeyboardAwareScrollView>
 
       {pendingDelete && (
         <ConfirmDialog
