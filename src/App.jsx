@@ -502,6 +502,12 @@ function AppShell({ onThemeChange }) {
   const handleBottomAction = useCallback((action) => {
     switch (action) {
       case "menu": setShowSideMenu(true); break;
+      case "home":
+        resetNav();
+        setCurrentId("main");
+        setEditMode(false);
+        setEditAction("none");
+        break;
       case "journal": resetNav(); pushNav(NAV.JOURNAL); break;
       case "add-marker": resetNav(); pushNav(NAV.ADD_MARKER); break;
       case "others": resetNav(); pushNav(NAV.OTHERS); loadSharedPool(); break;
@@ -663,7 +669,7 @@ function AppShell({ onThemeChange }) {
       case NAV.GUIDES_LIST:
         return (
           <GuidesListOverlay
-            onSelect={(key) => pushNav(NAV.GUIDE_TASKS, { guideKey: key })}
+            onSelect={(key) => { popNav(); pushNav(NAV.GUIDE_TASKS, { guideKey: key }); }}
             onClose={popNav}
           />
         );
