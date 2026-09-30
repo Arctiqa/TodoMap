@@ -1,11 +1,12 @@
+// hooks/useTasks.js
 import { useCallback } from "react";
 import { nextId } from "../utils/id";
 import { scheduleTaskNotifications, cancelTaskNotifications } from "../utils/notifications";
-import { GUIDE_TITLES } from "../constants/guides";
 
 export function useTasks({
   updateScreen, setScreens, setHistory,
-  bumpGuideProgress,
+  bumpGuideProgress,    // (guideKey, offerId) => void
+  releaseGuideTask,     // (offerId) => void
 }) {
   // ============================================================
   // Задачи внутри пинов
@@ -20,6 +21,7 @@ export function useTasks({
       notes: (payload.notes || []).map((t) => (typeof t === "string" ? { text: t, done: false } : t)),
       createdAt: Date.now(),
       source: payload.source || undefined,
+      guideOfferId: payload.guideOfferId || undefined,
       repeat: payload.repeat || null,
     };
     setScreens((prev) => {
@@ -48,8 +50,7 @@ export function useTasks({
       if (!task) return prev;
 
       const willBeDone = !task.done;
-      const shouldAward = !!(willBeDone && !task.titleAwarded && task.source && GUIDE_TITLES[task.source]);
-      snapshot = { task, willBeDone, shouldAward };
+      snapshot = { task, willBeDone };
 
       return {
         ...prev,
@@ -67,7 +68,6 @@ export function useTasks({
                     ...t,
                     done: willBeDone,
                     completedAt: willBeDone ? Date.now() : null,
-                    titleAwarded: shouldAward ? true : t.titleAwarded,
                     repeat: nextRepeat,
                   };
                 }),
@@ -77,11 +77,17 @@ export function useTasks({
       };
     });
 
-    if (snapshot) {
-      if (snapshot.willBeDone) cancelTaskNotifications(snapshot.task.id);
-      else scheduleTaskNotifications(snapshot.task);
-      if (snapshot.shouldAward) bumpGuideProgress(snapshot.task.source);
-    }
+	if (snapshot) {
+	  if (snapshot.willBeDone) {
+		cancelTaskNotifications(snapshot.task.id);
+		if (snapshot.task.source && snapshot.task.guideOfferId) {
+		  releaseGuideTask(snapshot.task.guideOfferId);
+		  bumpGuideProgress(snapshot.task.source, snapshot.task.guideOfferId);
+		}
+	  } else {
+		scheduleTaskNotifications(snapshot.task);
+	  }
+	}
   }, [setScreens, bumpGuideProgress]);
 
   const incrementRepeat = useCallback((screenId, markerId, taskId) => {
@@ -95,8 +101,7 @@ export function useTasks({
 
       const nextCount = Math.min(task.repeat.target, task.repeat.count + 1);
       const willFinish = nextCount >= task.repeat.target;
-      const shouldAward = !!(willFinish && !task.titleAwarded && task.source && GUIDE_TITLES[task.source]);
-      snapshot = { task, willFinish, shouldAward };
+      snapshot = { task, willFinish };
 
       return {
         ...prev,
@@ -111,7 +116,6 @@ export function useTasks({
                       repeat: { ...t.repeat, count: nextCount },
                       done: willFinish,
                       completedAt: willFinish ? (t.completedAt || Date.now()) : null,
-                      titleAwarded: shouldAward ? true : t.titleAwarded,
                     }
                   : t),
               }
@@ -120,10 +124,15 @@ export function useTasks({
       };
     });
 
-    if (snapshot) {
-      if (snapshot.willFinish) cancelTaskNotifications(snapshot.task.id);
-      if (snapshot.shouldAward) bumpGuideProgress(snapshot.task.source);
-    }
+	if (snapshot) {
+	  if (snapshot.willFinish) {
+		cancelTaskNotifications(snapshot.task.id);
+		if (snapshot.task.source && snapshot.task.guideOfferId) {
+		  releaseGuideTask(snapshot.task.guideOfferId);
+		  bumpGuideProgress(snapshot.task.source, snapshot.task.guideOfferId);
+		}
+	  }
+	}
   }, [setScreens, bumpGuideProgress]);
 
   const decrementRepeat = useCallback((screenId, markerId, taskId) => {
@@ -167,6 +176,10 @@ export function useTasks({
       const marker = scr.markers.find((m) => m.id === markerId);
       const task = marker && marker.tasks.find((t) => t.id === taskId);
       if (marker && task) {
+        // если это гидовая задача и она НЕ выполнена — вернуть в список гида
+        if (task.source && task.guideOfferId && !task.done) {
+          releaseGuideTask(task.guideOfferId);
+        }
         setHistory((h) => [...h, {
           screenId,
           screenName: scr.name,
@@ -188,10 +201,10 @@ export function useTasks({
         },
       };
     });
-  }, [setScreens, setHistory]);
+  }, [setScreens, setHistory, releaseGuideTask]);
 
   // ============================================================
-  // Стикеры — свободные дела на поле
+  // Стикеры
   // ============================================================
 
   const addSticker = useCallback((screenId, payload, x = 50, y = 50) => {
@@ -203,6 +216,7 @@ export function useTasks({
       notes: (payload.notes || []).map((t) => (typeof t === "string" ? { text: t, done: false } : t)),
       createdAt: Date.now(),
       source: payload.source || undefined,
+      guideOfferId: payload.guideOfferId || undefined,
       repeat: payload.repeat || null,
       x,
       y,
@@ -270,6 +284,7 @@ export function useTasks({
         notes: sticker.notes || [],
         createdAt: sticker.createdAt || Date.now(),
         source: sticker.source || undefined,
+        guideOfferId: sticker.guideOfferId || undefined,
         repeat: sticker.repeat || null,
       };
 
@@ -305,6 +320,7 @@ export function useTasks({
         notes: task.notes || [],
         createdAt: task.createdAt || Date.now(),
         source: task.source || undefined,
+        guideOfferId: task.guideOfferId || undefined,
         repeat: task.repeat || null,
         x,
         y,
@@ -333,6 +349,10 @@ export function useTasks({
       if (!scr) return prev;
       const sticker = (scr.stickers || []).find((s) => s.id === stickerId);
       if (sticker) {
+        // если это гидовый стикер и он НЕ выполнен — вернуть в список гида
+        if (sticker.source && sticker.guideOfferId && !sticker.done) {
+          releaseGuideTask(sticker.guideOfferId);
+        }
         setHistory((h) => [...h, {
           screenId,
           screenName: scr.name,
@@ -349,6 +369,7 @@ export function useTasks({
             createdAt: sticker.createdAt || Date.now(),
             completedAt: sticker.done ? Date.now() : null,
             source: sticker.source || undefined,
+            guideOfferId: sticker.guideOfferId || undefined,
             repeat: sticker.repeat || null,
           },
           removedAt: Date.now(),
@@ -362,7 +383,7 @@ export function useTasks({
         },
       };
     });
-  }, [setScreens, setHistory]);
+  }, [setScreens, setHistory, releaseGuideTask]);
 
   const toggleSticker = useCallback((screenId, stickerId) => {
     let snapshot = null;
@@ -373,8 +394,7 @@ export function useTasks({
       if (!sticker) return prev;
 
       const willBeDone = !sticker.done;
-      const shouldAward = !!(willBeDone && !sticker.titleAwarded && sticker.source && GUIDE_TITLES[sticker.source]);
-      snapshot = { sticker, willBeDone, shouldAward };
+      snapshot = { sticker, willBeDone };
 
       return {
         ...prev,
@@ -386,18 +406,23 @@ export function useTasks({
               ...s,
               done: willBeDone,
               completedAt: willBeDone ? Date.now() : null,
-              titleAwarded: shouldAward ? true : s.titleAwarded,
             };
           }),
         },
       };
     });
 
-    if (snapshot) {
-      if (snapshot.willBeDone) cancelTaskNotifications(snapshot.sticker.id);
-      else scheduleTaskNotifications(snapshot.sticker);
-      if (snapshot.shouldAward) bumpGuideProgress(snapshot.sticker.source);
-    }
+	if (snapshot) {
+	  if (snapshot.willBeDone) {
+		cancelTaskNotifications(snapshot.sticker.id);
+		if (snapshot.sticker.source && snapshot.sticker.guideOfferId) {
+		  releaseGuideTask(snapshot.sticker.guideOfferId);
+		  bumpGuideProgress(snapshot.sticker.source, snapshot.sticker.guideOfferId);
+		}
+	  } else {
+		scheduleTaskNotifications(snapshot.sticker);
+	  }
+	}
   }, [setScreens, bumpGuideProgress]);
 
   const incrementStickerRepeat = useCallback((screenId, stickerId) => {
@@ -410,8 +435,7 @@ export function useTasks({
 
       const nextCount = Math.min(sticker.repeat.target, sticker.repeat.count + 1);
       const willFinish = nextCount >= sticker.repeat.target;
-      const shouldAward = !!(willFinish && !sticker.titleAwarded && sticker.source && GUIDE_TITLES[sticker.source]);
-      snapshot = { sticker, willFinish, shouldAward };
+      snapshot = { sticker, willFinish };
 
       return {
         ...prev,
@@ -423,17 +447,21 @@ export function useTasks({
                 repeat: { ...s.repeat, count: nextCount },
                 done: willFinish,
                 completedAt: willFinish ? (s.completedAt || Date.now()) : null,
-                titleAwarded: shouldAward ? true : s.titleAwarded,
               }
             : s),
         },
       };
     });
 
-    if (snapshot) {
-      if (snapshot.willFinish) cancelTaskNotifications(snapshot.sticker.id);
-      if (snapshot.shouldAward) bumpGuideProgress(snapshot.sticker.source);
-    }
+	if (snapshot) {
+	  if (snapshot.willFinish) {
+		cancelTaskNotifications(snapshot.sticker.id);
+		if (snapshot.sticker.source && snapshot.sticker.guideOfferId) {
+		  releaseGuideTask(snapshot.sticker.guideOfferId);
+		  bumpGuideProgress(snapshot.sticker.source, snapshot.sticker.guideOfferId);
+		}
+	  }
+	}
   }, [setScreens, bumpGuideProgress]);
 
   const decrementStickerRepeat = useCallback((screenId, stickerId) => {
@@ -462,7 +490,7 @@ export function useTasks({
       };
     });
   }, [setScreens]);
-  
+
   const moveStickerToField = useCallback((fromScreenId, stickerId, toScreenId, x = 50, y = 50) => {
     cancelTaskNotifications(stickerId);
     setScreens((prev) => {
@@ -487,7 +515,7 @@ export function useTasks({
         },
       };
     });
-  }, [setScreens]);  
+  }, [setScreens]);
 
   return {
     // задачи внутри пинов
@@ -501,7 +529,7 @@ export function useTasks({
     updateSticker,
     updateStickerPosition,
     moveStickerToMarker,
-	moveStickerToField,
+    moveStickerToField,
     moveTaskToField,
     deleteSticker,
     toggleSticker,

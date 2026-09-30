@@ -1,3 +1,5 @@
+// constants/config.js
+
 export const SHARE_API = { baseUrl: "" };
 export const SHARE_POOL_KEY = "questmap_shared_pool_v1";
 export const STORAGE_KEY = "questmap_v1";
@@ -14,7 +16,3 @@ export const STICKER_TRASH_ZONE_HEIGHT = 100;
 export const FIELD_MARKER_ID = "__field__";
 
 export const SWIPE_EDGE_RESISTANCE = 0.7;
-
-// --- гиды ---
-export const GUIDE_REPEAT_MIN = 3;
-export const GUIDE_REPEAT_SPAN = 3;

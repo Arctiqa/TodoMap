@@ -1,97 +1,89 @@
 // hooks/useGuides.js
 import { useCallback } from "react";
-import { GUIDE_CHAINS, GUIDE_TITLES } from "../constants/guides";
-import { GUIDE_REPEAT_MIN, GUIDE_REPEAT_SPAN } from "../constants/config";
+import { GUIDE_TITLES } from "../constants/guides";
 
 export function useGuides({
   guideUsedOffers,
   setGuideUsedOffers,
-  setGuideTakenCount,
+  guideCompletedOffers,
+  setGuideCompletedOffers,
   setGuideProgress,
   setTitleUnlock,
-  onTakeSticker,   // (payload) => void — App.jsx кладёт стикер в currentId
+  onTakeSticker,   // (payload) => void — кладёт стикер в текущее поле
   popNav,          // () => void — закрыть оверлей гида
 }) {
-  const bumpProgress = useCallback((guideKey) => {
+  // ------------------------------------------------------------------
+  // Прогресс: +1 за уникальную задачу, и, если достигнут тир — диалог титула
+  // ------------------------------------------------------------------
+  const bumpProgress = useCallback((guideKey, offerId) => {
+    if (!guideKey) return;
+    // без offerId — не начисляем (не знаем, за какую задачу)
+    if (!offerId) return;
+
+    // если задача уже засчитана — ничего не делаем
+    if (guideCompletedOffers.includes(offerId)) return;
+
+    setGuideCompletedOffers((prev) =>
+      prev.includes(offerId) ? prev : [...prev, offerId]
+    );
+
     setGuideProgress((prev) => {
       const next = { ...prev, [guideKey]: (prev[guideKey] || 0) + 1 };
       const titles = GUIDE_TITLES[guideKey];
       if (titles && titles[next[guideKey]]) setTitleUnlock(titles[next[guideKey]]);
       return next;
     });
-  }, [setGuideProgress, setTitleUnlock]);
+  }, [guideCompletedOffers, setGuideCompletedOffers, setGuideProgress, setTitleUnlock]);
 
-  const nextChainOfferFor = useCallback((guideKey) => {
-    const chain = GUIDE_CHAINS[guideKey] || [];
-    return chain.find((o) => !guideUsedOffers.includes(o.id)) || null;
+  // ------------------------------------------------------------------
+  // Проверки состояния задачи
+  // ------------------------------------------------------------------
+  const isTaken = useCallback((offerId) => {
+    return guideUsedOffers.includes(offerId);
   }, [guideUsedOffers]);
 
-  const bumpTaken = useCallback((guideKey) => {
-    if (!guideKey) return;
-    setGuideTakenCount((prev) => ({
-      ...prev,
-      [guideKey]: (prev[guideKey] || 0) + 1,
-    }));
-  }, [setGuideTakenCount]);
+  const isCompleted = useCallback((offerId) => {
+    return guideCompletedOffers.includes(offerId);
+  }, [guideCompletedOffers]);
 
-  // ---- Взять сюжетный оффер цепочки ----
-  const takeChainOffer = useCallback((guideKey, offer) => {
-    if (!offer || guideUsedOffers.includes(offer.id)) return;
+  // ------------------------------------------------------------------
+  // Взять задачу → стикер + пометить как взятую
+  // ------------------------------------------------------------------
+  const takeTask = useCallback((guideKey, task) => {
+    if (!task || !task.id || !task.title) return;
 
+    // добавляем в used (если ещё нет)
     setGuideUsedOffers((prev) =>
-      prev.includes(offer.id) ? prev : [...prev, offer.id]
+      prev.includes(task.id) ? prev : [...prev, task.id]
     );
-    bumpTaken(guideKey);
 
+    // создаём стикер в текущем поле
     onTakeSticker &&
       onTakeSticker({
-        title: offer.taskTitle,
-        due: null,
-        notes: offer.starterNotes || [],
-        source: guideKey,
-        repeat: null,
-      });
-
-    popNav();
-  }, [guideUsedOffers, setGuideUsedOffers, bumpTaken, onTakeSticker, popNav]);
-
-  // ---- Своё задание вместо оффера ----
-  const takeCustomInstead = useCallback((guideKey, text) => {
-    const title = (text || "").trim();
-    if (!title) return;
-    bumpTaken(guideKey);
-    onTakeSticker &&
-      onTakeSticker({
-        title,
+        title: task.title,
         due: null,
         notes: [],
         source: guideKey,
+        guideOfferId: task.id,   // ← связь стикера с задачей гида
         repeat: null,
       });
-    popNav();
-  }, [bumpTaken, onTakeSticker, popNav]);
 
-  // ---- Рандомайзер ----
-  const takeRandom = useCallback((guideKey, title) => {
-    if (!title) return;
-    bumpTaken(guideKey);
-    const target = GUIDE_REPEAT_MIN + Math.floor(Math.random() * GUIDE_REPEAT_SPAN);
-    onTakeSticker &&
-      onTakeSticker({
-        title,
-        due: null,
-        notes: [],
-        source: guideKey,
-        repeat: { count: 0, target },
-      });
-    popNav();
-  }, [bumpTaken, onTakeSticker, popNav]);
+    popNav && popNav();
+  }, [setGuideUsedOffers, onTakeSticker, popNav]);
+
+  // ------------------------------------------------------------------
+  // Освободить задачу (при удалении невыполненной) → снова «невзятая»
+  // ------------------------------------------------------------------
+  const releaseTask = useCallback((offerId) => {
+    if (!offerId) return;
+    setGuideUsedOffers((prev) => prev.filter((id) => id !== offerId));
+  }, [setGuideUsedOffers]);
 
   return {
     bumpProgress,
-    nextChainOfferFor,
-    takeChainOffer,
-    takeCustomInstead,
-    takeRandom,
+    isTaken,
+    isCompleted,
+    takeTask,
+    releaseTask,
   };
 }

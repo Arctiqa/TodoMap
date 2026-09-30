@@ -19,10 +19,12 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
   try { UIManager.setLayoutAnimationEnabledExperimental(true); } catch (e) {}
 }
 
-function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat }) {
+function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat, onDecrementRepeat }) {
   const { ink, card, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
   const expired = isTaskExpired(task);
   const [pressing, setPressing] = useState(false);
+  const [confirmDone, setConfirmDone] = useState(false);
+  const [confirmRepeatFinish, setConfirmRepeatFinish] = useState(false);
   const timerRef = useRef(null);
   const longFiredRef = useRef(false);
 
@@ -55,160 +57,213 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
   const notesDone = notes.filter((n) => n.done).length;
   const guide = task.source ? GUIDE_BY_KEY[task.source] : null;
 
+  // Тап по галке
+  const handleToggle = (e) => {
+    e.stopPropagation?.();
+    if (task.done) {
+      // снятие — без подтверждения
+      onToggle && onToggle(task.id);
+      return;
+    }
+    if (task.source) {
+      // постановка у гида — с подтверждением
+      setConfirmDone(true);
+    } else {
+      onToggle && onToggle(task.id);
+    }
+  };
+
+  // Тап по «+» прогресса
+  const handleIncrement = (e) => {
+    e.stopPropagation?.();
+    if (!task.repeat) return;
+    const nextCount = task.repeat.count + 1;
+    const willFinish = nextCount >= task.repeat.target;
+
+    if (willFinish && task.source) {
+      // сразу инкрементим, потом спрашиваем
+      onIncrementRepeat && onIncrementRepeat(task.id);
+      setConfirmRepeatFinish(true);
+    } else {
+      onIncrementRepeat && onIncrementRepeat(task.id);
+    }
+  };
+
   return (
-    <Pressable
-      onPressIn={startPress}
-      onPressOut={endPress}
-      onPress={handlePress}
-      style={({ pressed }) => [
-        {
-          flexDirection: "row",
-          alignItems: "flex-start",
-          gap: SPACING.sm,
-          backgroundColor: card,
-          opacity: task.done ? 0.55 : pressed || pressing ? 0.92 : 1,
-          borderRadius: RADIUS.lg,
-          padding: SPACING.md,
-          transform: [{ scale: pressing ? 0.98 : 1 }],
-          borderWidth: pressing ? 2 : 0,
-          borderColor: pressing ? ink : "transparent",
-        },
-        SHADOW.sm,
-      ]}
-    >
-	
-		{/* Галка / + для repeat */}
-		{task.repeat && !task.done && onIncrementRepeat ? (
-		  <Pressable
-			onPress={(e) => {
-			  e.stopPropagation?.();
-			  onIncrementRepeat(task.id);
-			}}
-			hitSlop={6}
-			style={{
-			  width: 28, height: 28, borderRadius: RADIUS.sm,
-			  borderWidth: 1.5, borderColor: GREEN,
-			  alignItems: "center", justifyContent: "center",
-			  marginTop: 2, backgroundColor: "transparent",
-			}}
-		  >
-			<MaterialIcons name="add" size={18} color={GREEN} />
-		  </Pressable>
-		) : (
-		  <Pressable
-			onPress={(e) => {
-			  e.stopPropagation?.();
-			  onToggle && onToggle(task.id);
-			}}
-			hitSlop={6}
-			style={{
-			  width: 28, height: 28, borderRadius: RADIUS.sm,
-			  borderWidth: 1.5, borderColor: task.done ? TEAL : muted + "80",
-			  alignItems: "center", justifyContent: "center",
-			  marginTop: 2, backgroundColor: task.done ? TEAL : "transparent",
-			}}
-		  >
-			{task.done && <MaterialIcons name="check" size={18} color="#fff" />}
-		  </Pressable>
-		)}
-
-      {/* Колонка с содержимым задачи */}
-      <View style={{ flex: 1 }}>
-		<Text
-		  style={{
-			...TYPE.bodyBold,
-			color: expired ? BLUE : ink,
-			textDecorationLine: task.done ? "line-through" : "none",
-			opacity: task.done ? 0.65 : 1,
-			flexShrink: 1,
-		  }}
-		  numberOfLines={2}
-		>
-		  {task.title}
-		</Text>
-
-        {/* Прогресс серии повторов */}
-        {task.repeat && (
-          <View style={{ marginTop: SPACING.xs }}>
-            <ProgressBar value={task.repeat.count} max={task.repeat.target} color={GREEN} height={4} />
-            <Text style={{ ...TYPE.monoSm, color: ink, opacity: 0.55, marginTop: 2 }}>
-              {task.repeat.count}/{task.repeat.target}
-            </Text>
-          </View>
+    <>
+      <Pressable
+        onPressIn={startPress}
+        onPressOut={endPress}
+        onPress={handlePress}
+        style={({ pressed }) => [
+          {
+            flexDirection: "row",
+            alignItems: "flex-start",
+            gap: SPACING.sm,
+            backgroundColor: card,
+            opacity: task.done ? 0.55 : pressed || pressing ? 0.92 : 1,
+            borderRadius: RADIUS.lg,
+            padding: SPACING.md,
+            transform: [{ scale: pressing ? 0.98 : 1 }],
+            borderWidth: pressing ? 2 : 0,
+            borderColor: pressing ? ink : "transparent",
+          },
+          SHADOW.sm,
+        ]}
+      >
+        {/* Галка / + для repeat */}
+        {task.repeat && !task.done && onIncrementRepeat ? (
+          <Pressable
+            onPress={handleIncrement}
+            hitSlop={6}
+            style={{
+              width: 28, height: 28, borderRadius: RADIUS.sm,
+              borderWidth: 1.5, borderColor: GREEN,
+              alignItems: "center", justifyContent: "center",
+              marginTop: 2, backgroundColor: "transparent",
+            }}
+          >
+            <MaterialIcons name="add" size={18} color={GREEN} />
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={handleToggle}
+            hitSlop={6}
+            style={{
+              width: 28, height: 28, borderRadius: RADIUS.sm,
+              borderWidth: 1.5, borderColor: task.done ? TEAL : muted + "80",
+              alignItems: "center", justifyContent: "center",
+              marginTop: 2, backgroundColor: task.done ? TEAL : "transparent",
+            }}
+          >
+            {task.done && <MaterialIcons name="check" size={18} color="#fff" />}
+          </Pressable>
         )}
 
-        {/* Пометки */}
-        {notes.length > 0 && (
-          <View style={{ marginTop: SPACING.xs, gap: 1 }}>
-            {notes.slice(0, 3).map((n, i) => (
-              <Text
-                key={i}
-                style={{
-                  fontSize: 11.5,
-                  color: ink,
-                  opacity: n.done ? 0.4 : 0.75,
-                  textDecorationLine: n.done ? "line-through" : "none",
-                }}
-                numberOfLines={1}
-              >
-                · {n.text}
-              </Text>
-            ))}
-            {notes.length > 3 && (
-              <Text style={{ fontSize: 10.5, color: ink, opacity: 0.4 }}>
-                и ещё {notes.length - 3}
-              </Text>
-            )}
-          </View>
-        )}
+        {/* Колонка с содержимым задачи */}
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              ...TYPE.bodyBold,
+              color: expired ? BLUE : ink,
+              textDecorationLine: task.done ? "line-through" : "none",
+              opacity: task.done ? 0.65 : 1,
+              flexShrink: 1,
+            }}
+            numberOfLines={2}
+          >
+            {task.title}
+          </Text>
 
-        {/* Срок */}
-        <Text
-          style={{
-            fontSize: 11,
-            marginTop: SPACING.xs,
-            color: expired ? BLUE : ink,
-            opacity: expired ? 1 : 0.55,
-            fontWeight: expired ? "700" : "400",
-          }}
-        >
-          {formatRemaining(task.due)}
-        </Text>
-      </View>
-	  
-		{guide && (
-		  <View
-			style={{
-			  width: 22, height: 22, borderRadius: 11,
-			  backgroundColor: guide.color,
-			  borderWidth: 1.5, borderColor: ink,
-			  alignItems: "center", justifyContent: "center",
-			  marginTop: 2,
-			}}
-		  >
-			<MaterialIcons name={guide.icon} size={12} color={ink} />
-		  </View>
-		)}	  
+          {task.repeat && (
+            <View style={{ marginTop: SPACING.xs }}>
+              <ProgressBar value={task.repeat.count} max={task.repeat.target} color={GREEN} height={4} />
+              <Text style={{ ...TYPE.monoSm, color: ink, opacity: 0.55, marginTop: 2 }}>
+                {task.repeat.count}/{task.repeat.target}
+              </Text>
+            </View>
+          )}
 
-      {/* open-with (справа) */}
-      {!task.done && onExtract && (
-        <View
-          style={{
-            width: 22, height: 22, borderRadius: 11,
-            alignItems: "center", justifyContent: "center",
-            backgroundColor: pressing ? ink : "transparent",
-            marginTop: 2,
-          }}
-        >
-          <MaterialIcons
-            name="open-with"
-            size={pressing ? 16 : 14}
-            color={pressing ? "#fff" : ink}
-            style={{ opacity: pressing ? 1 : 0.3 }}
-          />
+          {notes.length > 0 && (
+            <View style={{ marginTop: SPACING.xs, gap: 1 }}>
+              {notes.slice(0, 3).map((n, i) => (
+                <Text
+                  key={i}
+                  style={{
+                    fontSize: 11.5,
+                    color: ink,
+                    opacity: n.done ? 0.4 : 0.75,
+                    textDecorationLine: n.done ? "line-through" : "none",
+                  }}
+                  numberOfLines={1}
+                >
+                  · {n.text}
+                </Text>
+              ))}
+              {notes.length > 3 && (
+                <Text style={{ fontSize: 10.5, color: ink, opacity: 0.4 }}>
+                  и ещё {notes.length - 3}
+                </Text>
+              )}
+            </View>
+          )}
+
+          <Text
+            style={{
+              fontSize: 11,
+              marginTop: SPACING.xs,
+              color: expired ? BLUE : ink,
+              opacity: expired ? 1 : 0.55,
+              fontWeight: expired ? "700" : "400",
+            }}
+          >
+            {formatRemaining(task.due)}
+          </Text>
         </View>
+
+        {guide && (
+          <View
+            style={{
+              width: 22, height: 22, borderRadius: 11,
+              backgroundColor: guide.color,
+              borderWidth: 1.5, borderColor: ink,
+              alignItems: "center", justifyContent: "center",
+              marginTop: 2,
+            }}
+          >
+            <MaterialIcons name={guide.icon} size={12} color={ink} />
+          </View>
+        )}
+
+        {!task.done && onExtract && (
+          <View
+            style={{
+              width: 22, height: 22, borderRadius: 11,
+              alignItems: "center", justifyContent: "center",
+              backgroundColor: pressing ? ink : "transparent",
+              marginTop: 2,
+            }}
+          >
+            <MaterialIcons
+              name="open-with"
+              size={pressing ? 16 : 14}
+              color={pressing ? "#fff" : ink}
+              style={{ opacity: pressing ? 1 : 0.3 }}
+            />
+          </View>
+        )}
+      </Pressable>
+
+      {/* Подтверждение: отметить выполненным */}
+      {confirmDone && (
+        <ConfirmDialog
+          message="Отметить задание как выполненное?"
+          confirmLabel="Да"
+          confirmColor={GREEN}
+          onCancel={() => setConfirmDone(false)}
+          onConfirm={() => {
+            setConfirmDone(false);
+            onToggle && onToggle(task.id);
+          }}
+        />
       )}
-    </Pressable>
+
+      {/* Подтверждение: завершение серии */}
+      {confirmRepeatFinish && (
+        <ConfirmDialog
+          message="Отметить задание как выполненное?"
+          confirmLabel="Да"
+          confirmColor={GREEN}
+          onCancel={() => {
+            setConfirmRepeatFinish(false);
+            onDecrementRepeat && onDecrementRepeat(task.id);
+          }}
+          onConfirm={() => {
+            setConfirmRepeatFinish(false);
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -220,6 +275,7 @@ export function TaskScreen({
   onDelete,
   onShare,
   onIncrementRepeat,
+  onDecrementRepeat,
   onOpenDetail,
   onExtractToField,
 }) {
@@ -248,7 +304,6 @@ export function TaskScreen({
     setTimeout(() => setCopied(false), 1600);
   }, [marker]);
 
-  // Системный Back: сначала сворачиваем AddTaskBar, потом закрываем TaskScreen
   React.useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (addBarExpanded) {
@@ -357,6 +412,7 @@ export function TaskScreen({
                   onExtract={!t.done ? onExtractToField : undefined}
                   onToggle={(taskId) => onToggle(marker.id, taskId)}
                   onIncrementRepeat={(taskId) => onIncrementRepeat && onIncrementRepeat(marker.id, taskId)}
+                  onDecrementRepeat={(taskId) => onDecrementRepeat && onDecrementRepeat(marker.id, taskId)}
                 />
               </React.Fragment>
             );
@@ -369,6 +425,7 @@ export function TaskScreen({
           collapsed={!addBarExpanded}
           onExpand={() => setAddBarExpanded(true)}
           onCollapse={() => setAddBarExpanded(false)}
+          showColorPicker={false}
           onSubmit={({ title, due, repeat, share }) => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             onAdd(marker.id, title, due, repeat);

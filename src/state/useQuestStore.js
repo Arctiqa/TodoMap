@@ -12,9 +12,6 @@ function emptyGuideCounts() {
 }
 
 // ---------- Миграция сохранённых счётчиков под текущий набор гидов ----------
-//  • недостающие ключи добиваются нулями
-//  • лишние (удалённые гиды) — отбрасываются
-//  • нечисловые значения — заменяются нулём
 function mergeGuideCounts(saved) {
   const out = emptyGuideCounts();
   if (saved && typeof saved === "object") {
@@ -27,14 +24,28 @@ function mergeGuideCounts(saved) {
   return out;
 }
 
+// ---------- Миграция массива id офферов (строки, уникальные) ----------
+function mergeOfferIds(saved) {
+  if (!Array.isArray(saved)) return [];
+  const seen = new Set();
+  const out = [];
+  saved.forEach((id) => {
+    if (typeof id === "string" && !seen.has(id)) {
+      seen.add(id);
+      out.push(id);
+    }
+  });
+  return out;
+}
+
 const initialState = {
   screens: initialScreens,
   topLevelOrder: ["main"],
   historyLog: [],
   thoughts: [],
   guideProgress: emptyGuideCounts(),
-  guideUsedOffers: [],
-  guideTakenCount: emptyGuideCounts(),
+  guideUsedOffers: [],        // id задач, взятых и ещё не выполненных
+  guideCompletedOffers: [],   // id задач, за которые уже засчитан прогресс
   sharedPool: [],
   loaded: false,
 };
@@ -80,8 +91,8 @@ function reducer(state, action) {
     case "SET_GUIDE_USED_OFFERS":
       return { ...state, guideUsedOffers: typeof action.value === "function" ? action.value(state.guideUsedOffers) : action.value };
 
-    case "SET_GUIDE_TAKEN_COUNT":
-      return { ...state, guideTakenCount: typeof action.value === "function" ? action.value(state.guideTakenCount) : action.value };
+    case "SET_GUIDE_COMPLETED_OFFERS":
+      return { ...state, guideCompletedOffers: typeof action.value === "function" ? action.value(state.guideCompletedOffers) : action.value };
 
     case "SET_SHARED_POOL":
       return { ...state, sharedPool: typeof action.value === "function" ? action.value(state.sharedPool) : action.value };
@@ -109,11 +120,8 @@ export function useQuestStore() {
 
           // --- миграция гидов под текущий набор ---
           if (data.guideProgress) patch.guideProgress = mergeGuideCounts(data.guideProgress);
-          if (data.guideTakenCount) patch.guideTakenCount = mergeGuideCounts(data.guideTakenCount);
-          // guideUsedOffers — плоский массив id, чистим только не-строки
-          if (Array.isArray(data.guideUsedOffers)) {
-            patch.guideUsedOffers = data.guideUsedOffers.filter((x) => typeof x === "string");
-          }
+          patch.guideUsedOffers = mergeOfferIds(data.guideUsedOffers);
+          patch.guideCompletedOffers = mergeOfferIds(data.guideCompletedOffers);
 
           if (data.sharedPool) patch.sharedPool = data.sharedPool;
           dispatch({ type: "HYDRATE", payload: patch });
@@ -140,7 +148,7 @@ export function useQuestStore() {
           thoughts: state.thoughts,
           guideProgress: state.guideProgress,
           guideUsedOffers: state.guideUsedOffers,
-          guideTakenCount: state.guideTakenCount,
+          guideCompletedOffers: state.guideCompletedOffers,
           sharedPool: state.sharedPool,
         })
       ).catch((e) => console.warn("QuestMap: не удалось сохранить", e));
@@ -154,7 +162,7 @@ export function useQuestStore() {
     state.thoughts,
     state.guideProgress,
     state.guideUsedOffers,
-    state.guideTakenCount,
+    state.guideCompletedOffers,
     state.sharedPool,
   ]);
 
@@ -165,7 +173,7 @@ export function useQuestStore() {
   const setThoughts = useCallback((value) => dispatch({ type: "SET_THOUGHTS", value }), []);
   const setGuideProgress = useCallback((value) => dispatch({ type: "SET_GUIDE_PROGRESS", value }), []);
   const setGuideUsedOffers = useCallback((value) => dispatch({ type: "SET_GUIDE_USED_OFFERS", value }), []);
-  const setGuideTakenCount = useCallback((value) => dispatch({ type: "SET_GUIDE_TAKEN_COUNT", value }), []);
+  const setGuideCompletedOffers = useCallback((value) => dispatch({ type: "SET_GUIDE_COMPLETED_OFFERS", value }), []);
   const setSharedPool = useCallback((value) => dispatch({ type: "SET_SHARED_POOL", value }), []);
 
   return {
@@ -178,7 +186,7 @@ export function useQuestStore() {
     setThoughts,
     setGuideProgress,
     setGuideUsedOffers,
-    setGuideTakenCount,
+    setGuideCompletedOffers,
     setSharedPool,
   };
 }

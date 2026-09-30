@@ -82,11 +82,11 @@ function AppShell({ onThemeChange }) {
   const store = useQuestStore();
   const {
     state, setScreens, updateScreen, setTopLevelOrder, setHistory, setThoughts,
-    setGuideProgress, setGuideUsedOffers, setGuideTakenCount, setSharedPool,
+    setGuideProgress, setGuideUsedOffers, setGuideCompletedOffers, setSharedPool,
   } = store;
   const {
     screens, topLevelOrder, historyLog, thoughts,
-    guideProgress, guideUsedOffers, guideTakenCount, sharedPool, loaded,
+    guideProgress, guideUsedOffers, guideCompletedOffers, sharedPool, loaded,
   } = state;
 
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -145,14 +145,13 @@ function AppShell({ onThemeChange }) {
 
   const {
     bumpProgress: bumpGuideProgress,
-    nextChainOfferFor,
-    takeChainOffer,
-    takeCustomInstead,
-    takeRandom: takeGuideRandom,
+    takeTask: takeGuideTask,
+    releaseTask: releaseGuideTask,
   } = useGuides({
     guideUsedOffers,
     setGuideUsedOffers,
-    setGuideTakenCount,
+    guideCompletedOffers,
+    setGuideCompletedOffers,
     setGuideProgress,
     setTitleUnlock,
     onTakeSticker: (payload) => takeStickerRef.current && takeStickerRef.current(payload),
@@ -167,6 +166,7 @@ function AppShell({ onThemeChange }) {
   } = useTasks({
     updateScreen, setScreens, setHistory,
     bumpGuideProgress,
+    releaseGuideTask,
   });
 
   // заполняем ref после того, как addSticker готов
@@ -366,10 +366,57 @@ function AppShell({ onThemeChange }) {
     }));
   }, [patchTaskInDetail]);
 
-  const completeTaskFromDetail = useCallback(() => {
-    patchTaskInDetail((t) => ({ ...t, done: true, completedAt: Date.now() }));
-    setTaskDetail(null);
-  }, [patchTaskInDetail, setTaskDetail]);
+	const completeTaskFromDetail = useCallback(() => {
+	  if (!taskDetail) return;
+	  const { screenId, markerId, taskId } = taskDetail;
+
+	  let snapshot = null;
+	  setScreens((prev) => {
+		const scr = prev[screenId];
+		if (!scr) return prev;
+
+		if (markerId === FIELD_MARKER_ID) {
+		  const sticker = (scr.stickers || []).find((s) => s.id === taskId);
+		  if (sticker && !sticker.done) {
+			snapshot = sticker;
+		  }
+		  return {
+			...prev,
+			[screenId]: {
+			  ...scr,
+			  stickers: (scr.stickers || []).map((s) =>
+				s.id === taskId ? { ...s, done: true, completedAt: Date.now() } : s
+			  ),
+			},
+		  };
+		}
+
+		const mk = scr.markers.find((m) => m.id === markerId);
+		const task = mk && mk.tasks.find((t) => t.id === taskId);
+		if (task && !task.done) {
+		  snapshot = task;
+		}
+		return {
+		  ...prev,
+		  [screenId]: {
+			...scr,
+			markers: scr.markers.map((m) =>
+			  m.id === markerId
+				? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, done: true, completedAt: Date.now() } : t)) }
+				: m
+			),
+		  },
+		};
+	  });
+
+	  if (snapshot && snapshot.source && snapshot.guideOfferId) {
+		releaseGuideTask(snapshot.guideOfferId);
+		bumpGuideProgress(snapshot.source, snapshot.guideOfferId);
+	  }
+
+	  setTaskDetail(null);
+	}, [taskDetail, setScreens, releaseGuideTask, bumpGuideProgress, setTaskDetail]);
+
 
   const uncompleteTaskFromDetail = useCallback(() => {
     patchTaskInDetail((t) => ({ ...t, done: false, completedAt: null }));
@@ -540,6 +587,7 @@ function AppShell({ onThemeChange }) {
             onDelete={(markerId, taskId) => deleteTask(currentId, markerId, taskId)}
             onShare={shareTaskToPool}
             onIncrementRepeat={(markerId, taskId) => incrementRepeat(currentId, markerId, taskId)}
+			onDecrementRepeat={(markerId, taskId) => decrementRepeat(currentId, markerId, taskId)}
             onOpenDetail={(t) => openTaskDetail(t, activeMarker, currentId)}
             onExtractToField={(taskId) => {
               moveTaskToField(currentId, activeMarker.id, taskId, 50, 50);
@@ -646,19 +694,17 @@ function AppShell({ onThemeChange }) {
           />
         );
 
-      case NAV.GUIDE_TASKS:
-        return (
-          <GuideTasksOverlay
-            guideKey={topNav.payload.guideKey}
-            chainOffer={nextChainOfferFor(topNav.payload.guideKey)}
-            takenCount={guideTakenCount[topNav.payload.guideKey]}
-            onTakeChain={(offer) => takeChainOffer(topNav.payload.guideKey, offer)}
-            onCustom={(text) => takeCustomInstead(topNav.payload.guideKey, text)}
-            onTakeRandom={(title) => takeGuideRandom(topNav.payload.guideKey, title)}
-            onBack={() => { popNav(); pushNav(NAV.GUIDES_LIST); }}
-            onClose={popNav}
-          />
-        );
+		case NAV.GUIDE_TASKS:
+		  return (
+			<GuideTasksOverlay
+			  guideKey={topNav.payload.guideKey}
+			  guideUsedOffers={guideUsedOffers}
+			  guideCompletedOffers={guideCompletedOffers}
+			  onTakeTask={takeGuideTask}
+			  onBack={() => { popNav(); pushNav(NAV.GUIDES_LIST); }}
+			  onClose={popNav}
+			/>
+		  );
 
       case NAV.SETTINGS:
         return (
