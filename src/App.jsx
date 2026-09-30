@@ -447,8 +447,8 @@ function AppShell({ onThemeChange }) {
     pushNav(NAV.TASK, { markerId: marker.id });
   }, [setEditMode, setCurrentId, pushNav]);
 
-  const handleAddTaskFromBar = useCallback(({ title, due, repeat, share }) => {
-    addSticker(currentId, { title, due, repeat }, 50, 50);
+  const handleAddTaskFromBar = useCallback(({ title, due, repeat, share, color }) => {
+    addSticker(currentId, { title, due, repeat, color }, 50, 50);
     if (share) shareTaskToPool(title, due);
   }, [currentId, addSticker, shareTaskToPool]);
 

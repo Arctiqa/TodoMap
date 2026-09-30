@@ -409,7 +409,7 @@ function StickerInner({
           flex: 1,
           backgroundColor: card,
           borderWidth: 2,
-          borderColor: guide ? guide.color : ink,
+          borderColor: sticker.color || (guide ? guide.color : ink),
           borderRadius: 10,
           paddingHorizontal: 8,
           paddingVertical: 6,

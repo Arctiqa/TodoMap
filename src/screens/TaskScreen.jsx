@@ -76,22 +76,41 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
         SHADOW.sm,
       ]}
     >
-      {/* Галка — тап toggles done */}
-      <Pressable
-        onPress={(e) => {
-          e.stopPropagation?.();
-          onToggle && onToggle(task.id);
-        }}
-        hitSlop={6}
-        style={{
-          width: 28, height: 28, borderRadius: RADIUS.sm,
-          borderWidth: 1.5, borderColor: task.done ? TEAL : muted + "80",
-          alignItems: "center", justifyContent: "center",
-          marginTop: 2, backgroundColor: task.done ? TEAL : "transparent",
-        }}
-      >
-        {task.done && <MaterialIcons name="check" size={18} color="#fff" />}
-      </Pressable>
+	
+		{/* Галка / + для repeat */}
+		{task.repeat && !task.done && onIncrementRepeat ? (
+		  <Pressable
+			onPress={(e) => {
+			  e.stopPropagation?.();
+			  onIncrementRepeat(task.id);
+			}}
+			hitSlop={6}
+			style={{
+			  width: 28, height: 28, borderRadius: RADIUS.sm,
+			  borderWidth: 1.5, borderColor: GREEN,
+			  alignItems: "center", justifyContent: "center",
+			  marginTop: 2, backgroundColor: "transparent",
+			}}
+		  >
+			<MaterialIcons name="add" size={18} color={GREEN} />
+		  </Pressable>
+		) : (
+		  <Pressable
+			onPress={(e) => {
+			  e.stopPropagation?.();
+			  onToggle && onToggle(task.id);
+			}}
+			hitSlop={6}
+			style={{
+			  width: 28, height: 28, borderRadius: RADIUS.sm,
+			  borderWidth: 1.5, borderColor: task.done ? TEAL : muted + "80",
+			  alignItems: "center", justifyContent: "center",
+			  marginTop: 2, backgroundColor: task.done ? TEAL : "transparent",
+			}}
+		  >
+			{task.done && <MaterialIcons name="check" size={18} color="#fff" />}
+		  </Pressable>
+		)}
 
       {/* Колонка с содержимым задачи */}
       <View style={{ flex: 1 }}>
@@ -156,26 +175,6 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
           {formatRemaining(task.due)}
         </Text>
       </View>
-
-      {/* + повтора (справа) */}
-      {!task.done && task.repeat && onIncrementRepeat && (
-        <Pressable
-          onPress={(e) => {
-            e.stopPropagation?.();
-            onIncrementRepeat(task.id);
-          }}
-          hitSlop={6}
-          style={{
-            width: 28, height: 28, borderRadius: 14,
-            borderWidth: 1.5, borderColor: GREEN,
-            alignItems: "center", justifyContent: "center",
-            marginTop: 2,
-            backgroundColor: "transparent",
-          }}
-        >
-          <MaterialIcons name="add" size={18} color={GREEN} />
-        </Pressable>
-      )}
 	  
 		{guide && (
 		  <View
@@ -192,7 +191,7 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
 		)}	  
 
       {/* open-with (справа) */}
-      {!task.done && onExtract && !task.repeat && (
+      {!task.done && onExtract && (
         <View
           style={{
             width: 22, height: 22, borderRadius: 11,
@@ -355,7 +354,7 @@ export function TaskScreen({
                 <TaskRowLongPress
                   task={t}
                   onOpen={(task) => onOpenDetail(task)}
-                  onExtract={!t.done && !t.repeat ? onExtractToField : undefined}
+                  onExtract={!t.done ? onExtractToField : undefined}
                   onToggle={(taskId) => onToggle(marker.id, taskId)}
                   onIncrementRepeat={(taskId) => onIncrementRepeat && onIncrementRepeat(marker.id, taskId)}
                 />
