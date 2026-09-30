@@ -2,29 +2,10 @@
 import { useReducer, useEffect, useCallback, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { STORAGE_KEY } from "../constants/config";
-import { GUIDE_KEYS } from "../constants/guides";
 import { dedupeIds } from "../utils/id";
 import { initialScreens } from "../data/initialScreens";
 
-// ---------- Начальные счётчики по всем гидам ----------
-function emptyGuideCounts() {
-  return Object.fromEntries(GUIDE_KEYS.map((k) => [k, 0]));
-}
-
-// ---------- Миграция сохранённых счётчиков под текущий набор гидов ----------
-function mergeGuideCounts(saved) {
-  const out = emptyGuideCounts();
-  if (saved && typeof saved === "object") {
-    Object.keys(out).forEach((k) => {
-      if (typeof saved[k] === "number" && Number.isFinite(saved[k])) {
-        out[k] = saved[k];
-      }
-    });
-  }
-  return out;
-}
-
-// ---------- Миграция массива id офферов (строки, уникальные) ----------
+// ---------- Миграция массива id (строки, уникальные) ----------
 function mergeOfferIds(saved) {
   if (!Array.isArray(saved)) return [];
   const seen = new Set();
@@ -43,9 +24,8 @@ const initialState = {
   topLevelOrder: ["main"],
   historyLog: [],
   thoughts: [],
-  guideProgress: emptyGuideCounts(),
-  guideUsedOffers: [],        // id задач, взятых и ещё не выполненных
-  guideCompletedOffers: [],   // id задач, за которые уже засчитан прогресс
+  guideUsedOffers: [],
+  guideCompletedOffers: [],
   sharedPool: [],
   loaded: false,
 };
@@ -85,9 +65,6 @@ function reducer(state, action) {
     case "SET_THOUGHTS":
       return { ...state, thoughts: typeof action.value === "function" ? action.value(state.thoughts) : action.value };
 
-    case "SET_GUIDE_PROGRESS":
-      return { ...state, guideProgress: typeof action.value === "function" ? action.value(state.guideProgress) : action.value };
-
     case "SET_GUIDE_USED_OFFERS":
       return { ...state, guideUsedOffers: typeof action.value === "function" ? action.value(state.guideUsedOffers) : action.value };
 
@@ -118,8 +95,6 @@ export function useQuestStore() {
           if (data.historyLog) patch.historyLog = data.historyLog;
           if (data.thoughts) patch.thoughts = data.thoughts;
 
-          // --- миграция гидов под текущий набор ---
-          if (data.guideProgress) patch.guideProgress = mergeGuideCounts(data.guideProgress);
           patch.guideUsedOffers = mergeOfferIds(data.guideUsedOffers);
           patch.guideCompletedOffers = mergeOfferIds(data.guideCompletedOffers);
 
@@ -146,7 +121,6 @@ export function useQuestStore() {
           topLevelOrder: state.topLevelOrder,
           historyLog: state.historyLog,
           thoughts: state.thoughts,
-          guideProgress: state.guideProgress,
           guideUsedOffers: state.guideUsedOffers,
           guideCompletedOffers: state.guideCompletedOffers,
           sharedPool: state.sharedPool,
@@ -160,7 +134,6 @@ export function useQuestStore() {
     state.topLevelOrder,
     state.historyLog,
     state.thoughts,
-    state.guideProgress,
     state.guideUsedOffers,
     state.guideCompletedOffers,
     state.sharedPool,
@@ -171,7 +144,6 @@ export function useQuestStore() {
   const setTopLevelOrder = useCallback((value) => dispatch({ type: "SET_TOP_LEVEL_ORDER", value }), []);
   const setHistory = useCallback((value) => dispatch({ type: "SET_HISTORY", value }), []);
   const setThoughts = useCallback((value) => dispatch({ type: "SET_THOUGHTS", value }), []);
-  const setGuideProgress = useCallback((value) => dispatch({ type: "SET_GUIDE_PROGRESS", value }), []);
   const setGuideUsedOffers = useCallback((value) => dispatch({ type: "SET_GUIDE_USED_OFFERS", value }), []);
   const setGuideCompletedOffers = useCallback((value) => dispatch({ type: "SET_GUIDE_COMPLETED_OFFERS", value }), []);
   const setSharedPool = useCallback((value) => dispatch({ type: "SET_SHARED_POOL", value }), []);
@@ -184,7 +156,6 @@ export function useQuestStore() {
     setTopLevelOrder,
     setHistory,
     setThoughts,
-    setGuideProgress,
     setGuideUsedOffers,
     setGuideCompletedOffers,
     setSharedPool,

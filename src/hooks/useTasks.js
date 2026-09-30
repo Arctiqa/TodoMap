@@ -5,7 +5,7 @@ import { scheduleTaskNotifications, cancelTaskNotifications } from "../utils/not
 
 export function useTasks({
   updateScreen, setScreens, setHistory,
-  bumpGuideProgress,    // (guideKey, offerId) => void
+  markGuideCompleted,   // (guideKey, offerId) => void
   releaseGuideTask,     // (offerId) => void
 }) {
   // ============================================================
@@ -82,13 +82,13 @@ export function useTasks({
 		cancelTaskNotifications(snapshot.task.id);
 		if (snapshot.task.source && snapshot.task.guideOfferId) {
 		  releaseGuideTask(snapshot.task.guideOfferId);
-		  bumpGuideProgress(snapshot.task.source, snapshot.task.guideOfferId);
+		  markGuideCompleted(snapshot.task.source, snapshot.task.guideOfferId);
 		}
 	  } else {
 		scheduleTaskNotifications(snapshot.task);
 	  }
 	}
-  }, [setScreens, bumpGuideProgress]);
+  }, [setScreens, markGuideCompleted]);
 
   const incrementRepeat = useCallback((screenId, markerId, taskId) => {
     let snapshot = null;
@@ -129,11 +129,11 @@ export function useTasks({
 		cancelTaskNotifications(snapshot.task.id);
 		if (snapshot.task.source && snapshot.task.guideOfferId) {
 		  releaseGuideTask(snapshot.task.guideOfferId);
-		  bumpGuideProgress(snapshot.task.source, snapshot.task.guideOfferId);
+		  markGuideCompleted(snapshot.task.source, snapshot.task.guideOfferId);
 		}
 	  }
 	}
-  }, [setScreens, bumpGuideProgress]);
+  }, [setScreens, markGuideCompleted]);
 
   const decrementRepeat = useCallback((screenId, markerId, taskId) => {
     setScreens((prev) => {
@@ -417,13 +417,13 @@ export function useTasks({
 		cancelTaskNotifications(snapshot.sticker.id);
 		if (snapshot.sticker.source && snapshot.sticker.guideOfferId) {
 		  releaseGuideTask(snapshot.sticker.guideOfferId);
-		  bumpGuideProgress(snapshot.sticker.source, snapshot.sticker.guideOfferId);
+		  markGuideCompleted(snapshot.sticker.source, snapshot.sticker.guideOfferId);
 		}
 	  } else {
 		scheduleTaskNotifications(snapshot.sticker);
 	  }
 	}
-  }, [setScreens, bumpGuideProgress]);
+  }, [setScreens, markGuideCompleted]);
 
   const incrementStickerRepeat = useCallback((screenId, stickerId) => {
     let snapshot = null;
@@ -458,11 +458,11 @@ export function useTasks({
 		cancelTaskNotifications(snapshot.sticker.id);
 		if (snapshot.sticker.source && snapshot.sticker.guideOfferId) {
 		  releaseGuideTask(snapshot.sticker.guideOfferId);
-		  bumpGuideProgress(snapshot.sticker.source, snapshot.sticker.guideOfferId);
+		  markGuideCompleted(snapshot.sticker.source, snapshot.sticker.guideOfferId);
 		}
 	  }
 	}
-  }, [setScreens, bumpGuideProgress]);
+  }, [setScreens, markGuideCompleted]);
 
   const decrementStickerRepeat = useCallback((screenId, stickerId) => {
     setScreens((prev) => {

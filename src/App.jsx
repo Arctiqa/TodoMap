@@ -28,8 +28,6 @@ import { OthersList } from "./screens/OthersList";
 import { SettingsOverlay } from "./screens/SettingsOverlay";
 import { GuidesListOverlay } from "./screens/GuidesListOverlay";
 import { GuideTasksOverlay } from "./screens/GuideTasksOverlay";
-import { TitlesOverlay } from "./screens/TitlesOverlay";
-import { TitleUnlockDialog } from "./screens/TitleUnlockDialog";
 import { ThemePickerOverlay } from "./screens/ThemePickerOverlay";
 import { BackgroundPickerOverlay } from "./screens/BackgroundPickerOverlay";
 import { TaskDetailOverlay } from "./screens/TaskDetailOverlay";
@@ -82,11 +80,11 @@ function AppShell({ onThemeChange }) {
   const store = useQuestStore();
   const {
     state, setScreens, updateScreen, setTopLevelOrder, setHistory, setThoughts,
-    setGuideProgress, setGuideUsedOffers, setGuideCompletedOffers, setSharedPool,
+    setGuideUsedOffers, setGuideCompletedOffers, setSharedPool,
   } = store;
   const {
     screens, topLevelOrder, historyLog, thoughts,
-    guideProgress, guideUsedOffers, guideCompletedOffers, sharedPool, loaded,
+    guideUsedOffers, guideCompletedOffers, sharedPool, loaded,
   } = state;
 
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -129,7 +127,6 @@ function AppShell({ onThemeChange }) {
     pendingDelete, setPendingDelete,
     pendingDeleteField, setPendingDeleteField,
     placementConfirm, setPlacementConfirm,
-    titleUnlock, setTitleUnlock,
     pendingPlacement, setPendingPlacement,
     showExitConfirm, setShowExitConfirm,
     editingMarker, setEditingMarker,
@@ -140,11 +137,11 @@ function AppShell({ onThemeChange }) {
     taskDetail, setTaskDetail,
   } = overlay;
 
-  // ref для стикеров от гидов/мыслей (см. ниже)
+  // ref для стикеров от гидов/мыслей — объявлен ДО useGuides
   const takeStickerRef = useRef(null);
 
   const {
-    bumpProgress: bumpGuideProgress,
+    markCompleted: markGuideCompleted,
     takeTask: takeGuideTask,
     releaseTask: releaseGuideTask,
   } = useGuides({
@@ -152,8 +149,6 @@ function AppShell({ onThemeChange }) {
     setGuideUsedOffers,
     guideCompletedOffers,
     setGuideCompletedOffers,
-    setGuideProgress,
-    setTitleUnlock,
     onTakeSticker: (payload) => takeStickerRef.current && takeStickerRef.current(payload),
     popNav,
   });
@@ -165,7 +160,7 @@ function AppShell({ onThemeChange }) {
     incrementStickerRepeat, decrementStickerRepeat,
   } = useTasks({
     updateScreen, setScreens, setHistory,
-    bumpGuideProgress,
+    markGuideCompleted,
     releaseGuideTask,
   });
 
@@ -366,57 +361,56 @@ function AppShell({ onThemeChange }) {
     }));
   }, [patchTaskInDetail]);
 
-	const completeTaskFromDetail = useCallback(() => {
-	  if (!taskDetail) return;
-	  const { screenId, markerId, taskId } = taskDetail;
+  const completeTaskFromDetail = useCallback(() => {
+    if (!taskDetail) return;
+    const { screenId, markerId, taskId } = taskDetail;
 
-	  let snapshot = null;
-	  setScreens((prev) => {
-		const scr = prev[screenId];
-		if (!scr) return prev;
+    let snapshot = null;
+    setScreens((prev) => {
+      const scr = prev[screenId];
+      if (!scr) return prev;
 
-		if (markerId === FIELD_MARKER_ID) {
-		  const sticker = (scr.stickers || []).find((s) => s.id === taskId);
-		  if (sticker && !sticker.done) {
-			snapshot = sticker;
-		  }
-		  return {
-			...prev,
-			[screenId]: {
-			  ...scr,
-			  stickers: (scr.stickers || []).map((s) =>
-				s.id === taskId ? { ...s, done: true, completedAt: Date.now() } : s
-			  ),
-			},
-		  };
-		}
+      if (markerId === FIELD_MARKER_ID) {
+        const sticker = (scr.stickers || []).find((s) => s.id === taskId);
+        if (sticker && !sticker.done) {
+          snapshot = sticker;
+        }
+        return {
+          ...prev,
+          [screenId]: {
+            ...scr,
+            stickers: (scr.stickers || []).map((s) =>
+              s.id === taskId ? { ...s, done: true, completedAt: Date.now() } : s
+            ),
+          },
+        };
+      }
 
-		const mk = scr.markers.find((m) => m.id === markerId);
-		const task = mk && mk.tasks.find((t) => t.id === taskId);
-		if (task && !task.done) {
-		  snapshot = task;
-		}
-		return {
-		  ...prev,
-		  [screenId]: {
-			...scr,
-			markers: scr.markers.map((m) =>
-			  m.id === markerId
-				? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, done: true, completedAt: Date.now() } : t)) }
-				: m
-			),
-		  },
-		};
-	  });
+      const mk = scr.markers.find((m) => m.id === markerId);
+      const task = mk && mk.tasks.find((t) => t.id === taskId);
+      if (task && !task.done) {
+        snapshot = task;
+      }
+      return {
+        ...prev,
+        [screenId]: {
+          ...scr,
+          markers: scr.markers.map((m) =>
+            m.id === markerId
+              ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, done: true, completedAt: Date.now() } : t)) }
+              : m
+          ),
+        },
+      };
+    });
 
-	  if (snapshot && snapshot.source && snapshot.guideOfferId) {
-		releaseGuideTask(snapshot.guideOfferId);
-		bumpGuideProgress(snapshot.source, snapshot.guideOfferId);
-	  }
+    if (snapshot && snapshot.source && snapshot.guideOfferId) {
+      releaseGuideTask(snapshot.guideOfferId);
+      markGuideCompleted(snapshot.source, snapshot.guideOfferId);
+    }
 
-	  setTaskDetail(null);
-	}, [taskDetail, setScreens, releaseGuideTask, bumpGuideProgress, setTaskDetail]);
-
+    setTaskDetail(null);
+  }, [taskDetail, setScreens, releaseGuideTask, markGuideCompleted, setTaskDetail]);
 
   const uncompleteTaskFromDetail = useCallback(() => {
     patchTaskInDetail((t) => ({ ...t, done: false, completedAt: null }));
@@ -434,6 +428,9 @@ function AppShell({ onThemeChange }) {
       if (markerId === FIELD_MARKER_ID) {
         const sticker = (scr.stickers || []).find((s) => s.id === taskId);
         if (sticker) {
+          if (sticker.source && sticker.guideOfferId && !sticker.done) {
+            releaseGuideTask(sticker.guideOfferId);
+          }
           setHistory((h) => [...h, {
             screenId, screenName: scr.name,
             markerId: null, markerName: "Свободное",
@@ -453,6 +450,9 @@ function AppShell({ onThemeChange }) {
       const marker = scr.markers.find((m) => m.id === markerId);
       const task = marker && marker.tasks.find((t) => t.id === taskId);
       if (marker && task) {
+        if (task.source && task.guideOfferId && !task.done) {
+          releaseGuideTask(task.guideOfferId);
+        }
         setHistory((h) => [...h, {
           screenId, screenName: scr.name,
           markerId: marker.id, markerName: marker.name,
@@ -472,7 +472,7 @@ function AppShell({ onThemeChange }) {
     });
 
     setTaskDetail(null);
-  }, [taskDetail, setScreens, setHistory, setTaskDetail]);
+  }, [taskDetail, setScreens, setHistory, releaseGuideTask, setTaskDetail]);
 
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
 
@@ -530,8 +530,6 @@ function AppShell({ onThemeChange }) {
         break;
       case "guides":
         resetNav(); pushNav(NAV.GUIDES_LIST); break;
-      case "titles":
-        resetNav(); pushNav(NAV.TITLES); break;
       case "history":
         resetNav(); pushNav(NAV.HISTORY); break;
       case "settings":
@@ -587,7 +585,7 @@ function AppShell({ onThemeChange }) {
             onDelete={(markerId, taskId) => deleteTask(currentId, markerId, taskId)}
             onShare={shareTaskToPool}
             onIncrementRepeat={(markerId, taskId) => incrementRepeat(currentId, markerId, taskId)}
-			onDecrementRepeat={(markerId, taskId) => decrementRepeat(currentId, markerId, taskId)}
+            onDecrementRepeat={(markerId, taskId) => decrementRepeat(currentId, markerId, taskId)}
             onOpenDetail={(t) => openTaskDetail(t, activeMarker, currentId)}
             onExtractToField={(taskId) => {
               moveTaskToField(currentId, activeMarker.id, taskId, 50, 50);
@@ -653,9 +651,6 @@ function AppShell({ onThemeChange }) {
           />
         );
 
-      case NAV.TITLES:
-        return <TitlesOverlay guideProgress={guideProgress} onClose={popNav} />;
-
       case NAV.THEME_PICKER:
         return (
           <ThemePickerOverlay
@@ -668,7 +663,7 @@ function AppShell({ onThemeChange }) {
       case NAV.GUIDES_LIST:
         return (
           <GuidesListOverlay
-            onSelect={(key) => { popNav(); pushNav(NAV.GUIDE_TASKS, { guideKey: key }); }}
+            onSelect={(key) => pushNav(NAV.GUIDE_TASKS, { guideKey: key })}
             onClose={popNav}
           />
         );
@@ -694,17 +689,17 @@ function AppShell({ onThemeChange }) {
           />
         );
 
-		case NAV.GUIDE_TASKS:
-		  return (
-			<GuideTasksOverlay
-			  guideKey={topNav.payload.guideKey}
-			  guideUsedOffers={guideUsedOffers}
-			  guideCompletedOffers={guideCompletedOffers}
-			  onTakeTask={takeGuideTask}
-			  onBack={() => { popNav(); pushNav(NAV.GUIDES_LIST); }}
-			  onClose={popNav}
-			/>
-		  );
+      case NAV.GUIDE_TASKS:
+        return (
+          <GuideTasksOverlay
+            guideKey={topNav.payload.guideKey}
+            guideUsedOffers={guideUsedOffers}
+            guideCompletedOffers={guideCompletedOffers}
+            onTakeTask={takeGuideTask}
+            onBack={popNav}
+            onClose={popNav}
+          />
+        );
 
       case NAV.SETTINGS:
         return (
@@ -714,7 +709,7 @@ function AppShell({ onThemeChange }) {
             onOpenLanguage={() => {}}
             onOpenNotifications={() => {}}
             onOpenAbout={() => {}}
-            exportData={{ screens, historyLog, thoughts, guideProgress }}
+            exportData={{ screens, historyLog, thoughts }}
             notificationsEnabled={notificationsEnabled}
             onToggleNotifications={toggleNotifications}
           />
@@ -950,8 +945,7 @@ function AppShell({ onThemeChange }) {
             !pendingDeleteField &&
             !pendingPlacement &&
             !showExitConfirm &&
-            !placementConfirm &&
-            !titleUnlock && (
+            !placementConfirm && (
               <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 10, elevation: 10 }}>
                 <AddTaskBar
                   visible={true}
@@ -1026,8 +1020,6 @@ function AppShell({ onThemeChange }) {
             }}
           />
         )}
-
-        {titleUnlock && <TitleUnlockDialog title={titleUnlock} onClose={() => setTitleUnlock(null)} />}
 
         {placementConfirm && (
           <InfoDialog
