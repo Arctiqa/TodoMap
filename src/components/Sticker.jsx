@@ -11,6 +11,7 @@ import {
 } from "../constants/config";
 import { isTaskExpired } from "../utils/date";
 import { BLUE } from "../theme/palettes";
+import { GUIDE_BY_KEY } from "../constants/guides";
 
 function pctToPx(pct, total) {
   return (pct / 100) * total;
@@ -326,10 +327,8 @@ function StickerInner({
         }
 
         if (movedRef.current) {
-          // был реальный drag — обрабатываем как drop
           endDrag(g.dx, g.dy);
         } else {
-          // чистый тап — открываем TaskDetail
           draggingRef.current = false;
           setDragging(false);
           onDragEnd && onDragEnd(sticker.id);
@@ -379,6 +378,7 @@ function StickerInner({
   const expired = !sticker.done && isTaskExpired(sticker);
   const notes = sticker.notes || [];
   const notesDone = notes.filter((n) => n.done).length;
+  const guide = sticker.source ? GUIDE_BY_KEY[sticker.source] : null;
 
   return (
     <Animated.View
@@ -409,7 +409,7 @@ function StickerInner({
           flex: 1,
           backgroundColor: card,
           borderWidth: 2,
-          borderColor: ink,
+          borderColor: guide ? guide.color : ink,
           borderRadius: 10,
           paddingHorizontal: 8,
           paddingVertical: 6,
@@ -426,6 +426,7 @@ function StickerInner({
             fontWeight: "bold",
             color: expired ? BLUE : ink,
             textDecorationLine: sticker.done ? "line-through" : "none",
+            paddingRight: guide ? 22 : 0,
           }}
           numberOfLines={2}
         >
@@ -436,6 +437,26 @@ function StickerInner({
           <Text style={{ fontSize: 9.5, color: ink, opacity: 0.55, marginTop: 2, fontFamily: "monospace" }}>
             {notesDone}/{notes.length}
           </Text>
+        )}
+
+        {guide && (
+          <View
+            style={{
+              position: "absolute",
+              top: 4,
+              right: 4,
+              width: 20,
+              height: 20,
+              borderRadius: 10,
+              backgroundColor: guide.color,
+              borderWidth: 1.5,
+              borderColor: ink,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <MaterialIcons name={guide.icon} size={12} color={ink} />
+          </View>
         )}
 
         <View

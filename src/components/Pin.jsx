@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useCallback, useEffect, useState  } from "react";
+import React, { useMemo, useRef, useCallback, useEffect, useState } from "react";
 import { View, Text, Pressable, PanResponder, Image, Animated, Easing } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
@@ -7,6 +7,7 @@ import { shortLabel } from "../utils/text";
 import { isTaskExpired } from "../utils/date";
 import { BLUE } from "../theme/palettes";
 import { resolveImageSource } from "../data/initialScreens";
+import { GUIDE_BY_KEY } from "../constants/guides";
 
 const OUTER_RING = 7;
 const BADGE = 22;
@@ -19,7 +20,7 @@ function pctToPx(pct, total) {
 function PinInner({
   marker,
   markerId,
-  subscribeHovered,  
+  subscribeHovered,
   editMode,
   editAction,
   containerSize,
@@ -325,25 +326,52 @@ function PinInner({
             borderColor: ink,
             paddingHorizontal: 6,
             paddingVertical: 3,
-            maxWidth: 120,
+            maxWidth: 140,
             borderRadius: 6,
           }}
         >
-          {previewTasks.map((t, i) => (
-            <Text
-              key={t.id}
-              style={{
-                fontSize: 9.5,
-                fontFamily: "monospace",
-                color: isTaskExpired(t) ? BLUE : ink,
-                opacity: isTaskExpired(t) ? 1 : 0.75,
-                marginTop: i === 0 ? 0 : 2,
-              }}
-              numberOfLines={1}
-            >
-              {shortLabel(t.title)}
-            </Text>
-          ))}
+          {previewTasks.map((t, i) => {
+            const g = t.source ? GUIDE_BY_KEY[t.source] : null;
+            return (
+              <View
+                key={t.id}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 3,
+                  marginTop: i === 0 ? 0 : 2,
+                }}
+              >
+                {g && (
+                  <View
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: 6,
+                      backgroundColor: g.color,
+                      borderWidth: 1,
+                      borderColor: ink,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <MaterialIcons name={g.icon} size={8} color={ink} />
+                  </View>
+                )}
+                <Text
+                  style={{
+                    fontSize: 9.5,
+                    fontFamily: "monospace",
+                    color: isTaskExpired(t) ? BLUE : ink,
+                    opacity: isTaskExpired(t) ? 1 : 0.75,
+                  }}
+                  numberOfLines={1}
+                >
+                  {shortLabel(t.title)}
+                </Text>
+              </View>
+            );
+          })}
           {hasMore && (
             <Text
               style={{

@@ -13,6 +13,7 @@ import { formatRemaining, isTaskExpired } from "../utils/date";
 import { AddTaskBar } from "../components/AddTaskBar";
 import { resolveImageSource } from "../data/initialScreens";
 import { STICKER_LONG_PRESS } from "../constants/config";
+import { GUIDE_BY_KEY } from "../constants/guides";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   try { UIManager.setLayoutAnimationEnabledExperimental(true); } catch (e) {}
@@ -52,6 +53,7 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
 
   const notes = task.notes || [];
   const notesDone = notes.filter((n) => n.done).length;
+  const guide = task.source ? GUIDE_BY_KEY[task.source] : null;
 
   return (
     <Pressable
@@ -91,19 +93,22 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
         {task.done && <MaterialIcons name="check" size={18} color="#fff" />}
       </Pressable>
 
+      {/* Колонка с содержимым задачи */}
       <View style={{ flex: 1 }}>
-        <Text
-          style={{
-            ...TYPE.bodyBold,
-            color: expired ? BLUE : ink,
-            textDecorationLine: task.done ? "line-through" : "none",
-            opacity: task.done ? 0.65 : 1,
-          }}
-          numberOfLines={2}
-        >
-          {task.title}
-        </Text>
+		<Text
+		  style={{
+			...TYPE.bodyBold,
+			color: expired ? BLUE : ink,
+			textDecorationLine: task.done ? "line-through" : "none",
+			opacity: task.done ? 0.65 : 1,
+			flexShrink: 1,
+		  }}
+		  numberOfLines={2}
+		>
+		  {task.title}
+		</Text>
 
+        {/* Прогресс серии повторов */}
         {task.repeat && (
           <View style={{ marginTop: SPACING.xs }}>
             <ProgressBar value={task.repeat.count} max={task.repeat.target} color={GREEN} height={4} />
@@ -113,6 +118,7 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
           </View>
         )}
 
+        {/* Пометки */}
         {notes.length > 0 && (
           <View style={{ marginTop: SPACING.xs, gap: 1 }}>
             {notes.slice(0, 3).map((n, i) => (
@@ -137,6 +143,7 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
           </View>
         )}
 
+        {/* Срок */}
         <Text
           style={{
             fontSize: 11,
@@ -150,6 +157,7 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
         </Text>
       </View>
 
+      {/* + повтора (справа) */}
       {!task.done && task.repeat && onIncrementRepeat && (
         <Pressable
           onPress={(e) => {
@@ -168,7 +176,22 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
           <MaterialIcons name="add" size={18} color={GREEN} />
         </Pressable>
       )}
+	  
+		{guide && (
+		  <View
+			style={{
+			  width: 22, height: 22, borderRadius: 11,
+			  backgroundColor: guide.color,
+			  borderWidth: 1.5, borderColor: ink,
+			  alignItems: "center", justifyContent: "center",
+			  marginTop: 2,
+			}}
+		  >
+			<MaterialIcons name={guide.icon} size={12} color={ink} />
+		  </View>
+		)}	  
 
+      {/* open-with (справа) */}
       {!task.done && onExtract && !task.repeat && (
         <View
           style={{

@@ -1,11 +1,11 @@
 import React from "react";
 import { View, Text, ScrollView } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { Overlay } from "../components/ui/Overlay";
 import { OverlayHeader } from "../components/ui/OverlayHeader";
 import { ProgressBar } from "../components/ui/ProgressBar";
 import { useTheme } from "../theme/ThemeContext";
-import { GUIDE_TITLES, GUIDE_META } from "../constants/guides";
-import { GUIDE_TITLE_TIERS } from "../constants/config";
+import { GUIDES } from "../constants/guides";
 import { GREEN } from "../theme/palettes";
 
 export function TitlesOverlay({ guideProgress, onClose }) {
@@ -15,17 +15,26 @@ export function TitlesOverlay({ guideProgress, onClose }) {
     <Overlay zIndex={56}>
       <OverlayHeader onBack={onClose} title="🏆 ТИТУЛЫ" onClose={onClose} />
       <ScrollView contentContainerStyle={{ padding: SPACING.lg }}>
-        {Object.keys(GUIDE_TITLES).map((guideKey) => {
-          const progress = guideProgress[guideKey] || 0;
-          const meta = GUIDE_META[guideKey] || { name: guideKey, emoji: "🧑" };
-          const nextTier = GUIDE_TITLE_TIERS.find((t) => t > progress);
+        {GUIDES.map((guide) => {
+          const progress = guideProgress[guide.key] || 0;
+          const tiers = Object.keys(guide.titles).map(Number).sort((a, b) => a - b);
+          const nextTier = tiers.find((t) => t > progress);
 
           return (
-            <View key={guideKey} style={{ marginBottom: SPACING.xl }}>
+            <View key={guide.key} style={{ marginBottom: SPACING.xl }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: SPACING.sm, marginBottom: SPACING.md }}>
-                <Text style={{ fontSize: 24 }}>{meta.emoji}</Text>
+                <View
+                  style={{
+                    width: 36, height: 36, borderRadius: 18,
+                    backgroundColor: guide.color,
+                    borderWidth: 2, borderColor: ink,
+                    alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <MaterialIcons name={guide.icon} size={20} color={ink} />
+                </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ ...TYPE.h3, color: ink }}>{meta.name}</Text>
+                  <Text style={{ ...TYPE.h3, color: ink }}>{guide.name}</Text>
                   <Text style={{ ...TYPE.small, color: ink, opacity: 0.5 }}>
                     выполнено дел: {progress}
                   </Text>
@@ -45,8 +54,8 @@ export function TitlesOverlay({ guideProgress, onClose }) {
                 </View>
               )}
 
-              {GUIDE_TITLE_TIERS.map((tier) => {
-                const t = GUIDE_TITLES[guideKey][tier];
+              {tiers.map((tier) => {
+                const t = guide.titles[tier];
                 const unlocked = progress >= tier;
                 return (
                   <View

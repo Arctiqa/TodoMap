@@ -15,7 +15,6 @@ import { BottomBar } from "./components/BottomBar";
 import { SideMenu } from "./components/SideMenu";
 import { Pin } from "./components/Pin";
 import { MemoSticker } from "./components/Sticker";
-import { MarkerPickerModal } from "./components/MarkerPickerModal";
 import { Overlay } from "./components/ui/Overlay";
 import { InfoDialog } from "./components/ui/InfoDialog";
 import { ConfirmDialog } from "./components/ui/ConfirmDialog";
@@ -141,18 +140,23 @@ function AppShell({ onThemeChange }) {
     taskDetail, setTaskDetail,
   } = overlay;
 
+  // ref для стикеров от гидов/мыслей (см. ниже)
+  const takeStickerRef = useRef(null);
+
   const {
     bumpProgress: bumpGuideProgress,
     nextChainOfferFor,
     takeChainOffer,
     takeCustomInstead,
     takeRandom: takeGuideRandom,
-    openGuide,
   } = useGuides({
-    guideUsedOffers, setGuideUsedOffers,
-    setGuideTakenCount, setGuideProgress,
-    setTitleUnlock, setPendingPlacement,
-    pushNav, popNav, topNav,
+    guideUsedOffers,
+    setGuideUsedOffers,
+    setGuideTakenCount,
+    setGuideProgress,
+    setTitleUnlock,
+    onTakeSticker: (payload) => takeStickerRef.current && takeStickerRef.current(payload),
+    popNav,
   });
 
   const {
@@ -164,6 +168,11 @@ function AppShell({ onThemeChange }) {
     updateScreen, setScreens, setHistory,
     bumpGuideProgress,
   });
+
+  // заполняем ref после того, как addSticker готов
+  takeStickerRef.current = (payload) => {
+    addSticker(currentId, payload, 50, 50);
+  };
 
   const {
     createMarker, saveMarkerEdits, deleteMarker, handleDragMove,
@@ -177,7 +186,11 @@ function AppShell({ onThemeChange }) {
     addOrUpdate: addOrUpdateThought,
     remove: deleteThought,
     convertToTask: convertThoughtToTask,
-  } = useThoughts({ setThoughts, setPendingPlacement, popNav });
+  } = useThoughts({
+    setThoughts,
+    onConvertToSticker: (payload) => takeStickerRef.current && takeStickerRef.current(payload),
+    popNav,
+  });
 
   const {
     returnToActive: returnTaskToActive,
@@ -434,29 +447,10 @@ function AppShell({ onThemeChange }) {
     pushNav(NAV.TASK, { markerId: marker.id });
   }, [setEditMode, setCurrentId, pushNav]);
 
-  const placeTask = useCallback((screenId, markerId) => {
-    if (!pendingPlacement) return;
-    addTaskCore(screenId, markerId, {
-      title: pendingPlacement.title,
-      due: pendingPlacement.due,
-      notes: pendingPlacement.notes,
-      source: pendingPlacement.source,
-      repeat: pendingPlacement.repeat,
-    });
-    const mk = screens[screenId]?.markers.find((m) => m.id === markerId);
-    setPlacementConfirm({ title: pendingPlacement.title, markerName: mk ? mk.name : "" });
-    setPendingPlacement(null);
-  }, [pendingPlacement, addTaskCore, screens, setPlacementConfirm, setPendingPlacement]);
-
   const handleAddTaskFromBar = useCallback(({ title, due, repeat, share }) => {
-    if (topNav.type !== NAV.TASK) {
-      addSticker(currentId, { title, due, repeat }, 50, 50);
-      if (share) shareTaskToPool(title, due);
-      return;
-    }
-    setPendingPlacement({ title, due, notes: [], source: undefined, repeat });
+    addSticker(currentId, { title, due, repeat }, 50, 50);
     if (share) shareTaskToPool(title, due);
-  }, [topNav, currentId, addSticker, setPendingPlacement, shareTaskToPool]);
+  }, [currentId, addSticker, shareTaskToPool]);
 
   const handleBottomAction = useCallback((action) => {
     switch (action) {
@@ -600,7 +594,12 @@ function AppShell({ onThemeChange }) {
             onClose={popNav}
             onRefresh={loadSharedPool}
             onTake={(p) => {
-              setPendingPlacement({ title: p.title, due: p.due || null, notes: [], source: undefined });
+              addSticker(currentId, {
+                title: p.title,
+                due: p.due || null,
+                notes: [],
+                repeat: null,
+              }, 50, 50);
               popNav();
             }}
           />
@@ -621,7 +620,7 @@ function AppShell({ onThemeChange }) {
       case NAV.GUIDES_LIST:
         return (
           <GuidesListOverlay
-            onSelect={(key) => { popNav(); openGuide(key); }}
+            onSelect={(key) => { popNav(); pushNav(NAV.GUIDE_TASKS, { guideKey: key }); }}
             onClose={popNav}
           />
         );
@@ -655,7 +654,7 @@ function AppShell({ onThemeChange }) {
             takenCount={guideTakenCount[topNav.payload.guideKey]}
             onTakeChain={(offer) => takeChainOffer(topNav.payload.guideKey, offer)}
             onCustom={(text) => takeCustomInstead(topNav.payload.guideKey, text)}
-            onTakeRandom={takeGuideRandom}
+            onTakeRandom={(title) => takeGuideRandom(topNav.payload.guideKey, title)}
             onBack={() => { popNav(); pushNav(NAV.GUIDES_LIST); }}
             onClose={popNav}
           />
@@ -910,7 +909,6 @@ function AppShell({ onThemeChange }) {
               <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 10, elevation: 10 }}>
                 <AddTaskBar
                   visible={true}
-                  targetMarkerId={null}
                   onSubmit={handleAddTaskFromBar}
                   bgColor="transparent"
                   collapsed={!addTaskBarExpanded}
@@ -984,15 +982,6 @@ function AppShell({ onThemeChange }) {
         )}
 
         {titleUnlock && <TitleUnlockDialog title={titleUnlock} onClose={() => setTitleUnlock(null)} />}
-
-        {pendingPlacement && (
-          <MarkerPickerModal
-            screens={screens}
-            screenId={currentId}
-            onClose={() => setPendingPlacement(null)}
-            onPick={(screenId, markerId) => placeTask(screenId, markerId)}
-          />
-        )}
 
         {placementConfirm && (
           <InfoDialog

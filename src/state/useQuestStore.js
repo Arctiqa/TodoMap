@@ -1,17 +1,40 @@
+// state/useQuestStore.js
 import { useReducer, useEffect, useCallback, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { STORAGE_KEY } from "../constants/config";
+import { GUIDE_KEYS } from "../constants/guides";
 import { dedupeIds } from "../utils/id";
 import { initialScreens } from "../data/initialScreens";
+
+// ---------- Начальные счётчики по всем гидам ----------
+function emptyGuideCounts() {
+  return Object.fromEntries(GUIDE_KEYS.map((k) => [k, 0]));
+}
+
+// ---------- Миграция сохранённых счётчиков под текущий набор гидов ----------
+//  • недостающие ключи добиваются нулями
+//  • лишние (удалённые гиды) — отбрасываются
+//  • нечисловые значения — заменяются нулём
+function mergeGuideCounts(saved) {
+  const out = emptyGuideCounts();
+  if (saved && typeof saved === "object") {
+    Object.keys(out).forEach((k) => {
+      if (typeof saved[k] === "number" && Number.isFinite(saved[k])) {
+        out[k] = saved[k];
+      }
+    });
+  }
+  return out;
+}
 
 const initialState = {
   screens: initialScreens,
   topLevelOrder: ["main"],
   historyLog: [],
   thoughts: [],
-  guideProgress: { proper: 0, joper: 0 },
+  guideProgress: emptyGuideCounts(),
   guideUsedOffers: [],
-  guideTakenCount: { proper: 0, joper: 0 },
+  guideTakenCount: emptyGuideCounts(),
   sharedPool: [],
   loaded: false,
 };
@@ -83,9 +106,15 @@ export function useQuestStore() {
           if (data.topLevelOrder) patch.topLevelOrder = data.topLevelOrder;
           if (data.historyLog) patch.historyLog = data.historyLog;
           if (data.thoughts) patch.thoughts = data.thoughts;
-          if (data.guideProgress) patch.guideProgress = data.guideProgress;
-          if (data.guideUsedOffers) patch.guideUsedOffers = data.guideUsedOffers;
-          if (data.guideTakenCount) patch.guideTakenCount = data.guideTakenCount;
+
+          // --- миграция гидов под текущий набор ---
+          if (data.guideProgress) patch.guideProgress = mergeGuideCounts(data.guideProgress);
+          if (data.guideTakenCount) patch.guideTakenCount = mergeGuideCounts(data.guideTakenCount);
+          // guideUsedOffers — плоский массив id, чистим только не-строки
+          if (Array.isArray(data.guideUsedOffers)) {
+            patch.guideUsedOffers = data.guideUsedOffers.filter((x) => typeof x === "string");
+          }
+
           if (data.sharedPool) patch.sharedPool = data.sharedPool;
           dispatch({ type: "HYDRATE", payload: patch });
         } else {

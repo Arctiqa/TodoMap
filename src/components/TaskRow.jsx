@@ -5,6 +5,7 @@ import { useTheme } from "../theme/ThemeContext";
 import { BLUE, GREEN, RED, TEAL } from "../theme/palettes";
 import { isTaskExpired, formatRemaining, fmtDate } from "../utils/date";
 import { ProgressBar } from "./ui/ProgressBar";
+import { GUIDE_BY_KEY } from "../constants/guides";
 
 export const TaskRow = memo(function TaskRow({
   entry,
@@ -24,6 +25,7 @@ export const TaskRow = memo(function TaskRow({
   const notesDone = notes.filter((n) => n.done).length;
   const hasNotes = notes.length > 0;
   const hasRepeat = !!t.repeat;
+  const guide = t.source ? GUIDE_BY_KEY[t.source] : null;
 
   return (
     <Pressable
@@ -41,6 +43,7 @@ export const TaskRow = memo(function TaskRow({
       ]}
     >
       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: SPACING.sm }}>
+        {/* Эмодзи метки */}
         <View
           style={{
             width: 36,
@@ -54,6 +57,7 @@ export const TaskRow = memo(function TaskRow({
           <Text style={{ fontSize: 16 }}>{entry.markerEmoji}</Text>
         </View>
 
+        {/* Центральная колонка */}
         <View style={{ flex: 1 }}>
           <Text
             style={{
@@ -81,7 +85,8 @@ export const TaskRow = memo(function TaskRow({
           )}
         </View>
 
-        <View style={{ alignItems: "flex-end", maxWidth: 90 }}>
+        {/* Правая колонка: срок + иконка гида */}
+        <View style={{ alignItems: "flex-end", maxWidth: 90, gap: 4 }}>
           <Text
             style={{
               ...TYPE.monoSm,
@@ -93,6 +98,18 @@ export const TaskRow = memo(function TaskRow({
           >
             {isDone && t.completedAt ? fmtDate(t.completedAt) : formatRemaining(t.due)}
           </Text>
+          {guide && (
+            <View
+              style={{
+                width: 16, height: 16, borderRadius: 8,
+                backgroundColor: guide.color,
+                borderWidth: 1, borderColor: ink,
+                alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <MaterialIcons name={guide.icon} size={10} color={ink} />
+            </View>
+          )}
         </View>
       </View>
 

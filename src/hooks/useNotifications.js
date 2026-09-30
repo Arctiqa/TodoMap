@@ -6,87 +6,61 @@ import {
   cancelAllNotifications,
 } from "../utils/notifications";
 
-export function useNotifications({ screens, loaded, enabled }) {
-  const scheduledRef = useRef(new Set());
+function sigOf(t) {
+  if (t.done || !t.due) return "off";
+  return `${t.due.kind || ""}|${t.due.target || ""}|${t.due.date || ""}|${t.due.time || ""}|${t.title || ""}`;
+}
 
-  // Запрос разрешения
+export function useNotifications({ screens, loaded, enabled }) {
+  const scheduledRef = useRef(new Map()); // id -> signature
+
+  // 1) Запрос разрешения
   useEffect(() => {
     if (!loaded || !enabled) return;
     requestNotificationPermission();
   }, [loaded, enabled]);
 
-  // При выключении — отменяем всё
+  // 2) Выключение — отменяем всё
   useEffect(() => {
     if (enabled) return;
     cancelAllNotifications().catch(() => {});
     scheduledRef.current.clear();
   }, [enabled]);
 
-  // Планирование при загрузке
-  useEffect(() => {
-    if (!loaded || !enabled) return;
-    const allTasks = [];
-    Object.values(screens).forEach((scr) => {
-      (scr.markers || []).forEach((mk) => {
-        (mk.tasks || []).forEach((t) => {
-          if (!t.done && t.due) allTasks.push(t);
-        });
-      });
-      (scr.stickers || []).forEach((t) => {
-        if (!t.done && t.due) allTasks.push(t);
-      });
-    });
-    allTasks.forEach((t) => {
-      scheduledRef.current.add(t.id);
-      scheduleTaskNotifications(t);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, enabled]);
-
-  // Реакция на изменения screens
+  // 3) Дифф по id
   useEffect(() => {
     if (!loaded || !enabled) return;
 
+    const map = scheduledRef.current;
     const presentIds = new Set();
-    Object.values(screens).forEach((scr) => {
-      (scr.markers || []).forEach((mk) => {
-        (mk.tasks || []).forEach((t) => presentIds.add(t.id));
-      });
-      (scr.stickers || []).forEach((t) => presentIds.add(t.id));
-    });
 
-    scheduledRef.current.forEach((id) => {
-      if (!presentIds.has(id)) {
-        cancelTaskNotifications(id);
-        scheduledRef.current.delete(id);
+    const handle = (t) => {
+      presentIds.add(t.id);
+      const sig = sigOf(t);
+      const prev = map.get(t.id);
+      if (prev === sig) return;
+
+      if (t.done || !t.due) {
+        cancelTaskNotifications(t.id).catch(() => {});
+        map.delete(t.id);
+      } else {
+        scheduleTaskNotifications(t).catch(() => {});
+        map.set(t.id, sig);
       }
-    });
+    };
 
     Object.values(screens).forEach((scr) => {
       (scr.markers || []).forEach((mk) => {
-        (mk.tasks || []).forEach((t) => {
-          if (!t.done && t.due) {
-            scheduledRef.current.add(t.id);
-            scheduleTaskNotifications(t);
-          } else if (t.done) {
-            if (scheduledRef.current.has(t.id)) {
-              cancelTaskNotifications(t.id);
-              scheduledRef.current.delete(t.id);
-            }
-          }
-        });
+        (mk.tasks || []).forEach(handle);
       });
-      (scr.stickers || []).forEach((t) => {
-        if (!t.done && t.due) {
-          scheduledRef.current.add(t.id);
-          scheduleTaskNotifications(t);
-        } else if (t.done) {
-          if (scheduledRef.current.has(t.id)) {
-            cancelTaskNotifications(t.id);
-            scheduledRef.current.delete(t.id);
-          }
-        }
-      });
+      (scr.stickers || []).forEach(handle);
+    });
+
+    Array.from(map.keys()).forEach((id) => {
+      if (!presentIds.has(id)) {
+        cancelTaskNotifications(id).catch(() => {});
+        map.delete(id);
+      }
     });
   }, [loaded, enabled, screens]);
 }
