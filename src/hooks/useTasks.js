@@ -214,6 +214,7 @@ export function useTasks({
       x,
       y,
       color: payload.color || null,
+      rotation: Math.random() * 10 - 5,
     };
     setScreens((prev) => {
       const scr = prev[screenId];
@@ -310,7 +311,7 @@ export function useTasks({
         title: task.title,
         due: task.due || null,
         done: task.done || false,
-        completedAt: sticker.completedAt || null, 
+        completedAt: task.completedAt || null, 
         notes: task.notes || [],
         createdAt: task.createdAt || Date.now(),
         source: task.source || undefined,
@@ -319,6 +320,7 @@ export function useTasks({
         x,
         y,
         color: task.color || null,
+        rotation: Math.random() * 10 - 5,
       };
 
       return {
@@ -364,6 +366,7 @@ export function useTasks({
             guideOfferId: sticker.guideOfferId || undefined,
             repeat: sticker.repeat || null,
             color: sticker.color || null,
+            rotation: sticker.rotation || 0,
           },
           removedAt: Date.now(),
         }]);

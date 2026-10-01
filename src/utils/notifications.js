@@ -11,11 +11,9 @@ Notifications.setNotificationHandler({
 
 export async function requestNotificationPermission() {
   const { status: existing } = await Notifications.getPermissionsAsync();
-  console.log("PERM existing:", existing);
   if (existing === "granted") return true;
 
   const { status } = await Notifications.requestPermissionsAsync();
-  console.log("PERM requested:", status);
   if (status !== "granted") return false;
 
   if (Platform.OS === "android") {
@@ -35,9 +33,7 @@ const REMINDER_OFFSETS = [
 ];
 
 export async function scheduleTaskNotifications(task) {
-  console.log("SCHEDULE called for", task?.id, task?.title, "due:", JSON.stringify(task?.due));
   if (!task || task.done || !task.due) {
-    console.log("  skipped: no due or done");
     return;
   }
 
@@ -60,17 +56,13 @@ export async function scheduleTaskNotifications(task) {
       dueTime = d.getTime();
     }
   } else {
-    console.log("  skipped: no dueTime");
     return;
   }
-
-  console.log("  dueTime:", new Date(dueTime));
 
   const now = Date.now();
 
   for (const offset of REMINDER_OFFSETS) {
     const triggerTime = dueTime - offset.ms;
-    console.log("  offset", offset.text, "→", new Date(triggerTime), "in future?", triggerTime > now);
     if (triggerTime <= now) continue;
 
     try {
@@ -86,9 +78,7 @@ export async function scheduleTaskNotifications(task) {
           date: new Date(triggerTime),
         },
       });
-      console.log("  scheduled id:", id);
     } catch (e) {
-      console.log("  SCHEDULE ERROR:", e?.message || e);
     }
   }
 }

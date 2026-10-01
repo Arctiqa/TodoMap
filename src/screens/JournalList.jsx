@@ -78,6 +78,7 @@ export function JournalList({
   const [doneFilter, setDoneFilter] = useState("all");
   const [pendingDelete, setPendingDelete] = useState(null);
   const scrollRef = useRef(null);
+  const [pendingExpiredAction, setPendingExpiredAction] = useState(null);
 
   const [openSections, setOpenSections] = useState({
     active: false,
@@ -119,7 +120,7 @@ export function JournalList({
     if (openSections.active) {
       out.push({ type: "sortChips", key: "sort_active" });
       if (flatActive.length === 0) {
-        out.push({ type: "empty", key: "e_active", emoji: "🌱", title: "Активных дел нет", subtitle: "Добавь первое через кнопку внизу" });
+        out.push({ title: "Активных дел нет"});
       } else if (mode === "markers") {
         const byMarker = new Map();
         flatActive.forEach((e) => {
@@ -147,7 +148,7 @@ export function JournalList({
     out.push({ type: "header", key: "h_expired", section: "expired", title: "ПРОВАЛЕННЫЕ", count: expired.length, color: BLUE });
     if (openSections.expired) {
       if (flatExpired.length === 0) {
-        out.push({ type: "empty", key: "e_expired", emoji: "🎉", title: "Проваленных нет", subtitle: "Отлично справляешься!" });
+        out.push({ title: "Проваленных нет" });
       } else {
         flatExpired.forEach((e) => out.push({ type: "task", key: `x_${e.task.id}`, entry: e, showPath: true, withActions: true, actionKind: "expired" }));
       }
@@ -157,7 +158,7 @@ export function JournalList({
     if (openSections.done) {
       out.push({ type: "doneChips", key: "done_chips" });
       if (filteredDone.length === 0) {
-        out.push({ type: "empty", key: "e_done", emoji: "📭", title: "Ничего не найдено" });
+        out.push({ title: "Ничего не найдено" });
       } else {
         filteredDone.forEach((e) => out.push({ type: "task", key: `d_${e.task.id}`, entry: e, showPath: true, isDone: true, withActions: true, actionKind: "done" }));
       }
@@ -266,9 +267,34 @@ export function JournalList({
             showPath={item.showPath}
             isDone={!!item.isDone}
             onOpenDetail={onOpenDetail}
-            onReturn={item.withActions ? () => onReturnTask(item.entry) : undefined}
-            onComplete={item.actionKind === "expired" ? () => onCompleteTask(item.entry) : undefined}
-            onDelete={item.withActions ? () => setPendingDelete(item.entry) : undefined}
+            onReturn={
+              item.withActions
+                ? () => {
+                    if (item.actionKind === "expired") {
+                      setPendingExpiredAction({ entry: item.entry, kind: "return" });
+                    } else {
+                      onReturnTask(item.entry);
+                    }
+                  }
+                : undefined
+            }
+            onComplete={
+              item.actionKind === "expired"
+                ? () => setPendingExpiredAction({ entry: item.entry, kind: "complete" })
+                : undefined
+            }
+            onDelete={
+              item.withActions
+                ? () => {
+                    if (item.actionKind === "done") {
+                      // без подтверждения
+                      onDeleteTask(item.entry);
+                    } else {
+                      setPendingDelete(item.entry);
+                    }
+                  }
+                : undefined
+            } 
             withActions={item.withActions}
             actionKind={item.actionKind}
           />
@@ -318,6 +344,29 @@ export function JournalList({
           }}
         />
       )}
+
+      {pendingExpiredAction && (
+        <ConfirmDialog
+          message={
+            pendingExpiredAction.kind === "return"
+              ? "Вернуть задачу в активные?"
+              : "Отметить задачу выполненной?"
+          }
+          confirmLabel={pendingExpiredAction.kind === "return" ? "Вернуть" : "Выполнить"}
+          confirmColor={pendingExpiredAction.kind === "return" ? BLUE : GREEN}
+          onCancel={() => setPendingExpiredAction(null)}
+          onConfirm={() => {
+            if (pendingExpiredAction.kind === "return") {
+              onReturnTask(pendingExpiredAction.entry);
+            } else {
+              onCompleteTask(pendingExpiredAction.entry);
+            }
+            setPendingExpiredAction(null);
+          }}
+        />
+      )}
+
     </Overlay>
   );
 }
+

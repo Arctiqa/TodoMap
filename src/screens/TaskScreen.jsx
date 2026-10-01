@@ -248,7 +248,7 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
       {/* Подтверждение: отметить выполненным */}
       {confirmDone && (
         <ConfirmDialog
-          message="Отметить задание как выполненное?"
+          message="Выполнить задание гида?"
           confirmLabel="Да"
           confirmColor={GREEN}
           onCancel={() => setConfirmDone(false)}
@@ -262,7 +262,7 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
       {/* Подтверждение: завершение серии */}
       {confirmRepeatFinish && (
         <ConfirmDialog
-          message="Отметить задание как выполненное?"
+          message="Выполнить задание гида?"
           confirmLabel="Да"
           confirmColor={GREEN}
           onCancel={() => {

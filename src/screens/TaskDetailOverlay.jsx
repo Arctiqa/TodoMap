@@ -440,7 +440,7 @@ export function TaskDetailOverlay({
 
       {confirmDone && (
         <ConfirmDialog
-          message="Отметить задание как выполненное?"
+          message="Выполнить задание гида?"
           confirmLabel="Да"
           confirmColor={GREEN}
           onCancel={() => setConfirmDone(false)}
@@ -453,7 +453,7 @@ export function TaskDetailOverlay({
 
       {confirmRepeatFinish && (
         <ConfirmDialog
-          message="Отметить задание как выполненное?"
+          message="Выполнить задание гида?"
           confirmLabel="Да"
           confirmColor={GREEN}
           onCancel={() => {

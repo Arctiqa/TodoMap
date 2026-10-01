@@ -13,6 +13,9 @@ import { isTaskExpired } from "../utils/date";
 import { BLUE, GREEN } from "../theme/palettes";
 import { GUIDE_BY_KEY } from "../constants/guides";
 
+const STRIPE_STEP = 12;
+const STRIPE_COUNT = Math.floor(STICKER_SIZE.height / STRIPE_STEP);
+
 function pctToPx(pct, total) {
   return (pct / 100) * total;
 }
@@ -71,13 +74,6 @@ function StickerInner({
   const movedRef = useRef(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const wasDraggingRef = useRef(false);
-
-  const resetHover = useCallback(() => {
-    if (hoveredMarkerIdRef.current !== null) {
-      hoveredMarkerIdRef.current = null;
-      onHoverMarkerRef.current && onHoverMarkerRef.current(null);
-    }
-  }, []);
 
   useEffect(() => {
     if (draggingRef.current) return;
@@ -157,10 +153,9 @@ function StickerInner({
         draggingRef.current = false;
         setDragging(false);
         onMoveRef.current && onMoveRef.current(0, 0);
-        playDropAnimation(() => {
-          onDelete && onDelete(sticker.id);
-          onDragEnd && onDragEnd(sticker.id);
-        });
+        onDelete && onDelete(sticker.id);
+        onDragEnd && onDragEnd(sticker.id);
+        playDropAnimation();
         return;
       }
 
@@ -184,14 +179,13 @@ function StickerInner({
         setDragging(false);
         onMoveRef.current && onMoveRef.current(0, 0);
 
-        playDropAnimation(() => {
-          if (nearest.linkTo) {
-            onDropOnDoor && onDropOnDoor(sticker.id, nearest.linkTo);
-          } else {
-            onDropOnMarker && onDropOnMarker(sticker.id, nearest.id);
-          }
-          onDragEnd && onDragEnd(sticker.id);
-        });
+        if (nearest.linkTo) {
+          onDropOnDoor && onDropOnDoor(sticker.id, nearest.linkTo);
+        } else {
+          onDropOnMarker && onDropOnMarker(sticker.id, nearest.id);
+        }
+        onDragEnd && onDragEnd(sticker.id);
+        playDropAnimation();
         return;
       }
 
@@ -382,6 +376,10 @@ function StickerInner({
   const notes = sticker.notes || [];
   const notesDone = notes.filter((n) => n.done).length;
   const guide = sticker.source ? GUIDE_BY_KEY[sticker.source] : null;
+  const baseRotation = sticker.rotation != null ? sticker.rotation : 0;
+  const rotation = dragging ? baseRotation + 3 : baseRotation;
+
+  const bgColor = sticker.color || card;
 
   return (
     <Animated.View
@@ -394,6 +392,7 @@ function StickerInner({
         transform: [
           { translateX: pan.x },
           { translateY: pan.y },
+          { rotate: `${rotation}deg` },
           {
             scale: Animated.multiply(
               appear,
@@ -410,34 +409,81 @@ function StickerInner({
       <View
         style={{
           flex: 1,
-          backgroundColor: card,
-          borderWidth: 2,
-          borderColor: sticker.color || (guide ? guide.color : ink),
-          borderRadius: 10,
+          backgroundColor: bgColor,
+          borderRadius: 6,
           paddingHorizontal: 8,
-          paddingVertical: 6,
+          paddingTop: 6,
+          paddingBottom: 6,
           shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: dragging ? 0.25 : 0.12,
-          shadowRadius: dragging ? 8 : 3,
+          shadowOffset: { width: 1, height: 3 },
+          shadowOpacity: dragging ? 0.3 : 0.2,
+          shadowRadius: dragging ? 6 : 4,
+          elevation: dragging ? 6 : 3,
           opacity: sticker.done ? 0.55 : 1,
+          overflow: "hidden",
         }}
       >
+        {/* Полоски как в тетради */}
+        {Array.from({ length: STRIPE_COUNT }).map((_, i) => (
+          <View
+            key={i}
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: STRIPE_STEP * (i + 1) - 1,
+              height: 1,
+              backgroundColor: "rgba(0,0,0,0.08)",
+            }}
+          />
+        ))}
+
+        {/* Текст на полосках */}
         <Text
           style={{
-            fontSize: 12,
-            fontWeight: "bold",
+            fontSize: 10,
+            fontStyle: "italic",
+            lineHeight: STRIPE_STEP,
             color: expired ? BLUE : ink,
             textDecorationLine: sticker.done ? "line-through" : "none",
-            paddingRight: guide ? 22 : 0,
           }}
-          numberOfLines={2}
+          numberOfLines={5}
         >
           {sticker.title}
         </Text>
 
+        {guide && (
+          <View
+            style={{
+              position: "absolute",
+              right: 4,
+              bottom: 4,
+              width: 18,
+              height: 18,
+              borderRadius: 9,
+              backgroundColor: guide.color,
+              borderWidth: 1.5,
+              borderColor: ink,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <MaterialIcons name={guide.icon} size={11} color={ink} />
+          </View>
+        )}        
+
         {notes.length > 0 && (
-          <Text style={{ fontSize: 9.5, color: ink, opacity: 0.55, marginTop: 2, fontFamily: "monospace" }}>
+          <Text
+            style={{
+              fontSize: 9,
+              color: ink,
+              opacity: 0.55,
+              marginTop: 2,
+              fontFamily: "monospace",
+              fontStyle: "italic",
+            }}
+          >
             {notesDone}/{notes.length}
           </Text>
         )}
@@ -463,53 +509,20 @@ function StickerInner({
                 }}
               />
             </View>
-            <Text style={{ fontSize: 9, color: ink, opacity: 0.5, marginTop: 1, fontFamily: "monospace" }}>
+            <Text
+              style={{
+                fontSize: 9,
+                color: ink,
+                opacity: 0.5,
+                marginTop: 1,
+                fontFamily: "monospace",
+                fontStyle: "italic",
+              }}
+            >
               {sticker.repeat.count}/{sticker.repeat.target}
             </Text>
           </>
         )}
-
-
-        {guide && (
-          <View
-            style={{
-              position: "absolute",
-              top: 4,
-              right: 4,
-              width: 20,
-              height: 20,
-              borderRadius: 10,
-              backgroundColor: guide.color,
-              borderWidth: 1.5,
-              borderColor: ink,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <MaterialIcons name={guide.icon} size={12} color={ink} />
-          </View>
-        )}
-
-        <View
-          style={{
-            position: "absolute",
-            right: 4,
-            bottom: 4,
-            width: 20,
-            height: 20,
-            borderRadius: 10,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: dragging ? ink : "transparent",
-          }}
-        >
-          <MaterialIcons
-            name="open-with"
-            size={dragging ? 16 : 14}
-            color={dragging ? paper : ink}
-            style={{ opacity: dragging ? 1 : 0.35 }}
-          />
-        </View>
       </View>
     </Animated.View>
   );

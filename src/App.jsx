@@ -745,7 +745,7 @@ function AppShell({ onThemeChange }) {
               style={{ backgroundColor: RED, paddingVertical: 6, alignItems: "center" }}
             >
               <Text style={{ color: "#fff", fontSize: 11, fontWeight: "bold" }}>
-                ТАПНИ МЕТКУ, ЧТОБЫ УДАЛИТЬ · НАЖМИ СЮДА, ЧТОБЫ ВЫЙТИ
+                УДАЛИТЬ
               </Text>
             </Pressable>
           )}
@@ -756,7 +756,7 @@ function AppShell({ onThemeChange }) {
               style={{ backgroundColor: BLUE, paddingVertical: 6, alignItems: "center" }}
             >
               <Text style={{ color: "#fff", fontSize: 11, fontWeight: "bold" }}>
-                ТАПНИ МЕТКУ, ЧТОБЫ РЕДАКТИРОВАТЬ · НАЖМИ СЮДА, ЧТОБЫ ВЫЙТИ
+                РЕДАКТИРОВАТЬ
               </Text>
             </Pressable>
           )}
@@ -1074,20 +1074,15 @@ function AppShell({ onThemeChange }) {
               }}
             />
           )}
-
+          
           {pendingResetBg && (
             <ConfirmDialog
-              message="Сбросить фон на стандартный?"
-              confirmLabel="Сбросить"
+              message="Очистить фон?"
+              confirmLabel="Очистить"
               confirmColor={RED}
               onCancel={() => setPendingResetBg(false)}
               onConfirm={() => {
-                updateScreenImage(
-                  currentId,
-                  currentId === "main" ? MAP_DEFAULT_BG
-                    : currentId === "home" ? DOM_DEFAULT_BG
-                    : null
-                );
+                updateScreenImage(currentId, null);
                 setPendingResetBg(false);
               }}
             />
