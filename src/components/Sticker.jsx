@@ -229,6 +229,9 @@ function StickerInner({
     ]
   );
 
+  const endDragRef = useRef(endDrag);
+  endDragRef.current = endDrag;
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -327,7 +330,7 @@ function StickerInner({
         }
 
         if (movedRef.current) {
-          endDrag(g.dx, g.dy);
+          endDragRef.current(g.dx, g.dy);
         } else {
           draggingRef.current = false;
           setDragging(false);
@@ -360,7 +363,7 @@ function StickerInner({
           return;
         }
         if (draggingRef.current) {
-          endDrag(0, 0);
+          endDragRef.current(0, 0);
         }
         if (hoveredMarkerIdRef.current !== null) {
           hoveredMarkerIdRef.current = null;

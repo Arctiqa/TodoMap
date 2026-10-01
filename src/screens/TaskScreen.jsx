@@ -294,6 +294,7 @@ export function TaskScreen({
   const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState(null);
   const [copied, setCopied] = useState(false);
   const [addBarExpanded, setAddBarExpanded] = useState(false);
+  const [addBarMinimized, setAddBarMinimized] = useState(false);
 
   const sortedTasks = useMemo(() => {
     if (!marker?.tasks) return [];
@@ -321,6 +322,10 @@ export function TaskScreen({
         setAddBarExpanded(false);
         return true;
       }
+      if (addBarMinimized) {
+        setAddBarMinimized(false);
+        return true;
+      }
       if (pendingDeleteTaskId) {
         setPendingDeleteTaskId(null);
         return true;
@@ -328,7 +333,7 @@ export function TaskScreen({
       return false;
     });
     return () => sub.remove();
-  }, [addBarExpanded, pendingDeleteTaskId]);
+  }, [addBarExpanded, addBarMinimized, pendingDeleteTaskId]);
 
   if (!marker) return null;
 
@@ -386,6 +391,21 @@ export function TaskScreen({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
+
+      {addBarExpanded && !addBarMinimized && (
+        <Pressable
+          style={{
+            position: "absolute",
+            top: 0, left: 0, right: 0, bottom: 0,
+            zIndex: 9,
+          }}
+          onPress={() => {
+            setAddBarExpanded(false);
+            setAddBarMinimized(false);
+          }}
+        />
+      )}
+
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ padding: SPACING.lg, gap: SPACING.sm, paddingBottom: 160 }}
@@ -434,14 +454,18 @@ export function TaskScreen({
           visible={true}
           targetMarkerId={marker.id}
           collapsed={!addBarExpanded}
-          onExpand={() => setAddBarExpanded(true)}
-          onCollapse={() => setAddBarExpanded(false)}
+          minimized={addBarMinimized}
+          onExpand={() => { setAddBarExpanded(true); setAddBarMinimized(false); }}
+          onCollapse={() => { setAddBarExpanded(false); setAddBarMinimized(false); }}
+          onMinimize={() => { setAddBarExpanded(false); setAddBarMinimized(true); }}
+          onUnminimize={() => { setAddBarExpanded(false); setAddBarMinimized(false); }}
           showColorPicker={true}
           onSubmit={({ title, due, repeat, share, color }) => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             onAdd(marker.id, title, due, repeat, color);
             if (share && onShare) onShare(title, due);
             setAddBarExpanded(false);
+            setAddBarMinimized(false);
           }}
         />
       </KeyboardAvoidingView>

@@ -122,6 +122,7 @@ function AppShell({ onThemeChange }) {
   const screen = screens[currentId];
 
   const [addTaskBarExpanded, setAddTaskBarExpanded] = useState(false);
+  const [addTaskBarMinimized, setAddTaskBarMinimized] = useState(false);
 
   const overlay = useOverlayState();
   const {
@@ -829,6 +830,21 @@ function AppShell({ onThemeChange }) {
               setMapSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })
             }
           >
+            {/* Тап вне AddTaskBar — свернуть в плашку */}
+            {addTaskBarExpanded && !addTaskBarMinimized && (
+              <Pressable
+                style={{
+                  position: "absolute",
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  zIndex: 9,
+                }}
+                onPress={() => {
+                  setAddTaskBarExpanded(false);
+                  setAddTaskBarMinimized(false);
+                }}
+              />
+            )}
+                 
             {!editMode && siblings.list.length > 1 && (
               <View
                 pointerEvents="box-none"
@@ -957,8 +973,11 @@ function AppShell({ onThemeChange }) {
                     onSubmit={handleAddTaskFromBar}
                     bgColor="transparent"
                     collapsed={!addTaskBarExpanded}
-                    onExpand={() => setAddTaskBarExpanded(true)}
-                    onCollapse={() => setAddTaskBarExpanded(false)}
+                    minimized={addTaskBarMinimized}
+                    onExpand={() => { setAddTaskBarExpanded(true); setAddTaskBarMinimized(false); }}
+                    onCollapse={() => { setAddTaskBarExpanded(false); setAddTaskBarMinimized(false); }}
+                    onMinimize={() => { setAddTaskBarExpanded(false); setAddTaskBarMinimized(true); }}
+                    onUnminimize={() => { setAddTaskBarExpanded(false); setAddTaskBarMinimized(false); }}
                   />
                 </View>
               )}

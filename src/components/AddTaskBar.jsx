@@ -8,16 +8,15 @@ import {
   Animated,
   PanResponder,
   ScrollView,
+  KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { DueEditor } from "./DueEditor";
 import { PrimaryButton } from "./ui/PrimaryButton";
 import { useTheme } from "../theme/ThemeContext";
 import { GREEN_SOFT, PALETTE } from "../theme/palettes";
 
-// Чёрный первым + 8 из общей палитры = 9 цветов
-const STICKER_COLORS = [...PALETTE, "#27c7c7"];
+const STICKER_COLORS = [...PALETTE, "#3ec9ec"];
 
 export function AddTaskBar({
   targetMarkerId,
@@ -25,8 +24,11 @@ export function AddTaskBar({
   visible = true,
   bgColor,
   collapsed = true,
+  minimized = false,
   onExpand,
   onCollapse,
+  onMinimize,
+  onUnminimize,
   showColorPicker = true,
 }) {
   const { ink, card, paper, inputBg } = useTheme();
@@ -43,21 +45,57 @@ export function AddTaskBar({
   const animValue = useRef(new Animated.Value(collapsed ? 0 : 1)).current;
   const scrollRef = useRef(null);
 
+  // refs, чтобы PanResponder видел актуальное состояние
+  const stateRef = useRef({ collapsed, minimized });
+  stateRef.current = { collapsed, minimized };
+
+  const callbacksRef = useRef({ onExpand, onCollapse, onMinimize, onUnminimize });
+  callbacksRef.current = { onExpand, onCollapse, onMinimize, onUnminimize };
+
   useEffect(() => {
     Animated.timing(animValue, {
       toValue: collapsed ? 0 : 1,
-      duration: 180,
+      duration: 250,
       useNativeDriver: false,
     }).start();
   }, [collapsed]);
 
-  const swipeDownResponder = useRef(
+  // ОДИН PanResponder на все состояния.
+  // Реагирует на свайпы вниз/вверх, но НЕ трогает тапы.
+  const swipeResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, g) =>
-        g.dy > 10 && Math.abs(g.dy) > Math.abs(g.dx),
+      onMoveShouldSetPanResponder: (_, g) => {
+        // только вертикальные свайпы
+        return Math.abs(g.dy) > 12 && Math.abs(g.dy) > Math.abs(g.dx) * 1.2;
+      },
       onPanResponderRelease: (_, g) => {
-        if (g.dy > 50) onCollapse && onCollapse();
+        const { collapsed, minimized } = stateRef.current;
+        const { onExpand, onCollapse, onMinimize, onUnminimize } = callbacksRef.current;
+
+        // свайп вниз
+        if (g.dy > 50) {
+          if (!collapsed && !minimized) {
+            // развёрнутое → плашка
+            onCollapse && onCollapse();
+          } else if (collapsed && !minimized) {
+            // плашка → полоска
+            onMinimize && onMinimize();
+          }
+          return;
+        }
+
+        // свайп вверх
+        if (g.dy < -50) {
+          if (minimized) {
+            // полоска → плашка
+            onUnminimize && onUnminimize();
+          } else if (collapsed) {
+            // плашка → развёрнутое
+            onExpand && onExpand();
+          }
+          return;
+        }
       },
     })
   ).current;
@@ -97,259 +135,286 @@ export function AddTaskBar({
     onCollapse && onCollapse();
   };
 
-  const cancel = () => {
-    reset();
-    onCollapse && onCollapse();
-  };
-
-  if (collapsed) {
+  // ----- ПОЛОСТКА (полностью свёрнутое) -----
+  if (minimized) {
     return (
-      <Pressable
-        onPress={() => onExpand && onExpand()}
-        style={({ pressed }) => ({
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          backgroundColor: paper,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          paddingHorizontal: 20,
-          paddingVertical: 15,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: -3 },
-          shadowOpacity: 0.12,
-          shadowRadius: 6,
-          elevation: 6,
-          opacity: pressed ? 0.9 : 1,
-        })}
-      >
-        <MaterialIcons name="add" size={22} color={ink} />
-        <Text style={{ fontSize: 15, color: ink, fontWeight: "700" }}>
-          Добавить дело
-        </Text>
-      </Pressable>
+      <View {...swipeResponder.panHandlers}>
+        <Pressable
+          onPress={() => onExpand && onExpand()}
+          style={({ pressed }) => ({
+            alignItems: "center",
+            justifyContent: "center",
+            paddingVertical: 14,
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <View
+            style={{
+              width: 60,
+              height: 5,
+              borderRadius: 2.5,
+              backgroundColor: ink,
+              opacity: 0.35,
+            }}
+          />
+        </Pressable>
+      </View>
     );
   }
 
+  // ----- ПЛАШКА (свёрнутое) -----
+  if (collapsed) {
+    return (
+      <View {...swipeResponder.panHandlers}>
+        <Pressable
+          onPress={() => onExpand && onExpand()}
+          style={({ pressed }) => ({
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            backgroundColor: paper,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            paddingHorizontal: 20,
+            paddingVertical: 15,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: -3 },
+            shadowOpacity: 0.12,
+            shadowRadius: 6,
+            elevation: 6,
+            opacity: pressed ? 0.9 : 1,
+          })}
+        >
+          <MaterialIcons name="add" size={22} color={ink} />
+          <Text style={{ fontSize: 15, color: ink, fontWeight: "700" }}>
+            Добавить дело
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // ----- РАЗВЁРНУТОЕ -----
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={0}
     >
-      <Animated.View
-        {...swipeDownResponder.panHandlers}
-        style={{
-          borderTopLeftRadius: 18,
-          borderTopRightRadius: 18,
-          backgroundColor: paper,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
-          elevation: 8,
-          overflow: "hidden",
-          borderWidth: 1,
-          borderBottomWidth: 0,
-          borderColor: ink,
-          maxHeight: animValue.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, 700],
-          }),
-          opacity: animValue.interpolate({
-            inputRange: [0, 0.5, 1],
-            outputRange: [0, 0.5, 1],
-          }),
-        }}
-      >
-        <ScrollView
-          ref={scrollRef}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: 14,
-            paddingTop: 14,
-            paddingBottom: 14,
+      <View {...swipeResponder.panHandlers}>
+        <Animated.View
+          style={{
+            borderTopLeftRadius: 18,
+            borderTopRightRadius: 18,
+            backgroundColor: paper,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 8,
+            elevation: 8,
+            overflow: "hidden",
+            borderWidth: 1,
+            borderBottomWidth: 0,
+            borderColor: ink,
+            maxHeight: animValue.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 700],
+            }),
+            opacity: animValue.interpolate({
+              inputRange: [0, 0.5, 1],
+              outputRange: [0, 0.5, 1],
+            }),
           }}
         >
-          <View
-            style={{
-              alignSelf: "center",
-              width: 44,
-              height: 4,
-              borderRadius: 2,
-              backgroundColor: ink,
-              opacity: 0.2,
-              marginBottom: 12,
-            }}
-          />
-
-          <TextInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Новое дело..."
-            placeholderTextColor="#9A9A9A"
-            style={{
-              borderWidth: 1,
-              borderColor: ink,
-              borderRadius: 10,
+          <ScrollView
+            ref={scrollRef}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
               paddingHorizontal: 14,
-              paddingVertical: 14,
-              fontSize: 16,
-              marginBottom: 12,
-              color: ink,
-              backgroundColor: inputBg,
-            }}
-          />
-
-          <DueEditor
-            dueMode={dueMode}
-            setDueMode={setDueMode}
-            dueDate={dueDate}
-            setDueDate={setDueDate}
-            dueTime={dueTime}
-            setDueTime={setDueTime}
-            dueDays={dueDays}
-            setDueDays={setDueDays}
-          />
-
-          <Pressable
-            onPress={() => setRepeatOn((v) => !v)}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-              marginBottom: repeatOn ? 8 : 12,
+              paddingTop: 14,
+              paddingBottom: 14,
             }}
           >
             <View
               style={{
-                width: 22,
-                height: 22,
-                borderRadius: 6,
-                borderWidth: 1,
-                borderColor: ink,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: repeatOn ? ink : paper,
+                alignSelf: "center",
+                width: 44,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: ink,
+                opacity: 0.2,
+                marginBottom: 12,
               }}
-            >
-              {repeatOn && <Text style={{ color: paper, fontSize: 13 }}>✓</Text>}
-            </View>
-            <Text style={{ fontSize: 13.5, color: ink }}>Серия повторов</Text>
-          </Pressable>
+            />
 
-          {repeatOn && (
-            <View
+            <TextInput
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Новое дело..."
+              placeholderTextColor="#9A9A9A"
               style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 10,
                 borderWidth: 1,
                 borderColor: ink,
                 borderRadius: 10,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
+                paddingHorizontal: 14,
+                paddingVertical: 14,
+                fontSize: 16,
                 marginBottom: 12,
+                color: ink,
                 backgroundColor: inputBg,
               }}
-            >
-              <Pressable
-                onPress={() => setRepeatTarget((n) => Math.max(1, n - 1))}
-                style={{
-                  width: 30, height: 30, borderRadius: 8,
-                  borderWidth: 1, borderColor: ink,
-                  alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <Text style={{ fontWeight: "bold", color: ink, fontSize: 16 }}>−</Text>
-              </Pressable>
-              <Text style={{ minWidth: 30, textAlign: "center", fontWeight: "bold", color: ink, fontSize: 16 }}>
-                {repeatTarget}
-              </Text>
-              <Pressable
-                onPress={() => setRepeatTarget((n) => n + 1)}
-                style={{
-                  width: 30, height: 30, borderRadius: 8,
-                  borderWidth: 1, borderColor: ink,
-                  alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <Text style={{ fontWeight: "bold", color: ink, fontSize: 16 }}>+</Text>
-              </Pressable>
-              <Text style={{ fontSize: 13, color: ink, opacity: 0.6 }}> раз до завершения</Text>
-            </View>
-          )}
+            />
 
-          <Pressable
-            onPress={() => setShareToPool((v) => !v)}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-              marginBottom: 12,
-            }}
-          >
-            <View
+            <DueEditor
+              dueMode={dueMode}
+              setDueMode={setDueMode}
+              dueDate={dueDate}
+              setDueDate={setDueDate}
+              dueTime={dueTime}
+              setDueTime={setDueTime}
+              dueDays={dueDays}
+              setDueDays={setDueDays}
+            />
+
+            <Pressable
+              onPress={() => setRepeatOn((v) => !v)}
               style={{
-                width: 22, height: 22, borderRadius: 6,
-                borderWidth: 1, borderColor: ink,
-                alignItems: "center", justifyContent: "center",
-                backgroundColor: shareToPool ? ink : paper,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: repeatOn ? 8 : 12,
               }}
             >
-              {shareToPool && <Text style={{ color: paper, fontSize: 13 }}>✓</Text>}
-            </View>
-            <Text style={{ fontSize: 13.5, color: ink }}>Поделиться задачей</Text>
-          </Pressable>
+              <View
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  borderWidth: 1,
+                  borderColor: ink,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: repeatOn ? ink : paper,
+                }}
+              >
+                {repeatOn && <Text style={{ color: paper, fontSize: 13 }}>✓</Text>}
+              </View>
+              <Text style={{ fontSize: 13.5, color: ink }}>Серия повторов</Text>
+            </Pressable>
 
-          {showColorPicker && (
-            <>
-              <Text style={{ fontSize: 13.5, color: ink, marginBottom: 8 }}>
-                Цвет стикера
-              </Text>
+            {repeatOn && (
               <View
                 style={{
                   flexDirection: "row",
-                  flexWrap: "wrap",
-                  gap: 8,
-                  marginBottom: 14,
+                  alignItems: "center",
+                  gap: 10,
+                  borderWidth: 1,
+                  borderColor: ink,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  marginBottom: 12,
+                  backgroundColor: inputBg,
                 }}
               >
-                {STICKER_COLORS.map((c) => {
-                  const active = color === c;
-                  const isBlack = c === "#000000";
-                  return (
-                    <Pressable
-                      key={c}
-                      onPress={() => setColor(active ? null : c)}
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 15,
-                        backgroundColor: c,
-                        borderWidth: active ? 3 : 2,
-                        borderColor: active
-                          ? ink
-                          : isBlack
-                          ? ink
-                          : "transparent",
-                      }}
-                    />
-                  );
-                })}
+                <Pressable
+                  onPress={() => setRepeatTarget((n) => Math.max(1, n - 1))}
+                  style={{
+                    width: 30, height: 30, borderRadius: 8,
+                    borderWidth: 1, borderColor: ink,
+                    alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ fontWeight: "bold", color: ink, fontSize: 16 }}>−</Text>
+                </Pressable>
+                <Text style={{ minWidth: 30, textAlign: "center", fontWeight: "bold", color: ink, fontSize: 16 }}>
+                  {repeatTarget}
+                </Text>
+                <Pressable
+                  onPress={() => setRepeatTarget((n) => n + 1)}
+                  style={{
+                    width: 30, height: 30, borderRadius: 8,
+                    borderWidth: 1, borderColor: ink,
+                    alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ fontWeight: "bold", color: ink, fontSize: 16 }}>+</Text>
+                </Pressable>
+                <Text style={{ fontSize: 13, color: ink, opacity: 0.6 }}> раз до завершения</Text>
               </View>
-            </>
-          )}
+            )}
 
-          <PrimaryButton
-            label="Добавить дело"
-            color={GREEN_SOFT}
-            textColor="#000"
-            onPress={submit}
-          />
-        </ScrollView>
-      </Animated.View>
+            <Pressable
+              onPress={() => setShareToPool((v) => !v)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 12,
+              }}
+            >
+              <View
+                style={{
+                  width: 22, height: 22, borderRadius: 6,
+                  borderWidth: 1, borderColor: ink,
+                  alignItems: "center", justifyContent: "center",
+                  backgroundColor: shareToPool ? ink : paper,
+                }}
+              >
+                {shareToPool && <Text style={{ color: paper, fontSize: 13 }}>✓</Text>}
+              </View>
+              <Text style={{ fontSize: 13.5, color: ink }}>Поделиться задачей</Text>
+            </Pressable>
+
+            {showColorPicker && (
+              <>
+                <Text style={{ fontSize: 13.5, color: ink, marginBottom: 8 }}>
+                  Цвет стикера
+                </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    marginBottom: 14,
+                  }}
+                >
+                  {STICKER_COLORS.map((c) => {
+                    const active = color === c;
+                    const isBlack = c === "#000000";
+                    return (
+                      <Pressable
+                        key={c}
+                        onPress={() => setColor(active ? null : c)}
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 15,
+                          backgroundColor: c,
+                          borderWidth: active ? 3 : 2,
+                          borderColor: active
+                            ? ink
+                            : isBlack
+                            ? ink
+                            : "transparent",
+                        }}
+                      />
+                    );
+                  })}
+                </View>
+              </>
+            )}
+
+            <PrimaryButton
+              label="Добавить дело"
+              color={GREEN_SOFT}
+              textColor="#000"
+              onPress={submit}
+            />
+          </ScrollView>
+        </Animated.View>
+      </View>
     </KeyboardAvoidingView>
   );
 }
