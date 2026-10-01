@@ -11,9 +11,11 @@ Notifications.setNotificationHandler({
 
 export async function requestNotificationPermission() {
   const { status: existing } = await Notifications.getPermissionsAsync();
+  console.log("PERM existing:", existing);
   if (existing === "granted") return true;
 
   const { status } = await Notifications.requestPermissionsAsync();
+  console.log("PERM requested:", status);
   if (status !== "granted") return false;
 
   if (Platform.OS === "android") {
@@ -33,7 +35,11 @@ const REMINDER_OFFSETS = [
 ];
 
 export async function scheduleTaskNotifications(task) {
-  if (!task || task.done || !task.due) return;
+  console.log("SCHEDULE called for", task?.id, task?.title, "due:", JSON.stringify(task?.due));
+  if (!task || task.done || !task.due) {
+    console.log("  skipped: no due or done");
+    return;
+  }
 
   await cancelTaskNotifications(task.id);
 
@@ -54,24 +60,36 @@ export async function scheduleTaskNotifications(task) {
       dueTime = d.getTime();
     }
   } else {
+    console.log("  skipped: no dueTime");
     return;
   }
+
+  console.log("  dueTime:", new Date(dueTime));
 
   const now = Date.now();
 
   for (const offset of REMINDER_OFFSETS) {
     const triggerTime = dueTime - offset.ms;
+    console.log("  offset", offset.text, "→", new Date(triggerTime), "in future?", triggerTime > now);
     if (triggerTime <= now) continue;
 
-    await Notifications.scheduleNotificationAsync({
-      identifier: `task_${task.id}_${offset.ms}`,
-      content: {
-        title: "Напоминание",
-        body: `До истечения срока «${task.title}» ${offset.text}`,
-        data: { taskId: task.id },
-      },
-      trigger: { type: "date", date: new Date(triggerTime) },
-    });
+    try {
+      const id = await Notifications.scheduleNotificationAsync({
+        identifier: `task_${task.id}_${offset.ms}`,
+        content: {
+          title: "Напоминание",
+          body: `До истечения срока «${task.title}» ${offset.text}`,
+          data: { taskId: task.id },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: new Date(triggerTime),
+        },
+      });
+      console.log("  scheduled id:", id);
+    } catch (e) {
+      console.log("  SCHEDULE ERROR:", e?.message || e);
+    }
   }
 }
 

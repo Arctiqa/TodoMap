@@ -1,12 +1,11 @@
 // hooks/useTasks.js
 import { useCallback } from "react";
 import { nextId } from "../utils/id";
-import { scheduleTaskNotifications, cancelTaskNotifications } from "../utils/notifications";
 
 export function useTasks({
   updateScreen, setScreens, setHistory,
-  markGuideCompleted,   // (guideKey, offerId) => void
-  releaseGuideTask,     // (offerId) => void
+  markGuideCompleted,
+  releaseGuideTask,
 }) {
   // ============================================================
   // Задачи внутри пинов
@@ -38,7 +37,6 @@ export function useTasks({
         },
       };
     });
-    scheduleTaskNotifications(newTask);
   }, [setScreens]);
 
   const toggleTask = useCallback((screenId, markerId, taskId) => {
@@ -78,18 +76,15 @@ export function useTasks({
       };
     });
 
-	if (snapshot) {
-	  if (snapshot.willBeDone) {
-		cancelTaskNotifications(snapshot.task.id);
-		if (snapshot.task.source && snapshot.task.guideOfferId) {
-		  releaseGuideTask(snapshot.task.guideOfferId);
-		  markGuideCompleted(snapshot.task.source, snapshot.task.guideOfferId);
-		}
-	  } else {
-		scheduleTaskNotifications(snapshot.task);
-	  }
-	}
-  }, [setScreens, markGuideCompleted]);
+    if (snapshot) {
+      if (snapshot.willBeDone) {
+        if (snapshot.task.source && snapshot.task.guideOfferId) {
+          releaseGuideTask(snapshot.task.guideOfferId);
+          markGuideCompleted(snapshot.task.source, snapshot.task.guideOfferId);
+        }
+      }
+    }
+  }, [setScreens, markGuideCompleted, releaseGuideTask]);
 
   const incrementRepeat = useCallback((screenId, markerId, taskId) => {
     let snapshot = null;
@@ -125,16 +120,15 @@ export function useTasks({
       };
     });
 
-	if (snapshot) {
-	  if (snapshot.willFinish) {
-		cancelTaskNotifications(snapshot.task.id);
-		if (snapshot.task.source && snapshot.task.guideOfferId) {
-		  releaseGuideTask(snapshot.task.guideOfferId);
-		  markGuideCompleted(snapshot.task.source, snapshot.task.guideOfferId);
-		}
-	  }
-	}
-  }, [setScreens, markGuideCompleted]);
+    if (snapshot) {
+      if (snapshot.willFinish) {
+        if (snapshot.task.source && snapshot.task.guideOfferId) {
+          releaseGuideTask(snapshot.task.guideOfferId);
+          markGuideCompleted(snapshot.task.source, snapshot.task.guideOfferId);
+        }
+      }
+    }
+  }, [setScreens, markGuideCompleted, releaseGuideTask]);
 
   const decrementRepeat = useCallback((screenId, markerId, taskId) => {
     setScreens((prev) => {
@@ -170,14 +164,12 @@ export function useTasks({
   }, [setScreens]);
 
   const deleteTask = useCallback((screenId, markerId, taskId) => {
-    cancelTaskNotifications(taskId);
     setScreens((prev) => {
       const scr = prev[screenId];
       if (!scr) return prev;
       const marker = scr.markers.find((m) => m.id === markerId);
       const task = marker && marker.tasks.find((t) => t.id === taskId);
       if (marker && task) {
-        // если это гидовая задача и она НЕ выполнена — вернуть в список гида
         if (task.source && task.guideOfferId && !task.done) {
           releaseGuideTask(task.guideOfferId);
         }
@@ -234,7 +226,6 @@ export function useTasks({
         },
       };
     });
-    scheduleTaskNotifications(newSticker);
     return newSticker.id;
   }, [setScreens]);
 
@@ -282,6 +273,7 @@ export function useTasks({
         title: sticker.title,
         due: sticker.due || null,
         done: sticker.done || false,
+        completedAt: sticker.completedAt || null,
         notes: sticker.notes || [],
         createdAt: sticker.createdAt || Date.now(),
         source: sticker.source || undefined,
@@ -306,7 +298,6 @@ export function useTasks({
   }, [setScreens]);
 
   const moveTaskToField = useCallback((screenId, markerId, taskId, x = 50, y = 50) => {
-    cancelTaskNotifications(taskId);
     setScreens((prev) => {
       const scr = prev[screenId];
       if (!scr) return prev;
@@ -319,6 +310,7 @@ export function useTasks({
         title: task.title,
         due: task.due || null,
         done: task.done || false,
+        completedAt: sticker.completedAt || null, 
         notes: task.notes || [],
         createdAt: task.createdAt || Date.now(),
         source: task.source || undefined,
@@ -345,13 +337,11 @@ export function useTasks({
   }, [setScreens]);
 
   const deleteSticker = useCallback((screenId, stickerId) => {
-    cancelTaskNotifications(stickerId);
     setScreens((prev) => {
       const scr = prev[screenId];
       if (!scr) return prev;
       const sticker = (scr.stickers || []).find((s) => s.id === stickerId);
       if (sticker) {
-        // если это гидовый стикер и он НЕ выполнен — вернуть в список гида
         if (sticker.source && sticker.guideOfferId && !sticker.done) {
           releaseGuideTask(sticker.guideOfferId);
         }
@@ -373,6 +363,7 @@ export function useTasks({
             source: sticker.source || undefined,
             guideOfferId: sticker.guideOfferId || undefined,
             repeat: sticker.repeat || null,
+            color: sticker.color || null,
           },
           removedAt: Date.now(),
         }]);
@@ -414,18 +405,15 @@ export function useTasks({
       };
     });
 
-	if (snapshot) {
-	  if (snapshot.willBeDone) {
-		cancelTaskNotifications(snapshot.sticker.id);
-		if (snapshot.sticker.source && snapshot.sticker.guideOfferId) {
-		  releaseGuideTask(snapshot.sticker.guideOfferId);
-		  markGuideCompleted(snapshot.sticker.source, snapshot.sticker.guideOfferId);
-		}
-	  } else {
-		scheduleTaskNotifications(snapshot.sticker);
-	  }
-	}
-  }, [setScreens, markGuideCompleted]);
+    if (snapshot) {
+      if (snapshot.willBeDone) {
+        if (snapshot.sticker.source && snapshot.sticker.guideOfferId) {
+          releaseGuideTask(snapshot.sticker.guideOfferId);
+          markGuideCompleted(snapshot.sticker.source, snapshot.sticker.guideOfferId);
+        }
+      }
+    }
+  }, [setScreens, markGuideCompleted, releaseGuideTask]);
 
   const incrementStickerRepeat = useCallback((screenId, stickerId) => {
     let snapshot = null;
@@ -455,16 +443,15 @@ export function useTasks({
       };
     });
 
-	if (snapshot) {
-	  if (snapshot.willFinish) {
-		cancelTaskNotifications(snapshot.sticker.id);
-		if (snapshot.sticker.source && snapshot.sticker.guideOfferId) {
-		  releaseGuideTask(snapshot.sticker.guideOfferId);
-		  markGuideCompleted(snapshot.sticker.source, snapshot.sticker.guideOfferId);
-		}
-	  }
-	}
-  }, [setScreens, markGuideCompleted]);
+    if (snapshot) {
+      if (snapshot.willFinish) {
+        if (snapshot.sticker.source && snapshot.sticker.guideOfferId) {
+          releaseGuideTask(snapshot.sticker.guideOfferId);
+          markGuideCompleted(snapshot.sticker.source, snapshot.sticker.guideOfferId);
+        }
+      }
+    }
+  }, [setScreens, markGuideCompleted, releaseGuideTask]);
 
   const decrementStickerRepeat = useCallback((screenId, stickerId) => {
     setScreens((prev) => {
@@ -494,7 +481,6 @@ export function useTasks({
   }, [setScreens]);
 
   const moveStickerToField = useCallback((fromScreenId, stickerId, toScreenId, x = 50, y = 50) => {
-    cancelTaskNotifications(stickerId);
     setScreens((prev) => {
       const from = prev[fromScreenId];
       const to = prev[toScreenId];
@@ -520,13 +506,11 @@ export function useTasks({
   }, [setScreens]);
 
   return {
-    // задачи внутри пинов
     addTaskCore,
     toggleTask,
     incrementRepeat,
     decrementRepeat,
     deleteTask,
-    // стикеры
     addSticker,
     updateSticker,
     updateStickerPosition,

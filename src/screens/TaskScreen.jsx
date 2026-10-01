@@ -397,7 +397,7 @@ export function TaskScreen({
           style={{
             position: "absolute",
             top: 0, left: 0, right: 0, bottom: 0,
-            zIndex: 9,
+            zIndex: 5,
           }}
           onPress={() => {
             setAddBarExpanded(false);
@@ -450,6 +450,7 @@ export function TaskScreen({
           })}
         </ScrollView>
 
+      <View style={{ zIndex: 10, position: "relative" }}>        
         <AddTaskBar
           visible={true}
           targetMarkerId={marker.id}
@@ -468,6 +469,7 @@ export function TaskScreen({
             setAddBarMinimized(false);
           }}
         />
+      </View>  
       </KeyboardAvoidingView>
 
       {pendingTask && (
