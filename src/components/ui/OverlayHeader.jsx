@@ -15,20 +15,29 @@ export function OverlayHeader({ onBack, title, onClose, right }) {
         paddingVertical: 14,
         borderBottomWidth: 1.5,
         borderColor: ink,
+        position: "relative",
       }}
     >
-      <Pressable onPress={onBack} style={{ minWidth: 40, alignItems: "flex-start" }}>
+      <Pressable onPress={onBack} style={{ minWidth: 40, alignItems: "flex-start", zIndex: 2 }}>
         <MaterialIcons name="arrow-back" size={24} color={ink} />
       </Pressable>
 
       <Text
-        style={{ fontSize: 15, fontWeight: "bold", color: ink, textAlign: "center", flex: 1 }}
+        style={{
+          position: "absolute",
+          left: 60,
+          right: 60,
+          fontSize: 15,
+          fontWeight: "bold",
+          color: ink,
+          textAlign: "center",
+        }}
         numberOfLines={1}
       >
         {title}
       </Text>
 
-      <View style={{ minWidth: 40, alignItems: "flex-end" }}>
+      <View style={{ minWidth: 40, alignItems: "flex-end", zIndex: 2 }}>
         {right || null}
       </View>
     </View>

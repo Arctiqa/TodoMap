@@ -246,7 +246,6 @@ function AppShell({ onThemeChange }) {
 
   const handleDropStickerOnDoor = useCallback((stickerId, linkToId) => {
     moveStickerToField(currentId, stickerId, linkToId, 50, 50);
-    setCurrentId(linkToId);
   }, [currentId, moveStickerToField, setCurrentId]);
 
   const handleExtractStickerToParent = useCallback((stickerId) => {
@@ -585,7 +584,7 @@ function AppShell({ onThemeChange }) {
             marker={activeMarker}
             onClose={popNav}
             onToggle={(markerId, taskId) => toggleTask(currentId, markerId, taskId)}
-            onAdd={(markerId, title, due, repeat) => addTaskCore(currentId, markerId, { title, due, repeat })}
+            onAdd={(markerId, title, due, repeat, color) => addTaskCore(currentId, markerId, { title, due, repeat, color })}
             onDelete={(markerId, taskId) => deleteTask(currentId, markerId, taskId)}
             onShare={shareTaskToPool}
             onIncrementRepeat={(markerId, taskId) => incrementRepeat(currentId, markerId, taskId)}
@@ -766,6 +765,7 @@ function AppShell({ onThemeChange }) {
             paddingHorizontal: 12, paddingVertical: 10, backgroundColor: bar,
           }}>
             {screen.parentId ? (
+              
               <Pressable
                 onPress={() => { setEditMode(false); setCurrentId(screen.parentId); }}
                 style={{ flexDirection: "row", alignItems: "center", gap: 4, minWidth: 36 }}
@@ -787,7 +787,10 @@ function AppShell({ onThemeChange }) {
                     <Pressable
                       onPress={() => {
                         if (!isLast) {
+                          // закрыть все оверлеи
+                          resetNav();
                           setEditMode(false);
+                          setEditAction("none");
                           setCurrentId(crumb.id);
                         }
                       }}
@@ -859,7 +862,7 @@ function AppShell({ onThemeChange }) {
             {screen.image && (
               <Image
                 source={resolveImageSource(screen.image)}
-                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%" }}
                 resizeMode="cover"
               />
             )}
@@ -1008,6 +1011,7 @@ function AppShell({ onThemeChange }) {
               mode="editField"
               title="Редактировать поле"
               confirmLabel="Сохранить"
+              showColor={false}
               initialValues={{
                 name: editingField.name,
                 emoji: editingField.emoji,

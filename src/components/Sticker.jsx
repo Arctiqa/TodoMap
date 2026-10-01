@@ -10,7 +10,7 @@ import {
   PIN_SIZE,
 } from "../constants/config";
 import { isTaskExpired } from "../utils/date";
-import { BLUE } from "../theme/palettes";
+import { BLUE, GREEN } from "../theme/palettes";
 import { GUIDE_BY_KEY } from "../constants/guides";
 
 function pctToPx(pct, total) {
@@ -438,6 +438,34 @@ function StickerInner({
             {notesDone}/{notes.length}
           </Text>
         )}
+
+        {sticker.repeat && (
+          <>
+            <View
+              style={{
+                height: 3,
+                borderRadius: 1.5,
+                backgroundColor: ink,
+                opacity: 0.15,
+                marginTop: 3,
+                overflow: "hidden",
+              }}
+            >
+              <View
+                style={{
+                  height: 3,
+                  borderRadius: 1.5,
+                  backgroundColor: GREEN,
+                  width: `${Math.round((sticker.repeat.count / sticker.repeat.target) * 100)}%`,
+                }}
+              />
+            </View>
+            <Text style={{ fontSize: 9, color: ink, opacity: 0.5, marginTop: 1, fontFamily: "monospace" }}>
+              {sticker.repeat.count}/{sticker.repeat.target}
+            </Text>
+          </>
+        )}
+
 
         {guide && (
           <View

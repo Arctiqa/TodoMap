@@ -17,7 +17,7 @@ import { useTheme } from "../theme/ThemeContext";
 import { GREEN_SOFT, PALETTE } from "../theme/palettes";
 
 // Чёрный первым + 8 из общей палитры = 9 цветов
-const STICKER_COLORS = ["#000000", ...PALETTE];
+const STICKER_COLORS = [...PALETTE, "#27c7c7"];
 
 export function AddTaskBar({
   targetMarkerId,
@@ -46,7 +46,7 @@ export function AddTaskBar({
   useEffect(() => {
     Animated.timing(animValue, {
       toValue: collapsed ? 0 : 1,
-      duration: 250,
+      duration: 180,
       useNativeDriver: false,
     }).start();
   }, [collapsed]);

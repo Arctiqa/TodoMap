@@ -20,6 +20,7 @@ export const TaskRow = memo(function TaskRow({
 }) {
   const { ink, card, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
   const t = entry.task;
+  const color = t.color;
   const expired = !isDone && isTaskExpired(t);
   const notes = t.notes || [];
   const notesDone = notes.filter((n) => n.done).length;
@@ -42,6 +43,20 @@ export const TaskRow = memo(function TaskRow({
         SHADOW.md,
       ]}
     >
+      
+      {color && (
+        <View
+          style={{
+            width: 6,
+            borderRadius: 3,
+            backgroundColor: color,
+            alignSelf: "stretch",
+            borderWidth: 1,
+            borderColor: ink,
+          }}
+        />
+      )}      
+      
       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: SPACING.sm }}>
         {/* Эмодзи метки */}
         <View
@@ -113,38 +128,16 @@ export const TaskRow = memo(function TaskRow({
         </View>
       </View>
 
-      {(hasNotes || hasRepeat) && (
-        <View style={{ marginTop: SPACING.sm, gap: SPACING.xs }}>
-          {hasNotes && (
+        {hasRepeat && (
+          <View style={{ marginTop: SPACING.sm, gap: SPACING.xs }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: SPACING.sm }}>
-              <ProgressBar
-                value={notesDone}
-                max={notes.length}
-                color={GREEN}
-                height={5}
-                style={{ flex: 1 }}
-              />
-              <Text style={{ ...TYPE.monoSm, color: ink, opacity: 0.55, minWidth: 30, textAlign: "right" }}>
-                {notesDone}/{notes.length}
-              </Text>
-            </View>
-          )}
-          {hasRepeat && (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: SPACING.sm }}>
-              <ProgressBar
-                value={t.repeat.count}
-                max={t.repeat.target}
-                color={GREEN}
-                height={5}
-                style={{ flex: 1 }}
-              />
+              <ProgressBar value={t.repeat.count} max={t.repeat.target} color={GREEN} height={5} style={{ flex: 1 }} />
               <Text style={{ ...TYPE.monoSm, color: ink, opacity: 0.55, minWidth: 30, textAlign: "right" }}>
                 {t.repeat.count}/{t.repeat.target}
               </Text>
             </View>
-          )}
-        </View>
-      )}
+          </View>
+        )}
 
       {withActions && (onReturn || onComplete || onDelete) && (
         <View

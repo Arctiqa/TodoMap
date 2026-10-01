@@ -23,6 +23,7 @@ export function useTasks({
       source: payload.source || undefined,
       guideOfferId: payload.guideOfferId || undefined,
       repeat: payload.repeat || null,
+      color: payload.color || null,
     };
     setScreens((prev) => {
       const scr = prev[screenId];
@@ -286,6 +287,7 @@ export function useTasks({
         source: sticker.source || undefined,
         guideOfferId: sticker.guideOfferId || undefined,
         repeat: sticker.repeat || null,
+        color: sticker.color || null,
       };
 
       return {
@@ -324,7 +326,7 @@ export function useTasks({
         repeat: task.repeat || null,
         x,
         y,
-        color: null,
+        color: task.color || null,
       };
 
       return {

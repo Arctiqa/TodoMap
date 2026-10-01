@@ -201,6 +201,17 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
           </Text>
         </View>
 
+        {task.color && (
+          <View
+            style={{
+              width: 22, height: 22, borderRadius: 11,
+              backgroundColor: task.color,
+              borderWidth: 1.5, borderColor: ink,
+              marginTop: 2,
+            }}
+          />
+        )}
+
         {guide && (
           <View
             style={{
@@ -409,7 +420,7 @@ export function TaskScreen({
                 <TaskRowLongPress
                   task={t}
                   onOpen={(task) => onOpenDetail(task)}
-                  onExtract={!t.done ? onExtractToField : undefined}
+                  onExtract={onExtractToField}
                   onToggle={(taskId) => onToggle(marker.id, taskId)}
                   onIncrementRepeat={(taskId) => onIncrementRepeat && onIncrementRepeat(marker.id, taskId)}
                   onDecrementRepeat={(taskId) => onDecrementRepeat && onDecrementRepeat(marker.id, taskId)}
@@ -425,10 +436,10 @@ export function TaskScreen({
           collapsed={!addBarExpanded}
           onExpand={() => setAddBarExpanded(true)}
           onCollapse={() => setAddBarExpanded(false)}
-          showColorPicker={false}
-          onSubmit={({ title, due, repeat, share }) => {
+          showColorPicker={true}
+          onSubmit={({ title, due, repeat, share, color }) => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            onAdd(marker.id, title, due, repeat);
+            onAdd(marker.id, title, due, repeat, color);
             if (share && onShare) onShare(title, due);
             setAddBarExpanded(false);
           }}

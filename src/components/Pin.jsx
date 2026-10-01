@@ -270,21 +270,20 @@ function PinInner({
             <View
               style={{
                 position: "absolute",
-                bottom: 0,
-                left: 0,
-                width: 20,
-                height: 20,
-                borderRadius: 10,
+                bottom: 0, left: 0,
+                width: 20, height: 20, borderRadius: 10,
                 backgroundColor: editAction === "delete" ? "#E4572E" : card,
-                borderWidth: 2,
-                borderColor: ink,
-                alignItems: "center",
-                justifyContent: "center",
+                borderWidth: 2, borderColor: ink,
+                alignItems: "center", justifyContent: "center",
               }}
             >
-              <Text style={{ fontSize: 10 }}>
-                {editAction === "delete" ? "🗑" : editAction === "edit" ? "✎" : "✥"}
-              </Text>
+              {editAction === "delete" ? (
+                <MaterialIcons name="delete-forever" size={12} color="#fff" />
+              ) : editAction === "edit" ? (
+                <MaterialIcons name="edit" size={11} color={ink} />
+              ) : (
+                <Text style={{ fontSize: 10 }}>✥</Text>
+              )}
             </View>
           )}
         </View>
@@ -330,48 +329,50 @@ function PinInner({
             borderRadius: 6,
           }}
         >
-          {previewTasks.map((t, i) => {
-            const g = t.source ? GUIDE_BY_KEY[t.source] : null;
-            return (
-              <View
-                key={t.id}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 3,
-                  marginTop: i === 0 ? 0 : 2,
-                }}
-              >
-                {g && (
-                  <View
+            {previewTasks.map((t, i) => {
+              const g = t.source ? GUIDE_BY_KEY[t.source] : null;
+              return (
+                <View key={t.id} style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: i === 0 ? 0 : 2 }}>
+                  {g && (
+                    <View
+                      style={{
+                        width: 12, height: 12, borderRadius: 6,
+                        backgroundColor: g.color,
+                        borderWidth: 1, borderColor: ink,
+                        alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <MaterialIcons name={g.icon} size={8} color={ink} />
+                    </View>
+                  )}
+                  <Text
                     style={{
-                      width: 12,
-                      height: 12,
-                      borderRadius: 6,
-                      backgroundColor: g.color,
-                      borderWidth: 1,
-                      borderColor: ink,
-                      alignItems: "center",
-                      justifyContent: "center",
+                      fontSize: 9.5,
+                      fontFamily: "monospace",
+                      color: isTaskExpired(t) ? BLUE : ink,
+                      opacity: isTaskExpired(t) ? 1 : 0.75,
+                      flexShrink: 1,
                     }}
+                    numberOfLines={1}
                   >
-                    <MaterialIcons name={g.icon} size={8} color={ink} />
-                  </View>
-                )}
-                <Text
-                  style={{
-                    fontSize: 9.5,
-                    fontFamily: "monospace",
-                    color: isTaskExpired(t) ? BLUE : ink,
-                    opacity: isTaskExpired(t) ? 1 : 0.75,
-                  }}
-                  numberOfLines={1}
-                >
-                  {shortLabel(t.title)}
-                </Text>
-              </View>
-            );
-          })}
+                    {shortLabel(t.title)}
+                  </Text>
+                  {t.repeat && (
+                    <Text
+                      style={{
+                        fontSize: 9.5,
+                        fontFamily: "monospace",
+                        color: ink,
+                        opacity: 0.5,
+                      }}
+                    >
+                      {t.repeat.count}/{t.repeat.target}
+                    </Text>
+                  )}
+                </View>
+              );
+            })}
+            
           {hasMore && (
             <Text
               style={{

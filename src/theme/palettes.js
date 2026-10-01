@@ -73,7 +73,7 @@ export const THEMES = {
   },
 };
 
-export const PALETTE = ["#FF4B3E", "#00C9A7", "#FFC300", "#8B2FC9", "#2D6CDF", "#FF6F00", "#00A8E8", "#E6399B"];
+export const PALETTE = ["#da2a1e", "#10bda0", "#FFC300", "#8B2FC9", "#1f73b8", "#ff8325", "#2c8f13", "#E39BB5" ];
 
 // Семантические цвета — одинаковы во всех темах
 export const GREEN = "#2ECC71";

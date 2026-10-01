@@ -19,6 +19,7 @@ import { PALETTE } from "../../theme/palettes";
 import { PLACE_HINTS } from "../../constants/hints";
 import { CUSTOM_BACKGROUNDS } from "../../constants/backgrounds";
 import { resolveImageSource } from "../../data/initialScreens";
+const PIN_PALETTE = [...PALETTE, "#27c7c7"];
 
 export function NewPinForm({
   title,
@@ -39,7 +40,7 @@ export function NewPinForm({
   const isEditField = mode === "editField";
 
   const [name, setName] = useState(initialValues?.name || "");
-  const [emoji, setEmoji] = useState(initialValues?.emoji || "📍");
+  const [emoji, setEmoji] = useState(initialValues?.emoji || "");
   const [color, setColor] = useState(initialValues?.color || PALETTE[0]);
   const [type, setType] = useState(initialValues?.type || "general");
   const [image, setImage] = useState(initialValues?.image || null);
@@ -164,8 +165,9 @@ export function NewPinForm({
                     </Pressable>
                   )}
                 </View>
-
-                {/* Готовые фоны */}
+   
+              {/* Готовые фоны */}
+              {!showColor && (  
                 <View style={{ marginBottom: 14 }}>
                   <Text style={{ fontSize: 11.5, color: ink, opacity: 0.6, marginBottom: 6 }}>
                     Готовые фоны
@@ -200,12 +202,13 @@ export function NewPinForm({
                     })}
                   </View>
                 </View>
+              )}  
 
                 {/* Эмодзи + Имя */}
                 <View style={{ flexDirection: "row", gap: 6, marginBottom: 14 }}>
                   <TextInput
                     value={emoji}
-                    onChangeText={(v) => setEmoji(Array.from(v).slice(0, 4).join(""))}
+                    onChangeText={(v) => setEmoji(Array.from(v).slice(0, 1).join(""))}
                     style={{ width: 44, textAlign: "center", fontSize: 18, borderWidth: 2, borderColor: ink, borderRadius: 8, paddingVertical: 6, color: ink, backgroundColor: card }}
                   />
                   <TextInput
@@ -291,6 +294,7 @@ export function NewPinForm({
               </View>
 
               {/* Готовые фоны */}
+              {!showColor && (
               <View style={{ marginBottom: 10 }}>
                 <Text style={{ fontSize: 11.5, color: ink, opacity: 0.6, marginBottom: 6 }}>
                   Готовые фоны
@@ -325,11 +329,12 @@ export function NewPinForm({
                   })}
                 </View>
               </View>
+              )}
 
               <View style={{ flexDirection: "row", gap: 6, marginBottom: 8 }}>
                 <TextInput
                   value={emoji}
-                  onChangeText={(v) => setEmoji(Array.from(v).slice(0, 4).join(""))}
+                  onChangeText={(v) => setEmoji(Array.from(v).slice(0, 1).join(""))}
                   style={{ width: 44, textAlign: "center", fontSize: 18, borderWidth: 2, borderColor: ink, borderRadius: 8, paddingVertical: 6, color: ink, backgroundColor: card }}
                 />
                 <TextInput
@@ -354,11 +359,16 @@ export function NewPinForm({
                 <>
                   <Text style={{ fontSize: 11.5, color: ink, opacity: 0.6, marginBottom: 6 }}>Цвет метки</Text>
                   <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-                    {PALETTE.map((c) => (
+                    {PIN_PALETTE.map((c) => (
                       <Pressable
                         key={c}
                         onPress={() => setColor(c)}
-                        style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: c, borderWidth: color === c ? 3 : 2, borderColor: color === c ? ink : "transparent" }}
+                        style={{
+                          width: 24, height: 24, borderRadius: 12,
+                          backgroundColor: c,
+                          borderWidth: color === c ? 3 : 2,
+                          borderColor: color === c ? ink : (c === "#FFFFFF" ? ink : "transparent"),
+                        }}
                       />
                     ))}
                   </View>

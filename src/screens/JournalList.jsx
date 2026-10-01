@@ -17,9 +17,9 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 const SORTS = [
+  { key: "markers", label: "По меткам" },
   { key: "added",   label: "Добавление" },
   { key: "alpha",   label: "А–Я" },
-  { key: "markers", label: "По меткам" },
 ];
 
 function byAdded(a, b) {
@@ -74,7 +74,7 @@ export function JournalList({
   onReturnTask, onCompleteTask, onDeleteTask,
 }) {
   const { ink, card, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
-  const [mode, setMode] = useState("added");
+  const [mode, setMode] = useState("markers");
   const [doneFilter, setDoneFilter] = useState("all");
   const [pendingDelete, setPendingDelete] = useState(null);
   const scrollRef = useRef(null);
