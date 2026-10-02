@@ -830,6 +830,18 @@ function AppShell({ onThemeChange }) {
               setMapSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })
             }
           >
+            {/* Long-press по фону */}
+            {!editMode && screen.parentId && (
+              <Pressable
+                onLongPress={() => {
+                  setEditMode(false);
+                  setCurrentId(screen.parentId);
+                }}
+                delayLongPress={500}
+                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}
+              />
+            )}
+            
             {/* Тап вне AddTaskBar — свернуть в плашку */}
             {addTaskBarExpanded && !addTaskBarMinimized && (
               <Pressable

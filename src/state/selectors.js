@@ -4,7 +4,8 @@ import { FIELD_MARKER_ID } from "../constants/config";
 
 export function findMarker(screens, screenId, markerId) {
   const scr = screens[screenId];
-  return scr ? scr.markers.find((m) => m.id === markerId) : null;
+  if (!scr) return null;
+  return scr.markers.find((m) => m.id === markerId) || null;
 }
 
 export function findTask(screens, screenId, markerId, taskId) {
@@ -14,7 +15,7 @@ export function findTask(screens, screenId, markerId, taskId) {
     return (scr.stickers || []).find((s) => s.id === taskId) || null;
   }
   const mk = findMarker(screens, screenId, markerId);
-  return mk ? (mk.tasks || []).find((t) => t.id === taskId) : null;
+  return mk ? (mk.tasks || []).find((t) => t.id === taskId) || null : null;
 }
 
 export function allEntries(screens) {
