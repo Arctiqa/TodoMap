@@ -160,9 +160,11 @@ export const TRANSLATIONS = {
     "settings.exportTxtHint": "Читаемый лог с датами",
     "settings.close": "Закрыть",
 
-    "language.title": "🌐 ЯЗЫК",
-    "language.system": "Системный",
-    "language.restartHint": "Для применения арабского нужен перезапуск приложения",
+	"language.title": "🌐 ЯЗЫК",
+	"language.system": "Системный",
+	"language.restartTitle": "Сменить язык?",
+	"language.restartConfirm": "Для смены направления текста требуется перезапустить приложение.",
+	"language.restartOk": "Перезапустить",
 
     "theme.title": "🎨 ТЕМА",
 
@@ -356,9 +358,11 @@ export const TRANSLATIONS = {
     "settings.exportTxtHint": "Readable log with dates",
     "settings.close": "Close",
 
-    "language.title": "🌐 LANGUAGE",
-    "language.system": "System",
-    "language.restartHint": "Arabic requires an app restart to apply",
+	"language.title": "🌐 LANGUAGE",
+	"language.system": "System",
+	"language.restartTitle": "Change language?",
+	"language.restartConfirm": "Changing the text direction requires restarting the app.",
+	"language.restartOk": "Restart",
 
     "theme.title": "🎨 THEME",
 
@@ -552,9 +556,11 @@ export const TRANSLATIONS = {
     "settings.exportTxtHint": "Registro legible con fechas",
     "settings.close": "Cerrar",
 
-    "language.title": "🌐 IDIOMA",
-    "language.system": "Sistema",
-    "language.restartHint": "El árabe requiere reiniciar la app",
+	"language.title": "🌐 IDIOMA",
+	"language.system": "Sistema",
+	"language.restartTitle": "¿Cambiar idioma?",
+	"language.restartConfirm": "Cambiar la dirección del texto requiere reiniciar la app.",
+	"language.restartOk": "Reiniciar",
 
     "theme.title": "🎨 TEMA",
 
@@ -748,9 +754,11 @@ export const TRANSLATIONS = {
     "settings.exportTxtHint": "Registro legível com datas",
     "settings.close": "Fechar",
 
-    "language.title": "🌐 IDIOMA",
-    "language.system": "Sistema",
-    "language.restartHint": "O árabe requer reiniciar o app",
+	"language.title": "🌐 IDIOMA",
+	"language.system": "Sistema",
+	"language.restartTitle": "Mudar idioma?",
+	"language.restartConfirm": "Mudar a direção do texto exige reiniciar o app.",
+	"language.restartOk": "Reiniciar",
 
     "theme.title": "🎨 TEMA",
 
@@ -944,9 +952,11 @@ export const TRANSLATIONS = {
     "settings.exportTxtHint": "तारीख़ों वाला पठनीय लॉग",
     "settings.close": "बंद करें",
 
-    "language.title": "🌐 भाषा",
-    "language.system": "सिस्टम",
-    "language.restartHint": "अरबी के लिए ऐप रीस्टार्ट ज़रूरी है",
+	"language.title": "🌐 भाषा",
+	"language.system": "सिस्टम",
+	"language.restartTitle": "भाषा बदलें?",
+	"language.restartConfirm": "टेक्स्ट की दिशा बदलने के लिए ऐप को पुनः आरंभ करना ज़रूरी है।",
+	"language.restartOk": "पुनः आरंभ करें",
 
     "theme.title": "🎨 थीम",
 
@@ -1140,9 +1150,11 @@ export const TRANSLATIONS = {
     "settings.exportTxtHint": "سجل مقروء مع التواريخ",
     "settings.close": "إغلاق",
 
-    "language.title": "🌐 اللغة",
-    "language.system": "النظام",
-    "language.restartHint": "العربية تتطلب إعادة تشغيل التطبيق",
+	"language.title": "🌐 اللغة",
+	"language.system": "النظام",
+	"language.restartTitle": "تغيير اللغة؟",
+	"language.restartConfirm": "تغيير اتجاه النص يتطلب إعادة تشغيل التطبيق.",
+	"language.restartOk": "إعادة التشغيل",
 
     "theme.title": "🎨 المظهر",
 
@@ -1336,9 +1348,11 @@ export const TRANSLATIONS = {
     "settings.exportTxtHint": "Log terbaca dengan tanggal",
     "settings.close": "Tutup",
 
-    "language.title": "🌐 BAHASA",
-    "language.system": "Sistem",
-    "language.restartHint": "Arab memerlukan mulai ulang aplikasi",
+	"language.title": "🌐 BAHASA",
+	"language.system": "Sistem",
+	"language.restartTitle": "Ganti bahasa?",
+	"language.restartConfirm": "Mengubah arah teks memerlukan mulai ulang aplikasi.",
+	"language.restartOk": "Mulai ulang",
 
     "theme.title": "🎨 TEMA",
 
@@ -1532,9 +1546,11 @@ export const TRANSLATIONS = {
     "settings.exportTxtHint": "日付付きの読みやすいログ",
     "settings.close": "閉じる",
 
-    "language.title": "🌐 言語",
-    "language.system": "システム",
-    "language.restartHint": "アラビア語にはアプリの再起動が必要です",
+	"language.title": "🌐 言語",
+	"language.system": "システム",
+	"language.restartTitle": "言語を変更しますか？",
+	"language.restartConfirm": "テキストの方向を変更するにはアプリの再起動が必要です。",
+	"language.restartOk": "再起動",
 
     "theme.title": "🎨 テーマ",
 
