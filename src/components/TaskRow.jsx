@@ -2,6 +2,7 @@ import React, { memo } from "react";
 import { View, Text, Pressable } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
+import { useT, useRTL } from "../i18n/LanguageContext";
 import { BLUE, GREEN, RED, TEAL } from "../theme/palettes";
 import { isTaskExpired, formatRemaining, fmtDate } from "../utils/date";
 import { ProgressBar } from "./ui/ProgressBar";
@@ -19,14 +20,16 @@ export const TaskRow = memo(function TaskRow({
   onDelete,
 }) {
   const { ink, card, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
-  const t = entry.task;
-  const color = t.color;
-  const expired = !isDone && isTaskExpired(t);
-  const notes = t.notes || [];
+  const t = useT();
+  const isRTL = useRTL();
+  const task = entry.task;
+  const color = task.color;
+  const expired = !isDone && isTaskExpired(task);
+  const notes = task.notes || [];
   const notesDone = notes.filter((n) => n.done).length;
   const hasNotes = notes.length > 0;
-  const hasRepeat = !!t.repeat;
-  const guide = t.source ? GUIDE_BY_KEY[t.source] : null;
+  const hasRepeat = !!task.repeat;
+  const guide = task.source ? GUIDE_BY_KEY[task.source] : null;
 
   return (
     <Pressable
@@ -43,7 +46,6 @@ export const TaskRow = memo(function TaskRow({
         SHADOW.md,
       ]}
     >
-      
       {color && (
         <View
           style={{
@@ -55,10 +57,9 @@ export const TaskRow = memo(function TaskRow({
             borderColor: ink,
           }}
         />
-      )}      
-      
-      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: SPACING.sm }}>
-        {/* Эмодзи метки */}
+      )}
+
+      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "flex-start", gap: SPACING.sm }}>
         <View
           style={{
             width: 36,
@@ -72,17 +73,17 @@ export const TaskRow = memo(function TaskRow({
           <Text style={{ fontSize: 16 }}>{entry.markerEmoji}</Text>
         </View>
 
-        {/* Центральная колонка */}
         <View style={{ flex: 1 }}>
           <Text
             style={{
               ...TYPE.bodyBold,
               color: expired ? BLUE : ink,
               textDecorationLine: isDone ? "line-through" : "none",
+              textAlign: isRTL ? "right" : "left",
             }}
             numberOfLines={2}
           >
-            {t.title}
+            {task.title}
           </Text>
 
           {showPath && (
@@ -92,6 +93,7 @@ export const TaskRow = memo(function TaskRow({
                 color: ink,
                 opacity: 0.5,
                 marginTop: 2,
+                textAlign: isRTL ? "right" : "left",
               }}
               numberOfLines={1}
             >
@@ -100,8 +102,7 @@ export const TaskRow = memo(function TaskRow({
           )}
         </View>
 
-        {/* Правая колонка: срок + иконка гида */}
-        <View style={{ alignItems: "flex-end", maxWidth: 90, gap: 4 }}>
+        <View style={{ alignItems: isRTL ? "flex-start" : "flex-end", maxWidth: 90, gap: 4 }}>
           <Text
             style={{
               ...TYPE.monoSm,
@@ -111,7 +112,7 @@ export const TaskRow = memo(function TaskRow({
             }}
             numberOfLines={1}
           >
-            {isDone && t.completedAt ? fmtDate(t.completedAt) : formatRemaining(t.due)}
+            {isDone && task.completedAt ? fmtDate(task.completedAt) : formatRemaining(task.due, t)}
           </Text>
           {guide && (
             <View
@@ -128,34 +129,34 @@ export const TaskRow = memo(function TaskRow({
         </View>
       </View>
 
-        {hasRepeat && (
-          <View style={{ marginTop: SPACING.sm, gap: SPACING.xs }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: SPACING.sm }}>
-              <ProgressBar value={t.repeat.count} max={t.repeat.target} color={GREEN} height={5} style={{ flex: 1 }} />
-              <Text style={{ ...TYPE.monoSm, color: ink, opacity: 0.55, minWidth: 30, textAlign: "right" }}>
-                {t.repeat.count}/{t.repeat.target}
-              </Text>
-            </View>
+      {hasRepeat && (
+        <View style={{ marginTop: SPACING.sm, gap: SPACING.xs }}>
+          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: SPACING.sm }}>
+            <ProgressBar value={task.repeat.count} max={task.repeat.target} color={GREEN} height={5} style={{ flex: 1 }} />
+            <Text style={{ ...TYPE.monoSm, color: ink, opacity: 0.55, minWidth: 30, textAlign: isRTL ? "left" : "right" }}>
+              {task.repeat.count}/{task.repeat.target}
+            </Text>
           </View>
-        )}
+        </View>
+      )}
 
       {withActions && (onReturn || onComplete || onDelete) && (
         <View
           style={{
-            flexDirection: "row",
+            flexDirection: isRTL ? "row-reverse" : "row",
             gap: SPACING.sm,
             marginTop: SPACING.md,
             flexWrap: "wrap",
           }}
         >
           {onReturn && (
-            <ActionButton icon="undo" label="Вернуть" color={ink} onPress={onReturn} />
+            <ActionButton icon="undo" label={t("journal.return")} color={ink} onPress={onReturn} />
           )}
           {onComplete && (
-            <ActionButton icon="check" label="Выполнено" color={TEAL} filled onPress={onComplete} />
+            <ActionButton icon="check" label={t("journal.complete")} color={TEAL} filled onPress={onComplete} />
           )}
           {onDelete && (
-            <ActionButton icon="delete-outline" label="Удалить" color={RED} onPress={onDelete} />
+            <ActionButton icon="delete-outline" label={t("journal.delete")} color={RED} onPress={onDelete} />
           )}
         </View>
       )}
@@ -165,6 +166,7 @@ export const TaskRow = memo(function TaskRow({
 
 function ActionButton({ icon, label, color, onPress, filled = false }) {
   const { RADIUS, SPACING } = useTheme();
+  const isRTL = useRTL();
   return (
     <Pressable
       onPress={(ev) => {
@@ -172,7 +174,7 @@ function ActionButton({ icon, label, color, onPress, filled = false }) {
         onPress();
       }}
       style={({ pressed }) => ({
-        flexDirection: "row",
+        flexDirection: isRTL ? "row-reverse" : "row",
         alignItems: "center",
         gap: 4,
         paddingHorizontal: SPACING.md,

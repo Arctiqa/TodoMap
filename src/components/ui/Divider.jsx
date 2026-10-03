@@ -1,3 +1,4 @@
+// components/ui/Divider.jsx
 import React from "react";
 import { View, Text } from "react-native";
 import { useTheme } from "../../theme/ThemeContext";

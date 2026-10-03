@@ -1,3 +1,4 @@
+// utils/date.js
 export const todayStr = (offset = 0) => {
   const d = new Date();
   d.setDate(d.getDate() + offset);
@@ -7,7 +8,6 @@ export const todayStr = (offset = 0) => {
   return `${y}-${m}-${day}`;
 };
 
-// Быстрый парсинг даты — без new Date(строка)
 export function toDate(due) {
   if (!due) return null;
 
@@ -33,38 +33,43 @@ export function toDate(due) {
   return null;
 }
 
-// Универсальное форматирование "сколько осталось" — общее для duration и date
-function formatDiff(diffMs) {
-  if (diffMs <= 0) return "⏰ истекло";
-  if (diffMs < 60000) return "меньше минуты";
+// t — функция перевода; если не передана, фоллбэк на ключи
+function formatDiff(diffMs, t) {
+  if (diffMs <= 0) return t("common.expired");
+  if (diffMs < 60000) return t("common.lessThanMin");
 
   if (diffMs < 86400000) {
     const diffMin = Math.round(diffMs / 60000);
-    if (diffMin < 60) return `через ${diffMin} мин`;
+    if (diffMin < 60) return t("common.throughMin", { n: diffMin });
     const diffH = Math.floor(diffMin / 60);
     const remMin = diffMin % 60;
 
     if (diffMin < 6 * 60) {
-      return remMin > 0 ? `через ${diffH} ч ${remMin} мин` : `через ${diffH} ч`;
+      return remMin > 0
+        ? t("common.throughHMin", { h: diffH, m: remMin })
+        : t("common.throughH", { n: diffH });
     }
-    return `через ${diffH} ч`;
+    return t("common.throughH", { n: diffH });
   }
 
   const diffDays = Math.ceil(diffMs / 86400000);
-  return diffDays === 1 ? "через 1 день" : `через ${diffDays} дн.`;
+  return diffDays === 1
+    ? t("common.throughDay")
+    : t("common.throughDays", { n: diffDays });
 }
 
-export function formatRemaining(due) {
-  if (!due) return "без срока";
+export function formatRemaining(due, t) {
+  const tr = t || ((k) => k);
+  if (!due) return tr("common.noDeadline");
 
   if (due.kind === "duration") {
-    if (!due.target) return "без срока";
-    return formatDiff(due.target - Date.now());
+    if (!due.target) return tr("common.noDeadline");
+    return formatDiff(due.target - Date.now(), tr);
   }
 
   const d = toDate(due);
-  if (!d) return "без срока";
-  return formatDiff(d.getTime() - Date.now());
+  if (!d) return tr("common.noDeadline");
+  return formatDiff(d.getTime() - Date.now(), tr);
 }
 
 export function isTaskExpired(task) {
@@ -74,7 +79,6 @@ export function isTaskExpired(task) {
   return d.getTime() - Date.now() <= 0;
 }
 
-// Быстрое форматирование — без toLocaleDateString
 export function fmtDate(ts) {
   if (!ts) return "";
   const d = new Date(ts);

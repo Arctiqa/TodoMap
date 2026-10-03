@@ -1,9 +1,10 @@
+// components/ui/Chip.jsx
 import React from "react";
 import { Pressable, Text } from "react-native";
 import { useTheme } from "../../theme/ThemeContext";
 
 export function Chip({ label, active, onPress, style, size = "md" }) {
-  const { ink, card, paper, RADIUS, SPACING, muted } = useTheme();
+  const { ink, card, paper, RADIUS, muted } = useTheme();
 
   const h = size === "sm" ? 26 : 32;
   const fs = size === "sm" ? 11 : 12.5;

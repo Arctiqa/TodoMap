@@ -1,7 +1,9 @@
+// components/ui/EmptyState.jsx
 import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "../../theme/ThemeContext";
+import { useRTL } from "../../i18n/LanguageContext";
 import { GREEN } from "../../theme/palettes";
 
 export function EmptyState({
@@ -14,6 +16,7 @@ export function EmptyState({
   compact = false,
 }) {
   const { ink, muted, SPACING, RADIUS, TYPE } = useTheme();
+  const isRTL = useRTL();
 
   return (
     <View
@@ -65,6 +68,8 @@ export function EmptyState({
             borderRadius: RADIUS.pill,
             opacity: pressed ? 0.85 : 1,
             transform: [{ scale: pressed ? 0.97 : 1 }],
+            flexDirection: isRTL ? "row-reverse" : "row",
+            alignItems: "center",
           })}
         >
           <Text style={{ color: "#000", fontWeight: "700", fontSize: 13 }}>

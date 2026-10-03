@@ -2,6 +2,7 @@ import React, { useRef, useCallback, useEffect, useState } from "react";
 import { View, Text, PanResponder, Animated, Easing } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
+import { useRTL } from "../i18n/LanguageContext";
 import {
   STICKER_SIZE,
   STICKER_LONG_PRESS,
@@ -37,6 +38,7 @@ function StickerInner({
   isOverTrashRef,
 }) {
   const { ink, card, paper } = useTheme();
+  const isRTL = useRTL();
 
   const xRef = useRef(pctToPx(sticker.x, containerSize.width || 1));
   const yRef = useRef(pctToPx(sticker.y, containerSize.height || 1));
@@ -423,7 +425,6 @@ function StickerInner({
           overflow: "hidden",
         }}
       >
-        {/* Полоски как в тетради */}
         {Array.from({ length: STRIPE_COUNT }).map((_, i) => (
           <View
             key={i}
@@ -439,7 +440,6 @@ function StickerInner({
           />
         ))}
 
-        {/* Текст на полосках */}
         <Text
           style={{
             fontSize: 10,
@@ -447,6 +447,7 @@ function StickerInner({
             lineHeight: STRIPE_STEP,
             color: expired ? BLUE : ink,
             textDecorationLine: sticker.done ? "line-through" : "none",
+            textAlign: isRTL ? "right" : "left",
           }}
           numberOfLines={5}
         >
@@ -457,7 +458,7 @@ function StickerInner({
           <View
             style={{
               position: "absolute",
-              right: 4,
+              [isRTL ? "left" : "right"]: 4,
               bottom: 4,
               width: 18,
               height: 18,
@@ -471,7 +472,7 @@ function StickerInner({
           >
             <MaterialIcons name={guide.icon} size={11} color={ink} />
           </View>
-        )}        
+        )}
 
         {notes.length > 0 && (
           <Text

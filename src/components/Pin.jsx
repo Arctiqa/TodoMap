@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useCallback, useEffect, useState } from "react"
 import { View, Text, Pressable, PanResponder, Image, Animated, Easing } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
+import { useRTL } from "../i18n/LanguageContext";
 import { PIN_BOUNDS, PIN_SIZE } from "../constants/config";
 import { shortLabel } from "../utils/text";
 import { isTaskExpired } from "../utils/date";
@@ -32,6 +33,7 @@ function PinInner({
   const appear = useRef(new Animated.Value(0)).current;
   const hoverScale = useRef(new Animated.Value(1)).current;
   const { ink, card, paper, ring } = useTheme();
+  const isRTL = useRTL();
 
   const isBig = !!marker.linkTo;
   const size = isBig ? PIN_SIZE.special : PIN_SIZE.normal;
@@ -140,15 +142,15 @@ function PinInner({
     })
   ).current;
 
-  const doneCount = marker.tasks ? marker.tasks.filter((t) => t.done).length : 0;
+  const doneCount = marker.tasks ? marker.tasks.filter((tsk) => tsk.done).length : 0;
   const total = marker.tasks ? marker.tasks.length : 0;
 
   const previewTasks = useMemo(() => {
     if (!marker.tasks) return [];
-    return marker.tasks.filter((t) => !t.done).slice(0, MAX_PREVIEW);
+    return marker.tasks.filter((tsk) => !tsk.done).slice(0, MAX_PREVIEW);
   }, [marker.tasks]);
 
-  const activeCount = marker.tasks ? marker.tasks.filter((t) => !t.done).length : 0;
+  const activeCount = marker.tasks ? marker.tasks.filter((tsk) => !tsk.done).length : 0;
   const hasMore = activeCount > MAX_PREVIEW;
 
   const imageSource = useMemo(() => resolveImageSource(marker.image), [marker.image]);
@@ -231,7 +233,7 @@ function PinInner({
               style={{
                 position: "absolute",
                 bottom: 0,
-                right: 0,
+                [isRTL ? "left" : "right"]: 0,
                 width: BADGE,
                 height: BADGE,
                 borderRadius: BADGE / 2,
@@ -251,7 +253,7 @@ function PinInner({
               style={{
                 position: "absolute",
                 bottom: 0,
-                right: 0,
+                [isRTL ? "left" : "right"]: 0,
                 width: 18,
                 height: 18,
                 borderRadius: 9,
@@ -270,7 +272,8 @@ function PinInner({
             <View
               style={{
                 position: "absolute",
-                bottom: 0, left: 0,
+                bottom: 0,
+                [isRTL ? "right" : "left"]: 0,
                 width: 20, height: 20, borderRadius: 10,
                 backgroundColor: editAction === "delete" ? "#E4572E" : card,
                 borderWidth: 2, borderColor: ink,
@@ -329,10 +332,10 @@ function PinInner({
             borderRadius: 6,
           }}
         >
-            {previewTasks.map((t, i) => {
-              const g = t.source ? GUIDE_BY_KEY[t.source] : null;
+            {previewTasks.map((tsk, i) => {
+              const g = tsk.source ? GUIDE_BY_KEY[tsk.source] : null;
               return (
-                <View key={t.id} style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: i === 0 ? 0 : 2 }}>
+                <View key={tsk.id} style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 3, marginTop: i === 0 ? 0 : 2 }}>
                   {g && (
                     <View
                       style={{
@@ -349,15 +352,15 @@ function PinInner({
                     style={{
                       fontSize: 9.5,
                       fontFamily: "monospace",
-                      color: isTaskExpired(t) ? BLUE : ink,
-                      opacity: isTaskExpired(t) ? 1 : 0.75,
+                      color: isTaskExpired(tsk) ? BLUE : ink,
+                      opacity: isTaskExpired(tsk) ? 1 : 0.75,
                       flexShrink: 1,
                     }}
                     numberOfLines={1}
                   >
-                    {shortLabel(t.title)}
+                    {shortLabel(tsk.title)}
                   </Text>
-                  {t.repeat && (
+                  {tsk.repeat && (
                     <Text
                       style={{
                         fontSize: 9.5,
@@ -366,13 +369,13 @@ function PinInner({
                         opacity: 0.5,
                       }}
                     >
-                      {t.repeat.count}/{t.repeat.target}
+                      {tsk.repeat.count}/{tsk.repeat.target}
                     </Text>
                   )}
                 </View>
               );
             })}
-            
+
           {hasMore && (
             <Text
               style={{

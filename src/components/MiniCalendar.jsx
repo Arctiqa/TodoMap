@@ -1,10 +1,15 @@
+// components/MiniCalendar.jsx
 import React, { useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
+import { useT, useRTL } from "../i18n/LanguageContext";
 import { todayStr } from "../utils/date";
 
 export function MiniCalendar({ value, onChange }) {
   const { ink } = useTheme();
+  const t = useT();
+  const isRTL = useRTL();
+
   const [viewDate, setViewDate] = useState(() => {
     if (value) {
       const [y, m] = value.split("-").map(Number);
@@ -19,7 +24,7 @@ export function MiniCalendar({ value, onChange }) {
   const firstDay = new Date(year, month, 1);
   const startWeekday = (firstDay.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const monthName = viewDate.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+  const monthName = viewDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const todayIso = todayStr(0);
 
   const cells = [];
@@ -32,19 +37,28 @@ export function MiniCalendar({ value, onChange }) {
     onChange(`${year}-${mm}-${dd}`);
   };
 
+  const weekDays = [
+    t("cal.mon"), t("cal.tue"), t("cal.wed"), t("cal.thu"),
+    t("cal.fri"), t("cal.sat"), t("cal.sun"),
+  ];
+
   return (
     <View style={{ borderWidth: 2, borderColor: ink, borderRadius: 8, padding: 8, marginBottom: 8 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
         <Pressable onPress={() => setViewDate(new Date(year, month - 1, 1))} style={{ paddingHorizontal: 8, paddingVertical: 2 }}>
-          <Text style={{ fontSize: 15, color: ink, fontWeight: "bold" }}>‹</Text>
+          <Text style={{ fontSize: 15, color: ink, fontWeight: "bold" }}>
+            {isRTL ? "›" : "‹"}
+          </Text>
         </Pressable>
         <Text style={{ fontSize: 12.5, fontWeight: "bold", color: ink, textTransform: "capitalize" }}>{monthName}</Text>
         <Pressable onPress={() => setViewDate(new Date(year, month + 1, 1))} style={{ paddingHorizontal: 8, paddingVertical: 2 }}>
-          <Text style={{ fontSize: 15, color: ink, fontWeight: "bold" }}>›</Text>
+          <Text style={{ fontSize: 15, color: ink, fontWeight: "bold" }}>
+            {isRTL ? "‹" : "›"}
+          </Text>
         </Pressable>
       </View>
-      <View style={{ flexDirection: "row" }}>
-        {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((d) => (
+      <View style={{ flexDirection: isRTL ? "row-reverse" : "row" }}>
+        {weekDays.map((d) => (
           <Text key={d} style={{ width: `${100 / 7}%`, textAlign: "center", fontSize: 9.5, color: "#8a7a6a" }}>
             {d}
           </Text>
@@ -56,7 +70,12 @@ export function MiniCalendar({ value, onChange }) {
           const isSelected = dateStr && dateStr === value;
           const isToday = dateStr === todayIso;
           return (
-            <Pressable key={i} disabled={!d} onPress={() => d && selectDay(d)} style={{ width: `${100 / 7}%`, aspectRatio: 1, alignItems: "center", justifyContent: "center" }}>
+            <Pressable
+              key={i}
+              disabled={!d}
+              onPress={() => d && selectDay(d)}
+              style={{ width: `${100 / 7}%`, aspectRatio: 1, alignItems: "center", justifyContent: "center" }}
+            >
               {d && (
                 <View
                   style={{

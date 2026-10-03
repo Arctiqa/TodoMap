@@ -2,18 +2,22 @@ import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
+import { useT } from "../i18n/LanguageContext";
+import { useRTL } from "../i18n/LanguageContext";
 import { GREEN } from "../theme/palettes";
-
-const ITEMS = [
-  { key: "menu",    icon: "menu",           label: "Меню",    action: "menu" },
-  { key: "home",    icon: "home",           label: "Главная", action: "home" },
-  { key: "journal", icon: "menu-book",      label: "Журнал",  action: "journal" },
-  { key: "marker",  icon: "add-location-alt", label: "Метка", action: "add-marker" },
-  { key: "others",  icon: "public",         label: "Другие",  action: "others" },
-];
 
 export function BottomBar({ onAction, activeKey }) {
   const { ink, bar } = useTheme();
+  const t = useT();
+  const isRTL = useRTL();
+
+  const ITEMS = [
+    { key: "menu",    icon: "menu",             label: t("bottom.menu"),    action: "menu" },
+    { key: "home",    icon: "home",             label: t("bottom.home"),    action: "home" },
+    { key: "journal", icon: "menu-book",        label: t("bottom.journal"), action: "journal" },
+    { key: "marker",  icon: "add-location-alt", label: t("bottom.marker"),  action: "add-marker" },
+    { key: "others",  icon: "public",           label: t("bottom.others"),  action: "others" },
+  ];
 
   return (
     <View
@@ -29,7 +33,11 @@ export function BottomBar({ onAction, activeKey }) {
         elevation: 14,
       }}
     >
-      <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "center" }}>
+      <View style={{
+        flexDirection: isRTL ? "row-reverse" : "row",
+        justifyContent: "space-around",
+        alignItems: "center",
+      }}>
         {ITEMS.map((item) => {
           const active = activeKey === item.key;
           return (
@@ -58,6 +66,7 @@ export function BottomBar({ onAction, activeKey }) {
                   color: active ? GREEN : ink,
                   marginTop: 2,
                 }}
+                numberOfLines={1}
               >
                 {item.label}
               </Text>

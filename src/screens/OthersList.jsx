@@ -5,19 +5,22 @@ import { Overlay } from "../components/ui/Overlay";
 import { OverlayHeader } from "../components/ui/OverlayHeader";
 import { EmptyState } from "../components/ui/EmptyState";
 import { useTheme } from "../theme/ThemeContext";
+import { useT, useRTL } from "../i18n/LanguageContext";
 import { GREEN, BLUE } from "../theme/palettes";
 import { formatRemaining } from "../utils/date";
 
 export function OthersList({ pool, onClose, onTake, onRefresh }) {
   const { ink, card, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
+  const t = useT();
+  const isRTL = useRTL();
 
   return (
     <Overlay zIndex={57}>
-      <OverlayHeader onBack={onClose} title="🌐 ДРУГИЕ" onClose={onClose} />
+      <OverlayHeader onBack={onClose} title={t("others.title")} onClose={onClose} />
 
-      <View style={{ paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, flexDirection: "row", alignItems: "center", gap: SPACING.sm }}>
-        <Text style={{ flex: 1, ...TYPE.small, color: ink, opacity: 0.55 }}>
-          Задачи, которыми поделились другие.
+      <View style={{ paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: SPACING.sm }}>
+        <Text style={{ flex: 1, ...TYPE.small, color: ink, opacity: 0.55, textAlign: isRTL ? "right" : "left" }}>
+          {t("others.hint")}
         </Text>
         <Pressable
           onPress={onRefresh}
@@ -36,8 +39,8 @@ export function OthersList({ pool, onClose, onTake, onRefresh }) {
         {pool.length === 0 && (
           <EmptyState
             emoji="🌍"
-            title="Пока пусто"
-            subtitle="Никто ещё не поделился задачей. Будь первым — включи «Поделиться» при создании."
+            title={t("others.empty")}
+            subtitle={t("others.emptySub")}
           />
         )}
 
@@ -46,7 +49,9 @@ export function OthersList({ pool, onClose, onTake, onRefresh }) {
             key={`${p.title}-${idx}`}
             style={[
               {
-                flexDirection: "row", alignItems: "center", gap: SPACING.sm,
+                flexDirection: isRTL ? "row-reverse" : "row",
+                alignItems: "center",
+                gap: SPACING.sm,
                 backgroundColor: card,
                 borderRadius: RADIUS.lg,
                 padding: SPACING.md,
@@ -55,10 +60,10 @@ export function OthersList({ pool, onClose, onTake, onRefresh }) {
             ]}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ ...TYPE.bodyBold, color: ink }} numberOfLines={2}>{p.title}</Text>
+              <Text style={{ ...TYPE.bodyBold, color: ink, textAlign: isRTL ? "right" : "left" }} numberOfLines={2}>{p.title}</Text>
               {p.due ? (
-                <Text style={{ ...TYPE.small, color: ink, opacity: 0.55, marginTop: 2 }}>
-                  {formatRemaining(p.due)}
+                <Text style={{ ...TYPE.small, color: ink, opacity: 0.55, marginTop: 2, textAlign: isRTL ? "right" : "left" }}>
+                  {formatRemaining(p.due, t)}
                 </Text>
               ) : null}
             </View>
@@ -85,7 +90,7 @@ export function OthersList({ pool, onClose, onTake, onRefresh }) {
                 transform: [{ scale: pressed ? 0.96 : 1 }],
               })}
             >
-              <Text style={{ color: "#000", fontSize: 12, fontWeight: "800" }}>Взять</Text>
+              <Text style={{ color: "#000", fontSize: 12, fontWeight: "800" }}>{t("others.take")}</Text>
             </Pressable>
           </View>
         ))}

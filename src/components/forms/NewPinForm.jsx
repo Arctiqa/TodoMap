@@ -15,6 +15,7 @@ import * as FileSystem from "expo-file-system";
 import { PrimaryButton } from "../ui/PrimaryButton";
 import { HintsModal } from "../HintsModal";
 import { useTheme } from "../../theme/ThemeContext";
+import { useT, useRTL } from "../../i18n/LanguageContext";
 import { PALETTE } from "../../theme/palettes";
 import { PLACE_HINTS } from "../../constants/hints";
 import { CUSTOM_BACKGROUNDS } from "../../constants/backgrounds";
@@ -35,6 +36,8 @@ export function NewPinForm({
   visible = true,
 }) {
   const { ink, paper, card } = useTheme();
+  const t = useT();
+  const isRTL = useRTL();
 
   const isEdit = mode === "edit";
   const isEditField = mode === "editField";
@@ -140,15 +143,14 @@ export function NewPinForm({
                 contentContainerStyle={{ padding: 18 }}
                 keyboardShouldPersistTaps="handled"
               >
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                   <Text style={{ fontSize: 15, fontWeight: "bold", color: ink }}>{title}</Text>
                   <Pressable onPress={onClose}>
                     <Text style={{ fontSize: 18, color: ink }}>✕</Text>
                   </Pressable>
                 </View>
 
-                {/* Фото */}
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
                   <Pressable
                     onPress={pickImage}
                     style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, borderColor: ink, alignItems: "center", justifyContent: "center", overflow: "hidden", backgroundColor: card }}
@@ -156,8 +158,12 @@ export function NewPinForm({
                     {image ? <Image source={resolveImageSource(image)} style={{ width: 52, height: 52 }} /> : <Text style={{ fontSize: 18 }}>📷</Text>}
                   </Pressable>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 11.5, color: ink, fontWeight: "bold" }}>{image ? "Фото выбрано" : "Своё фото (необязательно)"}</Text>
-                    <Text style={{ fontSize: 10.5, color: ink, opacity: 0.6 }}>Из галереи телефона</Text>
+                    <Text style={{ fontSize: 11.5, color: ink, fontWeight: "bold", textAlign: isRTL ? "right" : "left" }}>
+                      {image ? t("pin.photoPicked") : t("pin.photoOptional")}
+                    </Text>
+                    <Text style={{ fontSize: 10.5, color: ink, opacity: 0.6, textAlign: isRTL ? "right" : "left" }}>
+                      {t("pin.fromGallery")}
+                    </Text>
                   </View>
                   {image && (
                     <Pressable onPress={() => { setImage(null); setBgKey(null); }}>
@@ -165,47 +171,38 @@ export function NewPinForm({
                     </Pressable>
                   )}
                 </View>
-   
-              {/* Готовые фоны */}
-              {!showColor && (  
-                <View style={{ marginBottom: 14 }}>
-                  <Text style={{ fontSize: 11.5, color: ink, opacity: 0.6, marginBottom: 6 }}>
-                    Готовые фоны
-                  </Text>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                    {CUSTOM_BACKGROUNDS.map((bg) => {
-                      const active = bgKey === bg.key;
-                      return (
-                        <Pressable
-                          key={bg.key}
-                          onPress={() => {
-                            setImage(bg.source);
-                            setBgKey(bg.key);
-                          }}
-                          style={{
-                            width: "31%",
-                            aspectRatio: 9 / 16,
-                            borderRadius: 8,
-                            borderWidth: active ? 3 : 1.5,
-                            borderColor: ink,
-                            overflow: "hidden",
-                            backgroundColor: card,
-                          }}
-                        >
-                          <Image
-                            source={bg.source}
-                            style={{ width: "100%", height: "100%" }}
-                            resizeMode="cover"
-                          />
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
-              )}  
 
-                {/* Эмодзи + Имя */}
-                <View style={{ flexDirection: "row", gap: 6, marginBottom: 14 }}>
+                {!showColor && (
+                  <View style={{ marginBottom: 14 }}>
+                    <Text style={{ fontSize: 11.5, color: ink, opacity: 0.6, marginBottom: 6, textAlign: isRTL ? "right" : "left" }}>
+                      {t("pin.presetBgs")}
+                    </Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                      {CUSTOM_BACKGROUNDS.map((bg) => {
+                        const active = bgKey === bg.key;
+                        return (
+                          <Pressable
+                            key={bg.key}
+                            onPress={() => { setImage(bg.source); setBgKey(bg.key); }}
+                            style={{
+                              width: "31%",
+                              aspectRatio: 9 / 16,
+                              borderRadius: 8,
+                              borderWidth: active ? 3 : 1.5,
+                              borderColor: ink,
+                              overflow: "hidden",
+                              backgroundColor: card,
+                            }}
+                          >
+                            <Image source={bg.source} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+
+                <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 6, marginBottom: 14 }}>
                   <TextInput
                     value={emoji}
                     onChangeText={(v) => setEmoji(Array.from(v).slice(0, 1).join(""))}
@@ -214,9 +211,9 @@ export function NewPinForm({
                   <TextInput
                     value={name}
                     onChangeText={setName}
-                    placeholder="Название"
+                    placeholder={t("pin.name")}
                     placeholderTextColor={ink}
-                    style={{ flex: 1, borderWidth: 2, borderColor: ink, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, fontSize: 13.5, color: ink, backgroundColor: card }}
+                    style={{ flex: 1, borderWidth: 2, borderColor: ink, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, fontSize: 13.5, color: ink, backgroundColor: card, textAlign: isRTL ? "right" : "left" }}
                   />
                 </View>
 
@@ -262,7 +259,7 @@ export function NewPinForm({
               contentContainerStyle={{ padding: 18 }}
               keyboardShouldPersistTaps="handled"
             >
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <Text style={{ fontSize: 15, fontWeight: "bold", color: ink }}>{title}</Text>
                 <Pressable onPress={onClose}>
                   <Text style={{ fontSize: 18, color: ink }}>✕</Text>
@@ -270,12 +267,12 @@ export function NewPinForm({
               </View>
 
               {!isEdit && showColor && showPlaceHints && (
-                <Text style={{ fontSize: 11.5, color: ink, opacity: 0.6, fontStyle: "italic", marginBottom: 8, lineHeight: 16 }}>
-                  Введите места, которые представляют для вас интерес — например: универмаг, огород соседа, библиотека, дома родственников и знакомых, или места, в которых вы ещё даже не были, но в них могут быть какие-то ваши цели
+                <Text style={{ fontSize: 11.5, color: ink, opacity: 0.6, fontStyle: "italic", marginBottom: 8, lineHeight: 16, textAlign: isRTL ? "right" : "left" }}>
+                  {t("pin.placeIntro")}
                 </Text>
               )}
 
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
                 <Pressable
                   onPress={pickImage}
                   style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, borderColor: ink, alignItems: "center", justifyContent: "center", overflow: "hidden", backgroundColor: card }}
@@ -283,8 +280,12 @@ export function NewPinForm({
                   {image ? <Image source={resolveImageSource(image)} style={{ width: 52, height: 52 }} /> : <Text style={{ fontSize: 18 }}>📷</Text>}
                 </Pressable>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 11.5, color: ink, fontWeight: "bold" }}>{image ? "Фото выбрано" : "Своё фото (необязательно)"}</Text>
-                  <Text style={{ fontSize: 10.5, color: ink, opacity: 0.6 }}>Из галереи телефона</Text>
+                  <Text style={{ fontSize: 11.5, color: ink, fontWeight: "bold", textAlign: isRTL ? "right" : "left" }}>
+                    {image ? t("pin.photoPicked") : t("pin.photoOptional")}
+                  </Text>
+                  <Text style={{ fontSize: 10.5, color: ink, opacity: 0.6, textAlign: isRTL ? "right" : "left" }}>
+                    {t("pin.fromGallery")}
+                  </Text>
                 </View>
                 {image && (
                   <Pressable onPress={() => { setImage(null); setBgKey(null); }}>
@@ -293,45 +294,37 @@ export function NewPinForm({
                 )}
               </View>
 
-              {/* Готовые фоны */}
               {!showColor && (
-              <View style={{ marginBottom: 10 }}>
-                <Text style={{ fontSize: 11.5, color: ink, opacity: 0.6, marginBottom: 6 }}>
-                  Готовые фоны
-                </Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                  {CUSTOM_BACKGROUNDS.map((bg) => {
-                    const active = bgKey === bg.key;
-                    return (
-                      <Pressable
-                        key={bg.key}
-                        onPress={() => {
-                          setImage(bg.source);
-                          setBgKey(bg.key);
-                        }}
-                        style={{
-                          width: "31%",
-                          aspectRatio: 9 / 16,
-                          borderRadius: 8,
-                          borderWidth: active ? 3 : 1.5,
-                          borderColor: ink,
-                          overflow: "hidden",
-                          backgroundColor: card,
-                        }}
-                      >
-                        <Image
-                          source={bg.source}
-                          style={{ width: "100%", height: "100%" }}
-                          resizeMode="cover"
-                        />
-                      </Pressable>
-                    );
-                  })}
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={{ fontSize: 11.5, color: ink, opacity: 0.6, marginBottom: 6, textAlign: isRTL ? "right" : "left" }}>
+                    {t("pin.presetBgs")}
+                  </Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                    {CUSTOM_BACKGROUNDS.map((bg) => {
+                      const active = bgKey === bg.key;
+                      return (
+                        <Pressable
+                          key={bg.key}
+                          onPress={() => { setImage(bg.source); setBgKey(bg.key); }}
+                          style={{
+                            width: "31%",
+                            aspectRatio: 9 / 16,
+                            borderRadius: 8,
+                            borderWidth: active ? 3 : 1.5,
+                            borderColor: ink,
+                            overflow: "hidden",
+                            backgroundColor: card,
+                          }}
+                        >
+                          <Image source={bg.source} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                        </Pressable>
+                      );
+                    })}
+                  </View>
                 </View>
-              </View>
               )}
 
-              <View style={{ flexDirection: "row", gap: 6, marginBottom: 8 }}>
+              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 6, marginBottom: 8 }}>
                 <TextInput
                   value={emoji}
                   onChangeText={(v) => setEmoji(Array.from(v).slice(0, 1).join(""))}
@@ -340,9 +333,9 @@ export function NewPinForm({
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  placeholder="Название"
+                  placeholder={t("pin.name")}
                   placeholderTextColor={ink}
-                  style={{ flex: 1, borderWidth: 2, borderColor: ink, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, fontSize: 13.5, color: ink, backgroundColor: card }}
+                  style={{ flex: 1, borderWidth: 2, borderColor: ink, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, fontSize: 13.5, color: ink, backgroundColor: card, textAlign: isRTL ? "right" : "left" }}
                 />
               </View>
 
@@ -351,13 +344,15 @@ export function NewPinForm({
                   onPress={() => setShowHints(true)}
                   style={{ alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: ink, borderRadius: 8, paddingVertical: 6, marginBottom: 12, backgroundColor: card }}
                 >
-                  <Text style={{ fontSize: 12, color: ink }}>💡 Подсказки — какие места бывают?</Text>
+                  <Text style={{ fontSize: 12, color: ink }}>{t("pin.hintsBtn")}</Text>
                 </Pressable>
               )}
 
               {showColor && (
                 <>
-                  <Text style={{ fontSize: 11.5, color: ink, opacity: 0.6, marginBottom: 6 }}>Цвет метки</Text>
+                  <Text style={{ fontSize: 11.5, color: ink, opacity: 0.6, marginBottom: 6, textAlign: isRTL ? "right" : "left" }}>
+                    {t("pin.colorLabel")}
+                  </Text>
                   <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
                     {PIN_PALETTE.map((c) => (
                       <Pressable
@@ -376,13 +371,13 @@ export function NewPinForm({
               )}
 
               {!isEdit && showColor && (
-                <Pressable onPress={() => setAsField((v) => !v)} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                <Pressable onPress={() => setAsField((v) => !v)} style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 8, marginBottom: 14 }}>
                   <View style={{ width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center", backgroundColor: asField ? ink : card }}>
                     {asField && <Text style={{ color: paper, fontSize: 12 }}>✓</Text>}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 12.5, color: ink, fontWeight: "bold" }}>🗺 Сделать полем (как «Дом»)</Text>
-                    <Text style={{ fontSize: 10.5, color: ink, opacity: 0.6 }}>Своя карта с метками вместо списка дел</Text>
+                    <Text style={{ fontSize: 12.5, color: ink, fontWeight: "bold", textAlign: isRTL ? "right" : "left" }}>{t("pin.asField")}</Text>
+                    <Text style={{ fontSize: 10.5, color: ink, opacity: 0.6, textAlign: isRTL ? "right" : "left" }}>{t("pin.asFieldHint")}</Text>
                   </View>
                 </Pressable>
               )}
@@ -395,7 +390,7 @@ export function NewPinForm({
 
       {showHints && !isEdit && showPlaceHints && (
         <HintsModal
-          title="💡 Места, куда можно попасть"
+          title={t("pin.hintsTitle")}
           groups={PLACE_HINTS}
           onClose={() => setShowHints(false)}
           onPick={(it) => {

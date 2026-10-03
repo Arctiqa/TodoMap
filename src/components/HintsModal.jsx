@@ -2,9 +2,11 @@ import React from "react";
 import { View, Text, Pressable, ScrollView, Modal } from "react-native";
 import { Chip } from "./ui/Chip";
 import { useTheme } from "../theme/ThemeContext";
+import { useRTL } from "../i18n/LanguageContext";
 
 export function HintsModal({ title, groups, items, onClose, onPick }) {
   const { ink, paper } = useTheme();
+  const isRTL = useRTL();
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <Pressable
@@ -31,7 +33,7 @@ export function HintsModal({ title, groups, items, onClose, onPick }) {
         >
           <View
             style={{
-              flexDirection: "row",
+              flexDirection: isRTL ? "row-reverse" : "row",
               justifyContent: "space-between",
               alignItems: "center",
               padding: 14,
@@ -39,7 +41,7 @@ export function HintsModal({ title, groups, items, onClose, onPick }) {
               borderColor: ink,
             }}
           >
-            <Text style={{ fontSize: 14, fontWeight: "bold", color: ink, flex: 1, paddingRight: 8 }}>
+            <Text style={{ fontSize: 14, fontWeight: "bold", color: ink, flex: 1, paddingRight: 8, textAlign: isRTL ? "right" : "left" }}>
               {title}
             </Text>
             <Pressable onPress={onClose}>
@@ -50,7 +52,7 @@ export function HintsModal({ title, groups, items, onClose, onPick }) {
             {groups &&
               groups.map((g) => (
                 <View key={g.layer} style={{ marginBottom: 14 }}>
-                  <Text style={{ fontSize: 11, color: ink, opacity: 0.6, marginBottom: 6 }}>
+                  <Text style={{ fontSize: 11, color: ink, opacity: 0.6, marginBottom: 6, textAlign: isRTL ? "right" : "left" }}>
                     {g.layer}
                   </Text>
                   <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>

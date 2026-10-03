@@ -9,18 +9,13 @@ import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { EmptyState } from "../components/ui/EmptyState";
 import { TaskRow } from "../components/TaskRow";
 import { useTheme } from "../theme/ThemeContext";
+import { useT, useRTL } from "../i18n/LanguageContext";
 import { GREEN, BLUE, RED, TEAL } from "../theme/palettes";
 import { ThoughtsSection } from "./ThoughtsSection";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   try { UIManager.setLayoutAnimationEnabledExperimental(true); } catch (e) {}
 }
-
-const SORTS = [
-  { key: "markers", label: "По меткам" },
-  { key: "added",   label: "Добавление" },
-  { key: "alpha",   label: "А–Я" },
-];
 
 function byAdded(a, b) {
   const d = (b.task.createdAt || 0) - (a.task.createdAt || 0);
@@ -29,16 +24,17 @@ function byAdded(a, b) {
 }
 
 function byAlpha(a, b) {
-  const d = String(a.task.title || "").localeCompare(String(b.task.title || ""), "ru", { sensitivity: "base" });
+  const d = String(a.task.title || "").localeCompare(String(b.task.title || ""), undefined, { sensitivity: "base" });
   return d !== 0 ? d : byAdded(a, b);
 }
 
-const SectionHeader = memo(function SectionHeader({ title, count, color, open, onToggle, ink, RADIUS, TYPE }) {
+const SectionHeader = memo(function SectionHeader({ title, count, color, open, onToggle, ink, RADIUS }) {
+  const isRTL = useRTL();
   return (
     <Pressable
       onPress={onToggle}
       style={({ pressed }) => ({
-        flexDirection: "row",
+        flexDirection: isRTL ? "row-reverse" : "row",
         alignItems: "center",
         gap: 8,
         paddingVertical: 8,
@@ -47,7 +43,7 @@ const SectionHeader = memo(function SectionHeader({ title, count, color, open, o
       })}
     >
       <MaterialIcons name={open ? "expand-more" : "chevron-right"} size={22} color={ink} />
-      <Text style={{ flex: 1, fontSize: 13, fontWeight: "900", color: color || ink, letterSpacing: 1 }}>
+      <Text style={{ flex: 1, fontSize: 13, fontWeight: "900", color: color || ink, letterSpacing: 1, textAlign: isRTL ? "right" : "left" }}>
         {title}
       </Text>
       <View
@@ -74,6 +70,8 @@ export function JournalList({
   onReturnTask, onCompleteTask, onDeleteTask,
 }) {
   const { ink, card, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
+  const t = useT();
+  const isRTL = useRTL();
   const [mode, setMode] = useState("markers");
   const [doneFilter, setDoneFilter] = useState("all");
   const [pendingDelete, setPendingDelete] = useState(null);
@@ -86,6 +84,12 @@ export function JournalList({
     done: false,
     thoughts: false,
   });
+
+  const SORTS = [
+    { key: "markers", label: t("journal.sortMarkers") },
+    { key: "added",   label: t("journal.sortAdded") },
+    { key: "alpha",   label: t("journal.sortAlpha") },
+  ];
 
   const toggle = useCallback((key) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -104,10 +108,10 @@ export function JournalList({
     const day = 86400000;
     return [...done]
       .filter((e) => {
-        const t = e.task.completedAt || 0;
-        if (doneFilter === "today") return now - t < day;
-        if (doneFilter === "week") return now - t < day * 7;
-        if (doneFilter === "month") return now - t < day * 30;
+        const ts = e.task.completedAt || 0;
+        if (doneFilter === "today") return now - ts < day;
+        if (doneFilter === "week") return now - ts < day * 7;
+        if (doneFilter === "month") return now - ts < day * 30;
         return true;
       })
       .sort((a, b) => (b.task.completedAt || 0) - (a.task.completedAt || 0));
@@ -116,11 +120,11 @@ export function JournalList({
   const items = useMemo(() => {
     const out = [];
 
-    out.push({ type: "header", key: "h_active", section: "active", title: "АКТИВНЫЕ", count: active.length, color: RED });
+    out.push({ type: "header", key: "h_active", section: "active", title: t("journal.active"), count: active.length, color: RED });
     if (openSections.active) {
       out.push({ type: "sortChips", key: "sort_active" });
       if (flatActive.length === 0) {
-        out.push({ title: "Активных дел нет"});
+        out.push({ title: t("journal.noActive") });
       } else if (mode === "markers") {
         const byMarker = new Map();
         flatActive.forEach((e) => {
@@ -135,7 +139,7 @@ export function JournalList({
           byMarker.get(key).items.push(e);
         });
         const blocks = [...byMarker.values()].sort((a, b) =>
-          a.markerName.localeCompare(b.markerName, "ru", { sensitivity: "base" })
+          a.markerName.localeCompare(b.markerName, undefined, { sensitivity: "base" })
         );
         blocks.forEach((block, bi) => {
           out.push({ type: "markerBlock", key: `mb_${block.markerId}_${bi}`, block });
@@ -145,32 +149,32 @@ export function JournalList({
       }
     }
 
-    out.push({ type: "header", key: "h_expired", section: "expired", title: "ПРОВАЛЕННЫЕ", count: expired.length, color: BLUE });
+    out.push({ type: "header", key: "h_expired", section: "expired", title: t("journal.expired"), count: expired.length, color: BLUE });
     if (openSections.expired) {
       if (flatExpired.length === 0) {
-        out.push({ title: "Проваленных нет" });
+        out.push({ title: t("journal.noExpired") });
       } else {
         flatExpired.forEach((e) => out.push({ type: "task", key: `x_${e.task.id}`, entry: e, showPath: true, withActions: true, actionKind: "expired" }));
       }
     }
 
-    out.push({ type: "header", key: "h_done", section: "done", title: "ВЫПОЛНЕННЫЕ", count: done.length, color: TEAL });
+    out.push({ type: "header", key: "h_done", section: "done", title: t("journal.done"), count: done.length, color: TEAL });
     if (openSections.done) {
       out.push({ type: "doneChips", key: "done_chips" });
       if (filteredDone.length === 0) {
-        out.push({ title: "Ничего не найдено" });
+        out.push({ title: t("journal.noDone") });
       } else {
         filteredDone.forEach((e) => out.push({ type: "task", key: `d_${e.task.id}`, entry: e, showPath: true, isDone: true, withActions: true, actionKind: "done" }));
       }
     }
 
-    out.push({ type: "header", key: "h_thoughts", section: "thoughts", title: "МЫСЛИ", count: thoughts.length, color: ink });
+    out.push({ type: "header", key: "h_thoughts", section: "thoughts", title: t("journal.thoughts"), count: thoughts.length, color: ink });
     if (openSections.thoughts) {
       out.push({ type: "thoughts", key: "thoughts_block" });
     }
 
     return out;
-  }, [active, expired, done, thoughts, flatActive, flatExpired, filteredDone, openSections, doneFilter, mode, ink]);
+  }, [active, expired, done, thoughts, flatActive, flatExpired, filteredDone, openSections, doneFilter, mode, ink, t]);
 
   const renderItem = useCallback(({ item }) => {
     switch (item.type) {
@@ -182,13 +186,13 @@ export function JournalList({
             color={item.color}
             open={openSections[item.section]}
             onToggle={() => toggle(item.section)}
-            ink={ink} RADIUS={RADIUS} TYPE={TYPE}
+            ink={ink} RADIUS={RADIUS}
           />
         );
 
       case "sortChips":
         return (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: SPACING.xs, marginBottom: SPACING.sm }}>
+          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: SPACING.xs, marginBottom: SPACING.sm }}>
             {SORTS.map((s) => (
               <Chip key={s.key} label={s.label} active={mode === s.key} onPress={() => setMode(s.key)} size="sm" />
             ))}
@@ -200,7 +204,9 @@ export function JournalList({
           <View style={{ marginBottom: SPACING.lg }}>
             <View
               style={{
-                flexDirection: "row", alignItems: "center", gap: SPACING.sm,
+                flexDirection: isRTL ? "row-reverse" : "row",
+                alignItems: "center",
+                gap: SPACING.sm,
                 paddingVertical: SPACING.xs, marginBottom: SPACING.sm,
               }}
             >
@@ -214,8 +220,8 @@ export function JournalList({
                 <Text style={{ fontSize: 12 }}>{item.block.markerEmoji}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ ...TYPE.smallBold, color: ink }}>{item.block.markerName}</Text>
-                <Text style={{ fontSize: 10, color: ink, opacity: 0.5 }}>
+                <Text style={{ ...TYPE.smallBold, color: ink, textAlign: isRTL ? "right" : "left" }}>{item.block.markerName}</Text>
+                <Text style={{ fontSize: 10, color: ink, opacity: 0.5, textAlign: isRTL ? "right" : "left" }}>
                   {(item.block.screenName || "").replace(/^[^\wА-Яа-я]+/, "")}
                 </Text>
               </View>
@@ -245,12 +251,12 @@ export function JournalList({
 
       case "doneChips":
         return (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: SPACING.xs, marginBottom: SPACING.sm }}>
+          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: SPACING.xs, marginBottom: SPACING.sm }}>
             {[
-              { key: "today", label: "Сегодня" },
-              { key: "week",  label: "Неделя" },
-              { key: "month", label: "Месяц" },
-              { key: "all",   label: "Всё" },
+              { key: "today", label: t("journal.filterToday") },
+              { key: "week",  label: t("journal.filterWeek") },
+              { key: "month", label: t("journal.filterMonth") },
+              { key: "all",   label: t("journal.filterAll") },
             ].map((f) => (
               <Chip key={f.key} label={f.label} active={doneFilter === f.key} onPress={() => setDoneFilter(f.key)} size="sm" />
             ))}
@@ -287,14 +293,13 @@ export function JournalList({
               item.withActions
                 ? () => {
                     if (item.actionKind === "done") {
-                      // без подтверждения
                       onDeleteTask(item.entry);
                     } else {
                       setPendingDelete(item.entry);
                     }
                   }
                 : undefined
-            } 
+            }
             withActions={item.withActions}
             actionKind={item.actionKind}
           />
@@ -313,13 +318,13 @@ export function JournalList({
       default:
         return null;
     }
-  }, [openSections, ink, card, muted, SPACING, RADIUS, SHADOW, TYPE, mode, doneFilter, thoughts, onOpenDetail, onReturnTask, onCompleteTask, onAddThought, onDeleteThought, onConvertThought, toggle]);
+  }, [openSections, ink, card, muted, SPACING, RADIUS, SHADOW, TYPE, mode, doneFilter, thoughts, onOpenDetail, onReturnTask, onCompleteTask, onAddThought, onDeleteThought, onConvertThought, toggle, SORTS, isRTL, t]);
 
   const keyExtractor = useCallback((item) => item.key, []);
 
   return (
     <Overlay zIndex={55}>
-      <OverlayHeader onBack={onClose} title="ЖУРНАЛ" onClose={onClose} />
+      <OverlayHeader onBack={onClose} title={t("journal.title")} onClose={onClose} />
 
       <KeyboardAwareScrollView
         ref={scrollRef}
@@ -335,7 +340,7 @@ export function JournalList({
 
       {pendingDelete && (
         <ConfirmDialog
-          message={`Удалить «${pendingDelete.task.title}» из журнала?`}
+          message={t("journal.deleteConfirm", { title: pendingDelete.task.title })}
           onCancel={() => setPendingDelete(null)}
           onConfirm={() => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -349,10 +354,14 @@ export function JournalList({
         <ConfirmDialog
           message={
             pendingExpiredAction.kind === "return"
-              ? "Вернуть задачу в активные?"
-              : "Отметить задачу выполненной?"
+              ? t("journal.returnConfirm")
+              : t("journal.completeConfirm")
           }
-          confirmLabel={pendingExpiredAction.kind === "return" ? "Вернуть" : "Выполнить"}
+          confirmLabel={
+            pendingExpiredAction.kind === "return"
+              ? t("journal.return")
+              : t("journal.complete")
+          }
           confirmColor={pendingExpiredAction.kind === "return" ? BLUE : GREEN}
           onCancel={() => setPendingExpiredAction(null)}
           onConfirm={() => {
@@ -365,8 +374,6 @@ export function JournalList({
           }}
         />
       )}
-
     </Overlay>
   );
 }
-

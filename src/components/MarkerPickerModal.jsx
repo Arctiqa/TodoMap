@@ -1,10 +1,13 @@
 import React from "react";
 import { View, Text, Pressable, ScrollView, Modal } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
+import { useT, useRTL } from "../i18n/LanguageContext";
 import { screenTitle } from "../utils/text";
 
 export function MarkerPickerModal({ screens, screenId, onPick, onClose }) {
   const { ink, paper, card } = useTheme();
+  const t = useT();
+  const isRTL = useRTL();
 
   const rows = [];
   const currentScreen = screenId ? screens[screenId] : null;
@@ -49,7 +52,7 @@ export function MarkerPickerModal({ screens, screenId, onPick, onClose }) {
         >
           <View
             style={{
-              flexDirection: "row",
+              flexDirection: isRTL ? "row-reverse" : "row",
               justifyContent: "space-between",
               alignItems: "center",
               padding: 14,
@@ -58,7 +61,7 @@ export function MarkerPickerModal({ screens, screenId, onPick, onClose }) {
             }}
           >
             <Text style={{ fontSize: 14, fontWeight: "bold", color: ink }}>
-              Куда поместить дело?
+              {t("markerPicker.title")}
             </Text>
             <Pressable onPress={onClose}>
               <Text style={{ fontSize: 18, color: ink }}>✕</Text>
@@ -66,8 +69,8 @@ export function MarkerPickerModal({ screens, screenId, onPick, onClose }) {
           </View>
           <ScrollView style={{ padding: 12 }}>
             {rows.length === 0 && (
-              <Text style={{ color: ink, opacity: 0.5, fontSize: 12.5, fontStyle: "italic" }}>
-                Пока нет ни одной метки. Сначала создай хотя бы одну.
+              <Text style={{ color: ink, opacity: 0.5, fontSize: 12.5, fontStyle: "italic", textAlign: isRTL ? "right" : "left" }}>
+                {t("markerPicker.empty")}
               </Text>
             )}
             {rows.map((r) => (
@@ -75,7 +78,7 @@ export function MarkerPickerModal({ screens, screenId, onPick, onClose }) {
                 key={`${r.screenId}-${r.markerId}`}
                 onPress={() => onPick(r.screenId, r.markerId)}
                 style={{
-                  flexDirection: "row",
+                  flexDirection: isRTL ? "row-reverse" : "row",
                   alignItems: "center",
                   gap: 8,
                   backgroundColor: card,
@@ -101,10 +104,10 @@ export function MarkerPickerModal({ screens, screenId, onPick, onClose }) {
                   <Text style={{ fontSize: 13 }}>{r.emoji}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13, color: ink, fontWeight: "bold" }}>
+                  <Text style={{ fontSize: 13, color: ink, fontWeight: "bold", textAlign: isRTL ? "right" : "left" }}>
                     {r.markerName}
                   </Text>
-                  <Text style={{ fontSize: 10.5, color: ink, opacity: 0.6 }}>
+                  <Text style={{ fontSize: 10.5, color: ink, opacity: 0.6, textAlign: isRTL ? "right" : "left" }}>
                     {r.screenName.replace(/^[^\wА-Яа-я]+/, "")}
                   </Text>
                 </View>

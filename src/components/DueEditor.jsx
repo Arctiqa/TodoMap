@@ -1,6 +1,8 @@
+// components/DueEditor.jsx
 import React, { useState } from "react";
 import { View, Text, Pressable, Modal } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
+import { useT, useRTL } from "../i18n/LanguageContext";
 import { MiniCalendar } from "./MiniCalendar";
 import { TimeWheelPicker } from "./TimeWheelPicker";
 
@@ -15,27 +17,28 @@ export function DueEditor({
   setDueDays,
 }) {
   const { ink, paper, card, inputBg } = useTheme();
+  const t = useT();
+  const isRTL = useRTL();
   const [showCalendar, setShowCalendar] = useState(false);
   const [showTime, setShowTime] = useState(false);
 
   const displayDate = dueDate
-    ? new Date(`${dueDate}T00:00:00`).toLocaleDateString("ru-RU", {
+    ? new Date(`${dueDate}T00:00:00`).toLocaleDateString(undefined, {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
       })
-    : "Выбрать дату";
+    : t("due.pickDate");
 
-  const displayTime = dueTime || "ЧЧ:ММ";
+  const displayTime = dueTime || t("due.time");
 
   return (
     <View style={{ marginBottom: 12 }}>
-      {/* Переключатель Без срока / Дата / Срок */}
-      <View style={{ flexDirection: "row", gap: 6, marginBottom: 10 }}>
+      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 6, marginBottom: 10 }}>
         {[
-          { key: "none", label: "Без срока" },
-          { key: "date", label: "📅 Дата" },
-          { key: "duration", label: "⏳ Срок" },
+          { key: "none",     label: t("due.none") },
+          { key: "date",     label: t("due.date") },
+          { key: "duration", label: t("due.duration") },
         ].map((opt) => (
           <Pressable
             key={opt.key}
@@ -56,6 +59,8 @@ export function DueEditor({
                 fontWeight: "bold",
                 color: dueMode === opt.key ? paper : ink,
               }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
             >
               {opt.label}
             </Text>
@@ -66,11 +71,9 @@ export function DueEditor({
       {dueMode === "date" && (
         <View>
           <Pressable
-            onPress={() => {
-              setShowCalendar((v) => !v);
-            }}
+            onPress={() => setShowCalendar((v) => !v)}
             style={{
-              flexDirection: "row",
+              flexDirection: isRTL ? "row-reverse" : "row",
               alignItems: "center",
               gap: 8,
               borderWidth: 1,
@@ -99,7 +102,7 @@ export function DueEditor({
           <Pressable
             onPress={() => setShowTime(true)}
             style={{
-              flexDirection: "row",
+              flexDirection: isRTL ? "row-reverse" : "row",
               alignItems: "center",
               gap: 8,
               borderWidth: 1,
@@ -137,7 +140,6 @@ export function DueEditor({
         </View>
       )}
 
-      {/* TimeWheelPicker в Modal — чтобы ScrollView не конфликтовал с родителем */}
       <Modal
         visible={showTime}
         transparent
@@ -158,7 +160,7 @@ export function DueEditor({
           <Pressable onPress={() => {}} style={{ width: "100%", maxWidth: 320 }}>
             <TimeWheelPicker
               value={dueTime || "00:00"}
-              onChange={(t) => setDueTime(t)}
+              onChange={(val) => setDueTime(val)}
               onClose={() => setShowTime(false)}
             />
           </Pressable>
@@ -168,7 +170,7 @@ export function DueEditor({
       {dueMode === "duration" && (
         <View
           style={{
-            flexDirection: "row",
+            flexDirection: isRTL ? "row-reverse" : "row",
             alignItems: "center",
             gap: 10,
             borderWidth: 1,
@@ -219,7 +221,7 @@ export function DueEditor({
             <Text style={{ fontWeight: "bold", color: ink, fontSize: 16 }}>+</Text>
           </Pressable>
           <Text style={{ fontSize: 13, color: ink, opacity: 0.6 }}>
-            дней с отсчётом
+            {t("due.days")}
           </Text>
         </View>
       )}

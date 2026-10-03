@@ -1,11 +1,14 @@
+// components/ui/InfoDialog.jsx
 import React from "react";
 import { View, Text, Modal } from "react-native";
 import { PrimaryButton } from "./PrimaryButton";
 import { useTheme } from "../../theme/ThemeContext";
+import { useT } from "../../i18n/LanguageContext";
 import { GREEN } from "../../theme/palettes";
 
 export function InfoDialog({ message, onClose }) {
   const { ink, paper } = useTheme();
+  const t = useT();
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View
@@ -31,7 +34,7 @@ export function InfoDialog({ message, onClose }) {
           <Text style={{ fontSize: 14, color: ink, marginBottom: 14, textAlign: "center" }}>
             {message}
           </Text>
-          <PrimaryButton label="Ок" color={GREEN} onPress={onClose} />
+          <PrimaryButton label={t("info.ok")} color={GREEN} onPress={onClose} />
         </View>
       </View>
     </Modal>

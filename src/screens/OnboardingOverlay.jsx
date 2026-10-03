@@ -8,31 +8,22 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../theme/ThemeContext";
+import { useT, useRTL } from "../i18n/LanguageContext";
 import { GREEN } from "../theme/palettes";
-
-const SLIDES = [
-  {
-    emoji: "🗺",
-    text: "Добавьте в поле местность, которую вы хотите посетить",
-  },
-  {
-    emoji: "📍",
-    text: "Метка — это объект на местности, который представляет интерес",
-  },
-  {
-    emoji: "📌",
-    text: "В метку можно добавить дела, связанные с этим объектом",
-  },
-  {
-    emoji: "🧩",
-    text: "Распределяйте задачи по меткам, чтобы наглядно увидеть дела, связанные с ней",
-  },
-];
 
 export function OnboardingOverlay({ onDone }) {
   const { ink, paper, muted, SPACING, RADIUS, TYPE } = useTheme();
+  const t = useT();
+  const isRTL = useRTL();
   const [index, setIndex] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;
+
+  const SLIDES = [
+    { emoji: "🗺", text: t("onb.slide1") },
+    { emoji: "📍", text: t("onb.slide2") },
+    { emoji: "📌", text: t("onb.slide3") },
+    { emoji: "🧩", text: t("onb.slide4") },
+  ];
 
   const go = (dir) => {
     const next = Math.max(0, Math.min(SLIDES.length - 1, index + dir));
@@ -81,7 +72,7 @@ export function OnboardingOverlay({ onDone }) {
 
         <View
           style={{
-            flexDirection: "row",
+            flexDirection: isRTL ? "row-reverse" : "row",
             justifyContent: "center",
             gap: 8,
             marginTop: SPACING.xxl,
@@ -113,7 +104,7 @@ export function OnboardingOverlay({ onDone }) {
       </View>
 
       <View style={{ padding: SPACING.lg, gap: SPACING.sm }}>
-        <View style={{ flexDirection: "row", gap: SPACING.sm }}>
+        <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: SPACING.sm }}>
           {index > 0 && (
             <Pressable
               onPress={() => go(-1)}
@@ -128,7 +119,7 @@ export function OnboardingOverlay({ onDone }) {
                 opacity: pressed ? 0.7 : 1,
               })}
             >
-              <Text style={{ color: ink, fontWeight: "700", fontSize: 15 }}>Назад</Text>
+              <Text style={{ color: ink, fontWeight: "700", fontSize: 15 }}>{t("onb.back")}</Text>
             </Pressable>
           )}
 
@@ -144,7 +135,7 @@ export function OnboardingOverlay({ onDone }) {
                 opacity: pressed ? 0.9 : 1,
               })}
             >
-              <Text style={{ color: paper, fontWeight: "700", fontSize: 15 }}>Далее</Text>
+              <Text style={{ color: paper, fontWeight: "700", fontSize: 15 }}>{t("onb.next")}</Text>
             </Pressable>
           ) : (
             <Pressable
@@ -158,7 +149,7 @@ export function OnboardingOverlay({ onDone }) {
                 opacity: pressed ? 0.9 : 1,
               })}
             >
-              <Text style={{ color: "#000", fontWeight: "800", fontSize: 15 }}>Начать</Text>
+              <Text style={{ color: "#000", fontWeight: "800", fontSize: 15 }}>{t("onb.start")}</Text>
             </Pressable>
           )}
         </View>
@@ -168,7 +159,7 @@ export function OnboardingOverlay({ onDone }) {
             onPress={onDone}
             style={{ alignItems: "center", paddingVertical: SPACING.sm }}
           >
-            <Text style={{ ...TYPE.small, color: ink, opacity: 0.5 }}>Пропустить</Text>
+            <Text style={{ ...TYPE.small, color: ink, opacity: 0.5 }}>{t("onb.skip")}</Text>
           </Pressable>
         )}
       </View>

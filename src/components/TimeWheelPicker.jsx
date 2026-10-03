@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import { View, Text, ScrollView, Pressable } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
+import { useT } from "../i18n/LanguageContext";
 
 const ITEM_HEIGHT = 44;
 const VISIBLE = 5;
@@ -69,6 +70,7 @@ function Wheel({ data, value, onChange, onSelect, width }) {
 
 export function TimeWheelPicker({ value, onChange, onClose }) {
   const { ink, paper } = useTheme();
+  const t = useT();
 
   const [hStr, mStr] = (value || "00:00").split(":");
   const h = hStr || "00";
@@ -87,7 +89,7 @@ export function TimeWheelPicker({ value, onChange, onClose }) {
     >
       <View style={{ alignItems: "center", marginBottom: 10 }}>
         <Text style={{ fontSize: 11, color: ink, opacity: 0.6, fontWeight: "bold", letterSpacing: 2 }}>
-          ВРЕМЯ
+          {t("time.title")}
         </Text>
       </View>
 
@@ -99,11 +101,9 @@ export function TimeWheelPicker({ value, onChange, onClose }) {
           onSelect={() => onClose && onClose()}
           width={70}
         />
-
         <Text style={{ fontSize: 34, fontWeight: "900", color: ink, opacity: 0.5, fontFamily: "monospace" }}>
           :
         </Text>
-
         <Wheel
           data={MINUTES}
           value={m}
@@ -113,7 +113,6 @@ export function TimeWheelPicker({ value, onChange, onClose }) {
         />
       </View>
 
-      {/* Полоса-индикатор по центру */}
       <View
         pointerEvents="none"
         style={{

@@ -4,8 +4,8 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { Overlay } from "../components/ui/Overlay";
 import { OverlayHeader } from "../components/ui/OverlayHeader";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
-import { PrimaryButton } from "../components/ui/PrimaryButton";
 import { useTheme } from "../theme/ThemeContext";
+import { useT, useRTL } from "../i18n/LanguageContext";
 import { BLUE, GREEN, RED, TEAL } from "../theme/palettes";
 import { isTaskExpired, fmtDate } from "../utils/date";
 
@@ -20,7 +20,7 @@ function fmtDateTime(ts) {
   return `${day}.${month}.${year} ${hh}:${mm}`;
 }
 
-const HistoryRow = memo(function HistoryRow({ item, ink, card }) {
+const HistoryRow = memo(function HistoryRow({ item, ink, card, t, isRTL }) {
   return (
     <View
       style={{
@@ -32,8 +32,7 @@ const HistoryRow = memo(function HistoryRow({ item, ink, card }) {
         marginBottom: 8,
       }}
     >
-      {/* Верх: эмодзи + название + статус */}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 8 }}>
         <View
           style={{
             width: 28,
@@ -55,11 +54,12 @@ const HistoryRow = memo(function HistoryRow({ item, ink, card }) {
               color: ink,
               fontWeight: "bold",
               textDecorationLine: item.isDone ? "line-through" : "none",
+              textAlign: isRTL ? "right" : "left",
             }}
           >
             {item.task.title}
           </Text>
-          <Text style={{ fontSize: 10, color: ink, opacity: 0.6 }}>
+          <Text style={{ fontSize: 10, color: ink, opacity: 0.6, textAlign: isRTL ? "right" : "left" }}>
             {item.markerName} · {item.screenName.replace(/^[^\wА-Яа-я]+/, "")}
           </Text>
         </View>
@@ -68,19 +68,18 @@ const HistoryRow = memo(function HistoryRow({ item, ink, card }) {
         </Text>
       </View>
 
-      {/* Лог: создано / выполнено / провалено / удалено */}
-      <View style={{ marginTop: 8, gap: 2, paddingLeft: 4 }}>
-        <LogLine icon="add-circle-outline" label="Создано" value={fmtDateTime(item.task.createdAt)} ink={ink} />
+      <View style={{ marginTop: 8, gap: 2, paddingLeft: isRTL ? 0 : 4, paddingRight: isRTL ? 4 : 0 }}>
+        <LogLine icon="add-circle-outline" label={t("history.created")} value={fmtDateTime(item.task.createdAt)} ink={ink} isRTL={isRTL} />
         {item.task.done && item.task.completedAt && (
-          <LogLine icon="check-circle-outline" label="Выполнено" value={fmtDateTime(item.task.completedAt)} color={TEAL} ink={ink} />
+          <LogLine icon="check-circle-outline" label={t("history.completed")} value={fmtDateTime(item.task.completedAt)} color={TEAL} ink={ink} isRTL={isRTL} />
         )}
         {item.isExpired && !item.task.done && (
           <LogLine
             icon="error-outline"
-            label="Провалено"
+            label={t("history.failed")}
             value={
               item.task.due
-                ? `срок до ${fmtDateTime(
+                ? `→ ${fmtDateTime(
                     item.task.due.kind === "duration"
                       ? item.task.due.target
                       : item.task.due.date
@@ -91,15 +90,17 @@ const HistoryRow = memo(function HistoryRow({ item, ink, card }) {
             }
             color={BLUE}
             ink={ink}
+            isRTL={isRTL}
           />
         )}
         {item.removedAt && (
           <LogLine
             icon="delete-outline"
-            label="Удалено"
+            label={t("history.removed")}
             value={fmtDateTime(item.removedAt)}
             color={RED}
             ink={ink}
+            isRTL={isRTL}
           />
         )}
       </View>
@@ -107,11 +108,11 @@ const HistoryRow = memo(function HistoryRow({ item, ink, card }) {
   );
 });
 
-function LogLine({ icon, label, value, color, ink }) {
+function LogLine({ icon, label, value, color, ink, isRTL }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+    <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6 }}>
       <MaterialIcons name={icon} size={12} color={color || ink} style={{ opacity: color ? 1 : 0.5 }} />
-      <Text style={{ fontSize: 10.5, color: ink, opacity: 0.55, minWidth: 70 }}>
+      <Text style={{ fontSize: 10.5, color: ink, opacity: 0.55, minWidth: 70, textAlign: isRTL ? "right" : "left" }}>
         {label}:
       </Text>
       <Text style={{ fontSize: 10.5, color: color || ink, opacity: color ? 1 : 0.75, fontFamily: "monospace" }}>
@@ -123,6 +124,8 @@ function LogLine({ icon, label, value, color, ink }) {
 
 export function HistoryList({ entries, onClose, onClearHistory }) {
   const { ink, card, paper } = useTheme();
+  const t = useT();
+  const isRTL = useRTL();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const enriched = useMemo(() => {
@@ -133,10 +136,10 @@ export function HistoryList({ entries, onClose, onClearHistory }) {
         const isExpired = !isDone && !isRemoved ? isTaskExpired(e.task) : false;
 
         const status = isRemoved
-          ? isDone ? "Выполнено" : "Удалено"
-          : isDone ? "Выполнено"
-          : isExpired ? "Провалено"
-          : "Активно";
+          ? isDone ? t("history.statusDone") : t("history.statusRemoved")
+          : isDone ? t("history.statusDone")
+          : isExpired ? t("history.statusFailed")
+          : t("history.statusActive");
 
         const statusColor = isDone
           ? TEAL
@@ -161,31 +164,29 @@ export function HistoryList({ entries, onClose, onClearHistory }) {
         };
       })
       .sort((a, b) => {
-        // Сначала новые — по последнему событию (удаление, выполнение, создание)
         const aTime = a.removedAt || a.task.completedAt || a.task.createdAt || 0;
         const bTime = b.removedAt || b.task.completedAt || b.task.createdAt || 0;
         return bTime - aTime;
       });
-  }, [entries]);
+  }, [entries, t, ink]);
 
   const renderItem = useCallback(
-    ({ item }) => <HistoryRow item={item} ink={ink} card={card} />,
-    [ink, card]
+    ({ item }) => <HistoryRow item={item} ink={ink} card={card} t={t} isRTL={isRTL} />,
+    [ink, card, t, isRTL]
   );
 
   const keyExtractor = useCallback((item) => item.key, []);
 
   return (
     <Overlay zIndex={55}>
-      <OverlayHeader onBack={onClose} title="🕓 ИСТОРИЯ" onClose={onClose} />
+      <OverlayHeader onBack={onClose} title={t("history.title")} onClose={onClose} />
 
-      {/* Кнопка очистки */}
       {enriched.length > 0 && (
         <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
           <Pressable
             onPress={() => setShowClearConfirm(true)}
             style={{
-              flexDirection: "row",
+              flexDirection: isRTL ? "row-reverse" : "row",
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
@@ -198,7 +199,7 @@ export function HistoryList({ entries, onClose, onClearHistory }) {
           >
             <MaterialIcons name="delete-sweep" size={18} color={RED} />
             <Text style={{ fontSize: 12, color: RED, fontWeight: "bold" }}>
-              Очистить всю историю
+              {t("history.clear")}
             </Text>
           </Pressable>
         </View>
@@ -210,8 +211,8 @@ export function HistoryList({ entries, onClose, onClearHistory }) {
         keyExtractor={keyExtractor}
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         ListEmptyComponent={
-          <Text style={{ color: ink, opacity: 0.5, fontSize: 13, fontStyle: "italic" }}>
-            История пуста.
+          <Text style={{ color: ink, opacity: 0.5, fontSize: 13, fontStyle: "italic", textAlign: isRTL ? "right" : "left" }}>
+            {t("history.empty")}
           </Text>
         }
         initialNumToRender={10}
@@ -222,8 +223,8 @@ export function HistoryList({ entries, onClose, onClearHistory }) {
 
       {showClearConfirm && (
         <ConfirmDialog
-          message="Очистить всю историю? Это действие нельзя отменить."
-          confirmLabel="Очистить"
+          message={t("history.clearConfirm")}
+          confirmLabel={t("confirm.clear")}
           confirmColor={RED}
           onCancel={() => setShowClearConfirm(false)}
           onConfirm={() => {

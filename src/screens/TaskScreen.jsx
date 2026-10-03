@@ -8,6 +8,7 @@ import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ProgressBar } from "../components/ui/ProgressBar";
 import { useTheme } from "../theme/ThemeContext";
+import { useT, useRTL } from "../i18n/LanguageContext";
 import { GREEN, BLUE, TEAL } from "../theme/palettes";
 import { formatRemaining, isTaskExpired } from "../utils/date";
 import { AddTaskBar } from "../components/AddTaskBar";
@@ -21,6 +22,8 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 
 function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat, onDecrementRepeat }) {
   const { ink, card, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
+  const t = useT();
+  const isRTL = useRTL();
   const expired = isTaskExpired(task);
   const [pressing, setPressing] = useState(false);
   const [confirmDone, setConfirmDone] = useState(false);
@@ -54,26 +57,21 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
   };
 
   const notes = task.notes || [];
-  const notesDone = notes.filter((n) => n.done).length;
   const guide = task.source ? GUIDE_BY_KEY[task.source] : null;
 
-  // Тап по галке
   const handleToggle = (e) => {
     e.stopPropagation?.();
     if (task.done) {
-      // снятие — без подтверждения
       onToggle && onToggle(task.id);
       return;
     }
     if (task.source) {
-      // постановка у гида — с подтверждением
       setConfirmDone(true);
     } else {
       onToggle && onToggle(task.id);
     }
   };
 
-  // Тап по «+» прогресса
   const handleIncrement = (e) => {
     e.stopPropagation?.();
     if (!task.repeat) return;
@@ -81,7 +79,6 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
     const willFinish = nextCount >= task.repeat.target;
 
     if (willFinish && task.source) {
-      // сразу инкрементим, потом спрашиваем
       onIncrementRepeat && onIncrementRepeat(task.id);
       setConfirmRepeatFinish(true);
     } else {
@@ -97,7 +94,7 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
         onPress={handlePress}
         style={({ pressed }) => [
           {
-            flexDirection: "row",
+            flexDirection: isRTL ? "row-reverse" : "row",
             alignItems: "flex-start",
             gap: SPACING.sm,
             backgroundColor: card,
@@ -111,7 +108,6 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
           SHADOW.sm,
         ]}
       >
-        {/* Галка / + для repeat */}
         {task.repeat && !task.done && onIncrementRepeat ? (
           <Pressable
             onPress={handleIncrement}
@@ -140,7 +136,6 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
           </Pressable>
         )}
 
-        {/* Колонка с содержимым задачи */}
         <View style={{ flex: 1 }}>
           <Text
             style={{
@@ -149,6 +144,7 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
               textDecorationLine: task.done ? "line-through" : "none",
               opacity: task.done ? 0.65 : 1,
               flexShrink: 1,
+              textAlign: isRTL ? "right" : "left",
             }}
             numberOfLines={2}
           >
@@ -174,6 +170,7 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
                     color: ink,
                     opacity: n.done ? 0.4 : 0.75,
                     textDecorationLine: n.done ? "line-through" : "none",
+                    textAlign: isRTL ? "right" : "left",
                   }}
                   numberOfLines={1}
                 >
@@ -181,8 +178,8 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
                 </Text>
               ))}
               {notes.length > 3 && (
-                <Text style={{ fontSize: 10.5, color: ink, opacity: 0.4 }}>
-                  и ещё {notes.length - 3}
+                <Text style={{ fontSize: 10.5, color: ink, opacity: 0.4, textAlign: isRTL ? "right" : "left" }}>
+                  +{notes.length - 3}
                 </Text>
               )}
             </View>
@@ -195,9 +192,10 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
               color: expired ? BLUE : ink,
               opacity: expired ? 1 : 0.55,
               fontWeight: expired ? "700" : "400",
+              textAlign: isRTL ? "right" : "left",
             }}
           >
-            {formatRemaining(task.due)}
+            {formatRemaining(task.due, t)}
           </Text>
         </View>
 
@@ -245,11 +243,10 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
         )}
       </Pressable>
 
-      {/* Подтверждение: отметить выполненным */}
       {confirmDone && (
         <ConfirmDialog
-          message="Выполнить задание гида?"
-          confirmLabel="Да"
+          message={t("task.confirmGuideDone")}
+          confirmLabel={t("guideTasks.yes")}
           confirmColor={GREEN}
           onCancel={() => setConfirmDone(false)}
           onConfirm={() => {
@@ -259,11 +256,10 @@ function TaskRowLongPress({ task, onOpen, onExtract, onToggle, onIncrementRepeat
         />
       )}
 
-      {/* Подтверждение: завершение серии */}
       {confirmRepeatFinish && (
         <ConfirmDialog
-          message="Выполнить задание гида?"
-          confirmLabel="Да"
+          message={t("task.confirmGuideDone")}
+          confirmLabel={t("guideTasks.yes")}
           confirmColor={GREEN}
           onCancel={() => {
             setConfirmRepeatFinish(false);
@@ -291,6 +287,8 @@ export function TaskScreen({
   onExtractToField,
 }) {
   const { ink, card, paper, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
+  const t = useT();
+  const isRTL = useRTL();
   const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState(null);
   const [copied, setCopied] = useState(false);
   const [addBarExpanded, setAddBarExpanded] = useState(false);
@@ -298,17 +296,17 @@ export function TaskScreen({
 
   const sortedTasks = useMemo(() => {
     if (!marker?.tasks) return [];
-    const active = marker.tasks.filter((t) => !t.done).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-    const done = marker.tasks.filter((t) => t.done).sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+    const active = marker.tasks.filter((tsk) => !tsk.done).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    const done = marker.tasks.filter((tsk) => tsk.done).sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
     return [...active, ...done];
   }, [marker?.tasks]);
 
   const handleCopy = useCallback(async () => {
     if (!marker) return;
-    const activeTasks = (marker.tasks || []).filter((t) => !t.done);
-    const lines = activeTasks.map((t) => {
-      const notes = (t.notes || []).map((n) => `    ${n.done ? "[x]" : "[ ]"} ${n.text}`).join("\n");
-      return `- ${t.title}${notes ? "\n" + notes : ""}`;
+    const activeTasks = (marker.tasks || []).filter((tsk) => !tsk.done);
+    const lines = activeTasks.map((tsk) => {
+      const notes = (tsk.notes || []).map((n) => `    ${n.done ? "[x]" : "[ ]"} ${n.text}`).join("\n");
+      return `- ${tsk.title}${notes ? "\n" + notes : ""}`;
     });
     const text = `${marker.emoji} ${marker.name}\n\n${lines.join("\n")}`;
     await Clipboard.setStringAsync(text);
@@ -337,7 +335,7 @@ export function TaskScreen({
 
   if (!marker) return null;
 
-  const pendingTask = marker.tasks && marker.tasks.find((t) => t.id === pendingDeleteTaskId);
+  const pendingTask = marker.tasks && marker.tasks.find((tsk) => tsk.id === pendingDeleteTaskId);
 
   return (
     <Overlay zIndex={50}>
@@ -349,7 +347,7 @@ export function TaskScreen({
           <Pressable
             onPress={handleCopy}
             style={{
-              flexDirection: "row",
+              flexDirection: isRTL ? "row-reverse" : "row",
               alignItems: "center",
               gap: 4,
               paddingHorizontal: 10,
@@ -366,7 +364,7 @@ export function TaskScreen({
               color={copied ? GREEN : ink}
             />
             <Text style={{ fontSize: 11.5, fontWeight: "700", color: copied ? GREEN : ink }}>
-              {copied ? "OK" : "Копировать"}
+              {copied ? t("task.copied") : t("task.copy")}
             </Text>
           </Pressable>
         }
@@ -391,20 +389,19 @@ export function TaskScreen({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
-
-      {addBarExpanded && !addBarMinimized && (
-        <Pressable
-          style={{
-            position: "absolute",
-            top: 0, left: 0, right: 0, bottom: 0,
-            zIndex: 5,
-          }}
-          onPress={() => {
-            setAddBarExpanded(false);
-            setAddBarMinimized(false);
-          }}
-        />
-      )}
+        {addBarExpanded && !addBarMinimized && (
+          <Pressable
+            style={{
+              position: "absolute",
+              top: 0, left: 0, right: 0, bottom: 0,
+              zIndex: 5,
+            }}
+            onPress={() => {
+              setAddBarExpanded(false);
+              setAddBarMinimized(false);
+            }}
+          />
+        )}
 
         <ScrollView
           style={{ flex: 1 }}
@@ -414,31 +411,31 @@ export function TaskScreen({
           {(!marker.tasks || marker.tasks.length === 0) && (
             <EmptyState
               emoji="✨"
-              title="Пока пусто"
-              subtitle="Самое время добавить первое дело"
+              title={t("task.empty")}
+              subtitle={t("task.emptySub")}
             />
           )}
 
-          {sortedTasks.map((t, index) => {
+          {sortedTasks.map((tsk, index) => {
             const prev = sortedTasks[index - 1];
-            const showActiveDivider = !t.done && (index === 0 || sortedTasks[index - 1].done);
-            const showDoneDivider = t.done && index > 0 && !prev.done;
+            const showActiveDivider = !tsk.done && (index === 0 || sortedTasks[index - 1].done);
+            const showDoneDivider = tsk.done && index > 0 && !prev.done;
 
             return (
-              <React.Fragment key={t.id}>
+              <React.Fragment key={tsk.id}>
                 {showActiveDivider && (
                   <Text style={{ ...TYPE.caption, color: ink, opacity: 0.4, textAlign: "center", marginVertical: SPACING.sm }}>
-                    — АКТИВНЫЕ —
+                    {t("task.activeDivider")}
                   </Text>
                 )}
                 {showDoneDivider && (
                   <Text style={{ ...TYPE.caption, color: ink, opacity: 0.4, textAlign: "center", marginTop: SPACING.lg, marginBottom: SPACING.sm }}>
-                    — ЗАВЕРШЁННЫЕ —
+                    {t("task.doneDivider")}
                   </Text>
                 )}
 
                 <TaskRowLongPress
-                  task={t}
+                  task={tsk}
                   onOpen={(task) => onOpenDetail(task)}
                   onExtract={onExtractToField}
                   onToggle={(taskId) => onToggle(marker.id, taskId)}
@@ -450,31 +447,31 @@ export function TaskScreen({
           })}
         </ScrollView>
 
-      <View style={{ zIndex: 10, position: "relative" }}>        
-        <AddTaskBar
-          visible={true}
-          targetMarkerId={marker.id}
-          collapsed={!addBarExpanded}
-          minimized={addBarMinimized}
-          onExpand={() => { setAddBarExpanded(true); setAddBarMinimized(false); }}
-          onCollapse={() => { setAddBarExpanded(false); setAddBarMinimized(false); }}
-          onMinimize={() => { setAddBarExpanded(false); setAddBarMinimized(true); }}
-          onUnminimize={() => { setAddBarExpanded(false); setAddBarMinimized(false); }}
-          showColorPicker={true}
-          onSubmit={({ title, due, repeat, share, color }) => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            onAdd(marker.id, title, due, repeat, color);
-            if (share && onShare) onShare(title, due);
-            setAddBarExpanded(false);
-            setAddBarMinimized(false);
-          }}
-        />
-      </View>  
+        <View style={{ zIndex: 10, position: "relative" }}>
+          <AddTaskBar
+            visible={true}
+            targetMarkerId={marker.id}
+            collapsed={!addBarExpanded}
+            minimized={addBarMinimized}
+            onExpand={() => { setAddBarExpanded(true); setAddBarMinimized(false); }}
+            onCollapse={() => { setAddBarExpanded(false); setAddBarMinimized(false); }}
+            onMinimize={() => { setAddBarExpanded(false); setAddBarMinimized(true); }}
+            onUnminimize={() => { setAddBarExpanded(false); setAddBarMinimized(false); }}
+            showColorPicker={true}
+            onSubmit={({ title, due, repeat, share, color }) => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              onAdd(marker.id, title, due, repeat, color);
+              if (share && onShare) onShare(title, due);
+              setAddBarExpanded(false);
+              setAddBarMinimized(false);
+            }}
+          />
+        </View>
       </KeyboardAvoidingView>
 
       {pendingTask && (
         <ConfirmDialog
-          message={`Удалить дело «${pendingTask.title}»?`}
+          message={t("task.deleteTask", { title: pendingTask.title })}
           onCancel={() => setPendingDeleteTaskId(null)}
           onConfirm={() => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);

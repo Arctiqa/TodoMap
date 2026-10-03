@@ -1,28 +1,27 @@
-// screens/GuideTasksOverlay.jsx
 import React, { useState, useMemo, useCallback } from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Overlay } from "../components/ui/Overlay";
 import { OverlayHeader } from "../components/ui/OverlayHeader";
 import { useTheme } from "../theme/ThemeContext";
+import { useT, useRTL } from "../i18n/LanguageContext";
 import { GREEN } from "../theme/palettes";
 import { GUIDE_BY_KEY } from "../constants/guides";
 
 export function GuideTasksOverlay({
   guideKey,
-  guideUsedOffers,        // массив id взятых (невыполненных) задач
-  guideCompletedOffers,   // массив id выполненных задач
-  onTakeTask,             // (guideKey, task) => void
+  guideUsedOffers,
+  guideCompletedOffers,
+  onTakeTask,
   onBack,
   onClose,
 }) {
   const { ink, card, paper, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
-
-  // какую задачу сейчас подтверждаем (id), либо null
+  const t = useT();
+  const isRTL = useRTL();
   const [confirmTaskId, setConfirmTaskId] = useState(null);
 
   const guide = GUIDE_BY_KEY[guideKey];
-
   if (!guide) return null;
 
   const meta = { name: guide.name, icon: guide.icon, color: guide.color };
@@ -31,17 +30,15 @@ export function GuideTasksOverlay({
   const usedSet = useMemo(() => new Set(guideUsedOffers || []), [guideUsedOffers]);
   const completedSet = useMemo(() => new Set(guideCompletedOffers || []), [guideCompletedOffers]);
 
-	const handlePick = useCallback((task) => {
-	  const taken = usedSet.has(task.id);
-	  const completed = completedSet.has(task.id);
-    // активная (взята и не выполнена) — повторно взять нельзя
-	  if (taken && !completed) return;
-	  setConfirmTaskId(task.id);
-	}, [usedSet, completedSet]);
-
+  const handlePick = useCallback((task) => {
+    const taken = usedSet.has(task.id);
+    const completed = completedSet.has(task.id);
+    if (taken && !completed) return;
+    setConfirmTaskId(task.id);
+  }, [usedSet, completedSet]);
 
   const handleConfirm = useCallback(() => {
-    const task = tasks.find((t) => t.id === confirmTaskId);
+    const task = tasks.find((tsk) => tsk.id === confirmTaskId);
     setConfirmTaskId(null);
     if (task) onTakeTask(guideKey, task);
   }, [confirmTaskId, tasks, guideKey, onTakeTask]);
@@ -54,7 +51,6 @@ export function GuideTasksOverlay({
     <Overlay zIndex={74} background={paper}>
       <OverlayHeader onBack={onBack} title="" onClose={onClose} />
 
-      {/* Шапка гида */}
       <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
         <View
           style={{
@@ -70,11 +66,13 @@ export function GuideTasksOverlay({
           {meta.name}
         </Text>
         <Text style={{ fontSize: 11, color: ink, opacity: 0.5, marginTop: 2 }}>
-          Выполнено: {guideCompletedOffers ? guideCompletedOffers.filter((id) => id.startsWith(guideKey + "_")).length : 0} / {tasks.length}
+          {t("guideTasks.completed", {
+            done: guideCompletedOffers ? guideCompletedOffers.filter((id) => id.startsWith(guideKey + "_")).length : 0,
+            total: tasks.length,
+          })}
         </Text>
       </View>
 
-      {/* Список задач */}
       <ScrollView
         contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
@@ -90,7 +88,7 @@ export function GuideTasksOverlay({
                 onPress={() => handlePick(task)}
                 style={({ pressed }) => [
                   {
-                    flexDirection: "row",
+                    flexDirection: isRTL ? "row-reverse" : "row",
                     alignItems: "center",
                     gap: SPACING.sm,
                     backgroundColor: card,
@@ -101,7 +99,6 @@ export function GuideTasksOverlay({
                   SHADOW.sm,
                 ]}
               >
-                {/* Иконка гида слева */}
                 <View
                   style={{
                     width: 24, height: 24, borderRadius: 12,
@@ -113,19 +110,18 @@ export function GuideTasksOverlay({
                   <MaterialIcons name={meta.icon} size={13} color={ink} />
                 </View>
 
-                {/* Название задачи */}
                 <Text
                   style={{
                     ...TYPE.body,
                     color: ink,
                     flex: 1,
+                    textAlign: isRTL ? "right" : "left",
                   }}
                   numberOfLines={3}
                 >
                   {task.title}
                 </Text>
 
-                {/* Индикатор «взята» — справа, если взята и не выполнена */}
                 {taken && !completed && (
                   <View
                     style={{
@@ -139,13 +135,11 @@ export function GuideTasksOverlay({
                   </View>
                 )}
 
-                {/* Если выполнена — галочка бледная (без активного фона) */}
                 {completed && (
                   <MaterialIcons name="check-circle" size={20} color={ink} style={{ opacity: 0.6 }} />
                 )}
               </Pressable>
 
-              {/* Инлайн-подтверждение */}
               {confirming && (
                 <View
                   style={{
@@ -157,10 +151,10 @@ export function GuideTasksOverlay({
                     padding: SPACING.md,
                   }}
                 >
-                  <Text style={{ ...TYPE.body, color: ink, marginBottom: SPACING.sm }}>
-                    {`Взять задачу «${task.title}»?`}
+                  <Text style={{ ...TYPE.body, color: ink, marginBottom: SPACING.sm, textAlign: isRTL ? "right" : "left" }}>
+                    {t("guideTasks.takeConfirm", { title: task.title })}
                   </Text>
-                  <View style={{ flexDirection: "row", gap: SPACING.sm }}>
+                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: SPACING.sm }}>
                     <Pressable
                       onPress={handleConfirm}
                       style={({ pressed }) => ({
@@ -174,7 +168,7 @@ export function GuideTasksOverlay({
                         opacity: pressed ? 0.85 : 1,
                       })}
                     >
-                      <Text style={{ color: "#000", fontWeight: "800", fontSize: 13 }}>Да</Text>
+                      <Text style={{ color: "#000", fontWeight: "800", fontSize: 13 }}>{t("guideTasks.yes")}</Text>
                     </Pressable>
                     <Pressable
                       onPress={handleCancel}
@@ -189,7 +183,7 @@ export function GuideTasksOverlay({
                         opacity: pressed ? 0.85 : 1,
                       })}
                     >
-                      <Text style={{ color: ink, fontWeight: "800", fontSize: 13 }}>Нет</Text>
+                      <Text style={{ color: ink, fontWeight: "800", fontSize: 13 }}>{t("guideTasks.no")}</Text>
                     </Pressable>
                   </View>
                 </View>

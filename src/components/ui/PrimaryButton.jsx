@@ -1,6 +1,8 @@
+// components/ui/PrimaryButton.jsx
 import React from "react";
 import { Pressable, Text, ActivityIndicator } from "react-native";
 import { useTheme } from "../../theme/ThemeContext";
+import { useRTL } from "../../i18n/LanguageContext";
 
 export function PrimaryButton({
   label,
@@ -10,10 +12,11 @@ export function PrimaryButton({
   style,
   disabled = false,
   loading = false,
-  size = "md",       // "sm" | "md" | "lg"
-  variant = "solid", // "solid" | "outline" | "ghost"
+  size = "md",
+  variant = "solid",
 }) {
   const { ink, RADIUS, SPACING, SHADOW } = useTheme();
+  const isRTL = useRTL();
 
   const heights = { sm: 36, md: 46, lg: 54 };
   const fontSizes = { sm: 13, md: 14, lg: 16 };
@@ -39,7 +42,7 @@ export function PrimaryButton({
           paddingHorizontal: SPACING.md,
           alignItems: "center",
           justifyContent: "center",
-          flexDirection: "row",
+          flexDirection: isRTL ? "row-reverse" : "row",
           gap: SPACING.sm,
           opacity: disabled ? 0.4 : pressed ? 0.9 : 1,
           transform: [{ scale: pressed ? 0.97 : 1 }],

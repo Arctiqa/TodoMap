@@ -1,14 +1,19 @@
+// components/ui/OverlayHeader.jsx
 import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "../../theme/ThemeContext";
+import { useRTL } from "../../i18n/LanguageContext";
 
 export function OverlayHeader({ onBack, title, onClose, right }) {
   const { ink } = useTheme();
+  const isRTL = useRTL();
+  const backIcon = isRTL ? "arrow-forward" : "arrow-back";
+
   return (
     <View
       style={{
-        flexDirection: "row",
+        flexDirection: isRTL ? "row-reverse" : "row",
         alignItems: "center",
         justifyContent: "space-between",
         paddingHorizontal: 16,
@@ -18,8 +23,8 @@ export function OverlayHeader({ onBack, title, onClose, right }) {
         position: "relative",
       }}
     >
-      <Pressable onPress={onBack} style={{ minWidth: 40, alignItems: "flex-start", zIndex: 2 }}>
-        <MaterialIcons name="arrow-back" size={24} color={ink} />
+      <Pressable onPress={onBack} style={{ minWidth: 40, alignItems: isRTL ? "flex-end" : "flex-start", zIndex: 2 }}>
+        <MaterialIcons name={backIcon} size={24} color={ink} />
       </Pressable>
 
       <Text
@@ -37,7 +42,7 @@ export function OverlayHeader({ onBack, title, onClose, right }) {
         {title}
       </Text>
 
-      <View style={{ minWidth: 40, alignItems: "flex-end", zIndex: 2 }}>
+      <View style={{ minWidth: 40, alignItems: isRTL ? "flex-start" : "flex-end", zIndex: 2 }}>
         {right || null}
       </View>
     </View>

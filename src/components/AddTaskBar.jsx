@@ -1,3 +1,4 @@
+// components/AddTaskBar.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -14,6 +15,7 @@ import {
 import { DueEditor } from "./DueEditor";
 import { PrimaryButton } from "./ui/PrimaryButton";
 import { useTheme } from "../theme/ThemeContext";
+import { useT, useRTL } from "../i18n/LanguageContext";
 import { GREEN_SOFT, PALETTE } from "../theme/palettes";
 
 const STICKER_COLORS = [...PALETTE, "#3ec9ec"];
@@ -32,6 +34,9 @@ export function AddTaskBar({
   showColorPicker = true,
 }) {
   const { ink, card, paper, inputBg } = useTheme();
+  const t = useT();
+  const isRTL = useRTL();
+
   const [title, setTitle] = useState("");
   const [dueMode, setDueMode] = useState("none");
   const [dueDate, setDueDate] = useState("");
@@ -45,7 +50,6 @@ export function AddTaskBar({
   const animValue = useRef(new Animated.Value(collapsed ? 0 : 1)).current;
   const scrollRef = useRef(null);
 
-  // refs, чтобы PanResponder видел актуальное состояние
   const stateRef = useRef({ collapsed, minimized });
   stateRef.current = { collapsed, minimized };
 
@@ -60,40 +64,24 @@ export function AddTaskBar({
     }).start();
   }, [collapsed]);
 
-  // ОДИН PanResponder на все состояния.
-  // Реагирует на свайпы вниз/вверх, но НЕ трогает тапы.
   const swipeResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, g) => {
-        // только вертикальные свайпы
         return Math.abs(g.dy) > 12 && Math.abs(g.dy) > Math.abs(g.dx) * 1.2;
       },
       onPanResponderRelease: (_, g) => {
         const { collapsed, minimized } = stateRef.current;
         const { onExpand, onCollapse, onMinimize, onUnminimize } = callbacksRef.current;
 
-        // свайп вниз
         if (g.dy > 50) {
-          if (!collapsed && !minimized) {
-            // развёрнутое → плашка
-            onCollapse && onCollapse();
-          } else if (collapsed && !minimized) {
-            // плашка → полоска
-            onMinimize && onMinimize();
-          }
+          if (!collapsed && !minimized) onCollapse && onCollapse();
+          else if (collapsed && !minimized) onMinimize && onMinimize();
           return;
         }
-
-        // свайп вверх
         if (g.dy < -50) {
-          if (minimized) {
-            // полоска → плашка
-            onUnminimize && onUnminimize();
-          } else if (collapsed) {
-            // плашка → развёрнутое
-            onExpand && onExpand();
-          }
+          if (minimized) onUnminimize && onUnminimize();
+          else if (collapsed) onExpand && onExpand();
           return;
         }
       },
@@ -135,7 +123,7 @@ export function AddTaskBar({
     onCollapse && onCollapse();
   };
 
-  // ----- ПОЛОСТКА (полностью свёрнутое) -----
+  // ----- ПОЛОСКА (минимизировано) -----
   if (minimized) {
     return (
       <View {...swipeResponder.panHandlers}>
@@ -162,14 +150,14 @@ export function AddTaskBar({
     );
   }
 
-  // ----- ПЛАШКА (свёрнутое) -----
+  // ----- ПЛАШКА (свёрнуто) -----
   if (collapsed) {
     return (
       <View {...swipeResponder.panHandlers}>
         <Pressable
           onPress={() => onExpand && onExpand()}
           style={({ pressed }) => ({
-            flexDirection: "row",
+            flexDirection: isRTL ? "row-reverse" : "row",
             alignItems: "center",
             justifyContent: "center",
             gap: 8,
@@ -188,7 +176,7 @@ export function AddTaskBar({
         >
           <MaterialIcons name="add" size={22} color={ink} />
           <Text style={{ fontSize: 15, color: ink, fontWeight: "700" }}>
-            Добавить дело
+            {t("addTask.add")}
           </Text>
         </Pressable>
       </View>
@@ -251,7 +239,7 @@ export function AddTaskBar({
             <TextInput
               value={title}
               onChangeText={setTitle}
-              placeholder="Новое дело..."
+              placeholder={t("addTask.placeholder")}
               placeholderTextColor="#9A9A9A"
               style={{
                 borderWidth: 1,
@@ -263,6 +251,7 @@ export function AddTaskBar({
                 marginBottom: 12,
                 color: ink,
                 backgroundColor: inputBg,
+                textAlign: isRTL ? "right" : "left",
               }}
             />
 
@@ -280,7 +269,7 @@ export function AddTaskBar({
             <Pressable
               onPress={() => setRepeatOn((v) => !v)}
               style={{
-                flexDirection: "row",
+                flexDirection: isRTL ? "row-reverse" : "row",
                 alignItems: "center",
                 gap: 8,
                 marginBottom: repeatOn ? 8 : 12,
@@ -300,13 +289,13 @@ export function AddTaskBar({
               >
                 {repeatOn && <Text style={{ color: paper, fontSize: 13 }}>✓</Text>}
               </View>
-              <Text style={{ fontSize: 13.5, color: ink }}>Серия повторов</Text>
+              <Text style={{ fontSize: 13.5, color: ink }}>{t("addTask.repeat")}</Text>
             </Pressable>
 
             {repeatOn && (
               <View
                 style={{
-                  flexDirection: "row",
+                  flexDirection: isRTL ? "row-reverse" : "row",
                   alignItems: "center",
                   gap: 10,
                   borderWidth: 1,
@@ -341,14 +330,16 @@ export function AddTaskBar({
                 >
                   <Text style={{ fontWeight: "bold", color: ink, fontSize: 16 }}>+</Text>
                 </Pressable>
-                <Text style={{ fontSize: 13, color: ink, opacity: 0.6 }}> раз до завершения</Text>
+                <Text style={{ fontSize: 13, color: ink, opacity: 0.6 }}>
+                  {t("addTask.repeatTimes")}
+                </Text>
               </View>
             )}
 
             <Pressable
               onPress={() => setShareToPool((v) => !v)}
               style={{
-                flexDirection: "row",
+                flexDirection: isRTL ? "row-reverse" : "row",
                 alignItems: "center",
                 gap: 8,
                 marginBottom: 12,
@@ -364,13 +355,13 @@ export function AddTaskBar({
               >
                 {shareToPool && <Text style={{ color: paper, fontSize: 13 }}>✓</Text>}
               </View>
-              <Text style={{ fontSize: 13.5, color: ink }}>Поделиться задачей</Text>
+              <Text style={{ fontSize: 13.5, color: ink }}>{t("addTask.share")}</Text>
             </Pressable>
 
             {showColorPicker && (
               <>
-                <Text style={{ fontSize: 13.5, color: ink, marginBottom: 8 }}>
-                  Цвет стикера
+                <Text style={{ fontSize: 13.5, color: ink, marginBottom: 8, textAlign: isRTL ? "right" : "left" }}>
+                  {t("addTask.color")}
                 </Text>
                 <View
                   style={{
@@ -407,7 +398,7 @@ export function AddTaskBar({
             )}
 
             <PrimaryButton
-              label="Добавить дело"
+              label={t("addTask.add")}
               color={GREEN_SOFT}
               textColor="#000"
               onPress={submit}

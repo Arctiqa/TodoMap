@@ -1,17 +1,18 @@
-// screens/BackgroundPickerOverlay.jsx
 import React from "react";
 import { View, Text, Pressable, Image, Modal } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
+import { useT, useRTL } from "../i18n/LanguageContext";
 import { CUSTOM_BACKGROUNDS } from "../constants/backgrounds";
 
 export function BackgroundPickerOverlay({ current, onSelect, onClose }) {
   const { ink, paper, card } = useTheme();
+  const t = useT();
+  const isRTL = useRTL();
 
-  // Формируем список: 6 кастомных + 1 "По умолчанию" в конце
   const items = [
-    { key: "default", label: "По умолчанию", source: null, isDefault: true },
-	...CUSTOM_BACKGROUNDS.map((bg) => ({ key: bg.key, label: bg.label, source: bg.source, isDefault: false })),
-    ];
+    { key: "default", label: t("bg.default"), source: null, isDefault: true },
+    ...CUSTOM_BACKGROUNDS.map((bg) => ({ key: bg.key, label: bg.label, source: bg.source, isDefault: false })),
+  ];
 
   const renderItem = (item) => {
     const isActive = item.isDefault ? current == null : current === item.source;
@@ -19,12 +20,9 @@ export function BackgroundPickerOverlay({ current, onSelect, onClose }) {
     return (
       <Pressable
         key={item.key}
-        onPress={() => {
-
-          onSelect(item.isDefault ? "__DEFAULT__" : item.source);
-        }}
+        onPress={() => onSelect(item.isDefault ? "__DEFAULT__" : item.source)}
         style={{
-          width: "31%",              // ~3 в ряд
+          width: "31%",
           aspectRatio: 9 / 16,
           marginBottom: 10,
           borderRadius: 10,
@@ -39,7 +37,7 @@ export function BackgroundPickerOverlay({ current, onSelect, onClose }) {
           {item.isDefault ? (
             <View style={{ alignItems: "center", justifyContent: "center", padding: 4 }}>
               <Text style={{ fontSize: 22, marginBottom: 2 }}>🏠</Text>
-              <Text style={{ fontSize: 9.5, color: ink, textAlign: "center" }}>По умолчанию</Text>
+              <Text style={{ fontSize: 9.5, color: ink, textAlign: "center" }}>{t("bg.default")}</Text>
             </View>
           ) : (
             <Image
@@ -79,21 +77,20 @@ export function BackgroundPickerOverlay({ current, onSelect, onClose }) {
         >
           <View
             style={{
-              flexDirection: "row",
+              flexDirection: isRTL ? "row-reverse" : "row",
               alignItems: "center",
               justifyContent: "space-between",
               marginBottom: 12,
             }}
           >
             <Text style={{ fontSize: 14, fontWeight: "bold", color: ink }}>
-              🖼 Фон поля
+              {t("bg.title")}
             </Text>
             <Pressable onPress={onClose}>
               <Text style={{ fontSize: 18, color: ink, opacity: 0.6 }}>✕</Text>
             </Pressable>
           </View>
 
-          {/* Сетка 3 в ряд, переносим */}
           <View
             style={{
               flexDirection: "row",

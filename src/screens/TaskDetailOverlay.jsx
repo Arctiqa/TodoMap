@@ -14,6 +14,7 @@ import { Overlay } from "../components/ui/Overlay";
 import { OverlayHeader } from "../components/ui/OverlayHeader";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { useTheme } from "../theme/ThemeContext";
+import { useT, useRTL } from "../i18n/LanguageContext";
 import { GREEN, BLUE, RED, TEAL } from "../theme/palettes";
 import { isTaskExpired, formatRemaining } from "../utils/date";
 import { GUIDE_BY_KEY } from "../constants/guides";
@@ -35,6 +36,8 @@ export function TaskDetailOverlay({
   onUncomplete,
 }) {
   const { ink, card, paper, inputBg } = useTheme();
+  const t = useT();
+  const isRTL = useRTL();
   const [note, setNote] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [tempTitle, setTempTitle] = useState(task?.title || "");
@@ -47,8 +50,6 @@ export function TaskDetailOverlay({
 
   const expired = isTaskExpired(task);
   const notes = task.notes || [];
-  const doneCount = notes.filter((n) => n.done).length;
-  const total = notes.length;
   const guide = task.source ? GUIDE_BY_KEY[task.source] : null;
 
   const submitNote = () => {
@@ -71,13 +72,11 @@ export function TaskDetailOverlay({
     setRenaming(false);
   };
 
-  // Кнопка «Отметить выполненным»
   const handleComplete = () => {
     if (task.source) setConfirmDone(true);
     else onComplete();
   };
 
-  // Кнопка «+» прогресса
   const handleIncrement = () => {
     if (!task.repeat) return;
     const nextCount = task.repeat.count + 1;
@@ -105,8 +104,7 @@ export function TaskDetailOverlay({
             contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Заголовок */}
-            <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
               {renaming ? (
                 <TextInput
                   value={tempTitle}
@@ -126,11 +124,12 @@ export function TaskDetailOverlay({
                     paddingHorizontal: 12,
                     paddingVertical: 8,
                     backgroundColor: inputBg,
+                    textAlign: isRTL ? "right" : "left",
                   }}
                 />
               ) : (
                 <>
-                  <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <View style={{ flex: 1, flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 8 }}>
                     {guide && (
                       <View
                         style={{
@@ -149,6 +148,7 @@ export function TaskDetailOverlay({
                         fontSize: 19,
                         fontWeight: "bold",
                         color: expired ? BLUE : ink,
+                        textAlign: isRTL ? "right" : "left",
                       }}
                     >
                       {task.title}
@@ -171,13 +171,12 @@ export function TaskDetailOverlay({
             </View>
 
             {(markerName || screenName) && (
-              <Text style={{ fontSize: 11.5, color: ink, opacity: 0.6, marginBottom: 16 }}>
+              <Text style={{ fontSize: 11.5, color: ink, opacity: 0.6, marginBottom: 16, textAlign: isRTL ? "right" : "left" }}>
                 {markerName}
                 {screenName ? ` · ${screenName.replace(/^[^\wА-Яа-я]+/, "")}` : ""}
               </Text>
             )}
 
-            {/* Прогресс-бар (если есть repeat) */}
             {task.repeat && (
               <View style={{ marginBottom: 16 }}>
                 <View
@@ -198,7 +197,7 @@ export function TaskDetailOverlay({
 
                 <View
                   style={{
-                    flexDirection: "row",
+                    flexDirection: isRTL ? "row-reverse" : "row",
                     alignItems: "center",
                     justifyContent: "space-between",
                     marginTop: 8,
@@ -208,7 +207,7 @@ export function TaskDetailOverlay({
                     🔁 {task.repeat.count}/{task.repeat.target}
                   </Text>
 
-                  <View style={{ flexDirection: "row", gap: 8 }}>
+                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8 }}>
                     <Pressable
                       onPress={onDecrementRepeat}
                       disabled={task.repeat.count <= 0}
@@ -242,11 +241,10 @@ export function TaskDetailOverlay({
               </View>
             )}
 
-            {/* Пометки */}
             <View style={{ gap: 6, marginBottom: 16 }}>
               {notes.length === 0 && (
-                <Text style={{ color: ink, opacity: 0.5, fontSize: 12.5, fontStyle: "italic" }}>
-                  Пометок пока нет. Добавь первую — это этапы квеста.
+                <Text style={{ color: ink, opacity: 0.5, fontSize: 12.5, fontStyle: "italic", textAlign: isRTL ? "right" : "left" }}>
+                  {t("detail.notesEmpty")}
                 </Text>
               )}
 
@@ -254,7 +252,7 @@ export function TaskDetailOverlay({
                 <View
                   key={i}
                   style={{
-                    flexDirection: "row",
+                    flexDirection: isRTL ? "row-reverse" : "row",
                     alignItems: "center",
                     gap: 6,
                     backgroundColor: card,
@@ -266,7 +264,7 @@ export function TaskDetailOverlay({
                   }}
                 >
                   <Pressable
-                    style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}
+                    style={{ flex: 1, flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 8 }}
                     onPress={() => onToggleNote(i)}
                   >
                     <View
@@ -286,6 +284,7 @@ export function TaskDetailOverlay({
                         color: ink,
                         opacity: n.done ? 0.4 : 1,
                         textDecorationLine: n.done ? "line-through" : "none",
+                        textAlign: isRTL ? "right" : "left",
                       }}
                     >
                       {n.text}
@@ -299,13 +298,12 @@ export function TaskDetailOverlay({
               ))}
             </View>
 
-            {/* Инпут новой пометки */}
-            <View style={{ flexDirection: "row", gap: 6, marginBottom: 20 }}>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 6, marginBottom: 20 }}>
               <TextInput
                 ref={inputRef}
                 value={note}
                 onChangeText={setNote}
-                placeholder="Новая пометка..."
+                placeholder={t("detail.newNote")}
                 placeholderTextColor="#9A9A9A"
                 onSubmitEditing={submitNote}
                 returnKeyType="done"
@@ -319,6 +317,7 @@ export function TaskDetailOverlay({
                   fontSize: 13.5,
                   color: ink,
                   backgroundColor: inputBg,
+                  textAlign: isRTL ? "right" : "left",
                 }}
               />
               <Pressable
@@ -336,7 +335,6 @@ export function TaskDetailOverlay({
               </Pressable>
             </View>
 
-            {/* Срок */}
             <View
               style={{
                 borderWidth: 1.5,
@@ -354,16 +352,15 @@ export function TaskDetailOverlay({
                   color: expired ? BLUE : ink,
                 }}
               >
-                {formatRemaining(task.due)}
+                {formatRemaining(task.due, t)}
               </Text>
             </View>
 
-            {/* Отметить выполненным / Вернуть */}
             {task.done ? (
               <Pressable
                 onPress={onUncomplete}
                 style={{
-                  flexDirection: "row",
+                  flexDirection: isRTL ? "row-reverse" : "row",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 8,
@@ -377,14 +374,14 @@ export function TaskDetailOverlay({
               >
                 <MaterialIcons name="undo" size={20} color={ink} />
                 <Text style={{ fontSize: 13.5, color: ink, fontWeight: "bold" }}>
-                  Вернуть в активные
+                  {t("detail.undo")}
                 </Text>
               </Pressable>
             ) : (
               <Pressable
                 onPress={handleComplete}
                 style={{
-                  flexDirection: "row",
+                  flexDirection: isRTL ? "row-reverse" : "row",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 8,
@@ -398,16 +395,15 @@ export function TaskDetailOverlay({
               >
                 <MaterialIcons name="check-circle" size={20} color="#fff" />
                 <Text style={{ fontSize: 13.5, color: "#fff", fontWeight: "bold" }}>
-                  Отметить выполненным
+                  {t("detail.done")}
                 </Text>
               </Pressable>
             )}
 
-            {/* Удалить */}
             <Pressable
               onPress={() => setPendingDelete(true)}
               style={{
-                flexDirection: "row",
+                flexDirection: isRTL ? "row-reverse" : "row",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 8,
@@ -420,7 +416,7 @@ export function TaskDetailOverlay({
             >
               <MaterialIcons name="delete-outline" size={20} color={RED} />
               <Text style={{ fontSize: 13.5, color: RED, fontWeight: "bold" }}>
-                Удалить дело
+                {t("detail.delete")}
               </Text>
             </Pressable>
           </ScrollView>
@@ -429,7 +425,7 @@ export function TaskDetailOverlay({
 
       {pendingDelete && (
         <ConfirmDialog
-          message={`Удалить дело «${task.title}»?`}
+          message={t("detail.deleteConfirm", { title: task.title })}
           onCancel={() => setPendingDelete(false)}
           onConfirm={() => {
             setPendingDelete(false);
@@ -440,8 +436,8 @@ export function TaskDetailOverlay({
 
       {confirmDone && (
         <ConfirmDialog
-          message="Выполнить задание гида?"
-          confirmLabel="Да"
+          message={t("task.confirmGuideDone")}
+          confirmLabel={t("guideTasks.yes")}
           confirmColor={GREEN}
           onCancel={() => setConfirmDone(false)}
           onConfirm={() => {
@@ -453,8 +449,8 @@ export function TaskDetailOverlay({
 
       {confirmRepeatFinish && (
         <ConfirmDialog
-          message="Выполнить задание гида?"
-          confirmLabel="Да"
+          message={t("task.confirmGuideDone")}
+          confirmLabel={t("guideTasks.yes")}
           confirmColor={GREEN}
           onCancel={() => {
             setConfirmRepeatFinish(false);

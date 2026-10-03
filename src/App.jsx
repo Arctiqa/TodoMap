@@ -1,3 +1,4 @@
+// App.jsx
 import React, { useState, useMemo, useReducer, useEffect, useCallback, useRef } from "react";
 import { View, Text, Pressable, StatusBar, Image, BackHandler, Animated, ScrollView, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -11,6 +12,14 @@ import { useQuestStore } from "./state/useQuestStore";
 import { navReducer, NAV } from "./state/navigation";
 import { activeEntries, expiredEntries, doneEntries, historyEntries } from "./state/selectors";
 import { FIELD_MARKER_ID, STICKER_TRASH_ZONE_HEIGHT, NOTIFICATIONS_KEY } from "./constants/config";
+
+import { LanguageProvider, useT, useLanguage } from "./i18n/LanguageContext";
+import {
+  LANGUAGE_STORAGE_KEY,
+  detectSystemLanguage,
+  normalizeLanguage,
+} from "./utils/language";
+import { applyRTL } from "./utils/rtl";
 
 import { BottomBar } from "./components/BottomBar";
 import { SideMenu } from "./components/SideMenu";
@@ -30,6 +39,7 @@ import { SettingsOverlay } from "./screens/SettingsOverlay";
 import { GuidesListOverlay } from "./screens/GuidesListOverlay";
 import { GuideTasksOverlay } from "./screens/GuideTasksOverlay";
 import { ThemePickerOverlay } from "./screens/ThemePickerOverlay";
+import { LanguagePickerOverlay } from "./screens/LanguagePickerOverlay";
 import { BackgroundPickerOverlay } from "./screens/BackgroundPickerOverlay";
 import { TaskDetailOverlay } from "./screens/TaskDetailOverlay";
 import { OnboardingOverlay } from "./screens/OnboardingOverlay";
@@ -51,11 +61,21 @@ import { useBackHandler } from "./hooks/useBackHandler";
 
 export default function App() {
   const [themeName, setThemeName] = useState("light");
+  const [language, setLanguage] = useState(null);
+  const [loadedLang, setLoadedLang] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem("questmap_theme")
       .then((v) => v && setThemeName(v))
       .catch((e) => console.warn("QuestMap: тема не загрузилась", e));
+
+    AsyncStorage.getItem(LANGUAGE_STORAGE_KEY)
+      .then((v) => {
+        const norm = normalizeLanguage(v);
+        setLanguage(norm || detectSystemLanguage());
+      })
+      .catch(() => setLanguage(detectSystemLanguage()))
+      .finally(() => setLoadedLang(true));
   }, []);
 
   const handleThemeChange = useCallback((key) => {
@@ -65,19 +85,38 @@ export default function App() {
     );
   }, []);
 
+  const handleLanguageChange = useCallback(async (key) => {
+    setLanguage(key);
+    AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, key).catch((e) =>
+      console.warn("QuestMap: язык не сохранился", e)
+    );
+    // RTL-переключение делается в LanguagePickerOverlay (там есть подтверждение и reload)
+    await applyRTL(key);
+  }, []);
+
+  if (!loadedLang) return null;
+
   return (
     <KeyboardProvider>
       <SafeAreaProvider>
-        <ThemeProvider name={themeName}>
-          <AppShell onThemeChange={handleThemeChange} />
-        </ThemeProvider>
+        <LanguageProvider language={language}>
+          <ThemeProvider name={themeName}>
+            <AppShell
+              onThemeChange={handleThemeChange}
+              language={language}
+              onLanguageChange={handleLanguageChange}
+            />
+          </ThemeProvider>
+        </LanguageProvider>
       </SafeAreaProvider>
     </KeyboardProvider>
   );
 }
 
-function AppShell({ onThemeChange }) {
+function AppShell({ onThemeChange, language, onLanguageChange }) {
   const { name: themeName, ink, paper, card, bar, fieldBg } = useTheme();
+  const t = useT();
+  const { isRTL } = useLanguage();
 
   const store = useQuestStore();
   const {
@@ -306,9 +345,9 @@ function AppShell({ onThemeChange }) {
 
     const mk = scr.markers.find((m) => m.id === taskDetail.markerId);
     if (!mk) return null;
-    const t = mk.tasks.find((x) => x.id === taskDetail.taskId);
-    if (!t) return null;
-    return { task: t, marker: mk, screen: scr, isSticker: false };
+    const tsk = mk.tasks.find((x) => x.id === taskDetail.taskId);
+    if (!tsk) return null;
+    return { task: tsk, marker: mk, screen: scr, isSticker: false };
   }, [taskDetail, screens]);
 
   const patchTaskInDetail = useCallback((patchFn) => {
@@ -335,7 +374,7 @@ function AppShell({ onThemeChange }) {
           ...scr,
           markers: scr.markers.map((m) =>
             m.id === markerId
-              ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? patchFn(t) : t)) }
+              ? { ...m, tasks: m.tasks.map((tsk) => (tsk.id === taskId ? patchFn(tsk) : tsk)) }
               : m
           ),
         },
@@ -344,21 +383,21 @@ function AppShell({ onThemeChange }) {
   }, [taskDetail, setScreens]);
 
   const renameTask = useCallback((newTitle) => {
-    patchTaskInDetail((t) => ({ ...t, title: newTitle }));
+    patchTaskInDetail((tsk) => ({ ...tsk, title: newTitle }));
   }, [patchTaskInDetail]);
 
   const addNoteGlobal = useCallback((text) => {
-    patchTaskInDetail((t) => ({ ...t, notes: [...(t.notes || []), { text, done: false }] }));
+    patchTaskInDetail((tsk) => ({ ...tsk, notes: [...(tsk.notes || []), { text, done: false }] }));
   }, [patchTaskInDetail]);
 
   const removeNoteGlobal = useCallback((idx) => {
-    patchTaskInDetail((t) => ({ ...t, notes: (t.notes || []).filter((_, i) => i !== idx) }));
+    patchTaskInDetail((tsk) => ({ ...tsk, notes: (tsk.notes || []).filter((_, i) => i !== idx) }));
   }, [patchTaskInDetail]);
 
   const toggleNoteGlobal = useCallback((idx) => {
-    patchTaskInDetail((t) => ({
-      ...t,
-      notes: (t.notes || []).map((n, i) => (i === idx ? { ...n, done: !n.done } : n)),
+    patchTaskInDetail((tsk) => ({
+      ...tsk,
+      notes: (tsk.notes || []).map((n, i) => (i === idx ? { ...n, done: !n.done } : n)),
     }));
   }, [patchTaskInDetail]);
 
@@ -366,7 +405,7 @@ function AppShell({ onThemeChange }) {
     if (!taskDetail) return;
     const { screenId, markerId, taskId } = taskDetail;
 
-   const scr = screens[screenId];
+    const scr = screens[screenId];
     if (!scr) { setTaskDetail(null); return; }
 
     let task = null;
@@ -374,7 +413,7 @@ function AppShell({ onThemeChange }) {
       task = (scr.stickers || []).find((s) => s.id === taskId);
     } else {
       const mk = scr.markers.find((m) => m.id === markerId);
-      task = mk && mk.tasks.find((t) => t.id === taskId);
+      task = mk && mk.tasks.find((tsk) => tsk.id === taskId);
     }
 
     if (!task || task.done) {
@@ -411,10 +450,10 @@ function AppShell({ onThemeChange }) {
             m.id === markerId
               ? {
                   ...m,
-                  tasks: m.tasks.map((t) =>
-                    t.id === taskId
-                      ? { ...t, done: true, completedAt: Date.now() }
-                      : t
+                  tasks: m.tasks.map((tsk) =>
+                    tsk.id === taskId
+                      ? { ...tsk, done: true, completedAt: Date.now() }
+                      : tsk
                   ),
                 }
               : m
@@ -423,11 +462,11 @@ function AppShell({ onThemeChange }) {
       };
     });
 
-  setTaskDetail(null);
-}, [taskDetail, screens, setScreens, releaseGuideTask, markGuideCompleted, setTaskDetail]);
+    setTaskDetail(null);
+  }, [taskDetail, screens, setScreens, releaseGuideTask, markGuideCompleted, setTaskDetail]);
 
   const uncompleteTaskFromDetail = useCallback(() => {
-    patchTaskInDetail((t) => ({ ...t, done: false, completedAt: null }));
+    patchTaskInDetail((tsk) => ({ ...tsk, done: false, completedAt: null }));
   }, [patchTaskInDetail]);
 
   const deleteTaskFromDetail = useCallback(() => {
@@ -445,11 +484,11 @@ function AppShell({ onThemeChange }) {
       task = (scr.stickers || []).find((s) => s.id === taskId);
     } else {
       marker = scr.markers.find((m) => m.id === markerId);
-      task = marker && marker.tasks.find((t) => t.id === taskId);
+      task = marker && marker.tasks.find((tsk) => tsk.id === taskId);
     }
 
     if (!task) { setTaskDetail(null); return; }
-    
+
     if (task.source && task.guideOfferId && !task.done) {
       releaseGuideTask(task.guideOfferId);
     }
@@ -460,7 +499,7 @@ function AppShell({ onThemeChange }) {
         screenId,
         screenName: scr.name,
         markerId: markerId === FIELD_MARKER_ID ? null : (marker ? marker.id : null),
-        markerName: markerId === FIELD_MARKER_ID ? "Свободное" : (marker ? marker.name : ""),
+        markerName: markerId === FIELD_MARKER_ID ? t("common.free") : (marker ? marker.name : ""),
         markerEmoji: markerId === FIELD_MARKER_ID ? (scr.emoji || "📌") : (marker ? marker.emoji : "📌"),
         markerColor: markerId === FIELD_MARKER_ID ? "#B08968" : (marker ? marker.color : "#B08968"),
         task,
@@ -488,15 +527,15 @@ function AppShell({ onThemeChange }) {
           ...s,
           markers: s.markers.map((m) =>
             m.id === markerId
-              ? { ...m, tasks: m.tasks.filter((t) => t.id !== taskId) }
+              ? { ...m, tasks: m.tasks.filter((tsk) => tsk.id !== taskId) }
               : m
           ),
         },
       };
     });
 
-      setTaskDetail(null);
-  }, [taskDetail, screens, setScreens, releaseGuideTask, markGuideCompleted, setTaskDetail]);
+    setTaskDetail(null);
+  }, [taskDetail, screens, setScreens, releaseGuideTask, markGuideCompleted, setTaskDetail, t, setHistory]);
 
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
 
@@ -616,7 +655,7 @@ function AppShell({ onThemeChange }) {
             onShare={shareTaskToPool}
             onIncrementRepeat={(markerId, taskId) => incrementRepeat(currentId, markerId, taskId)}
             onDecrementRepeat={(markerId, taskId) => decrementRepeat(currentId, markerId, taskId)}
-            onOpenDetail={(t) => openTaskDetail(t, activeMarker, currentId)}
+            onOpenDetail={(tsk) => openTaskDetail(tsk, activeMarker, currentId)}
             onExtractToField={(taskId) => {
               moveTaskToField(currentId, activeMarker.id, taskId, 50, 50);
               popNav();
@@ -690,6 +729,15 @@ function AppShell({ onThemeChange }) {
           />
         );
 
+      case NAV.LANGUAGE_PICKER:
+        return (
+          <LanguagePickerOverlay
+            current={language}
+            onSelect={onLanguageChange}
+            onClose={popNav}
+          />
+        );
+
       case NAV.GUIDES_LIST:
         return (
           <GuidesListOverlay
@@ -736,7 +784,7 @@ function AppShell({ onThemeChange }) {
           <SettingsOverlay
             onClose={popNav}
             onOpenTheme={() => pushNav(NAV.THEME_PICKER)}
-            onOpenLanguage={() => {}}
+            onOpenLanguage={() => pushNav(NAV.LANGUAGE_PICKER)}
             onOpenNotifications={() => {}}
             onOpenAbout={() => {}}
             exportData={{ screens, historyLog, thoughts }}
@@ -752,6 +800,9 @@ function AppShell({ onThemeChange }) {
 
   if (!screen) return null;
 
+  const backIcon = isRTL ? "arrow-forward" : "arrow-back";
+  const nextIcon = isRTL ? "arrow-back" : "arrow-forward";
+
   return (
     <View style={{ flex: 1, backgroundColor: paper }}>
       <KeyboardAvoidingView
@@ -759,7 +810,7 @@ function AppShell({ onThemeChange }) {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <SafeAreaView
-          key={themeName}
+          key={`${themeName}-${language}`}
           style={{ flex: 1, backgroundColor: fieldBg, overflow: "hidden" }}
           edges={["top"]}
         >
@@ -771,7 +822,7 @@ function AppShell({ onThemeChange }) {
               style={{ backgroundColor: RED, paddingVertical: 6, alignItems: "center" }}
             >
               <Text style={{ color: "#fff", fontSize: 11, fontWeight: "bold" }}>
-                УДАЛИТЬ
+                {t("app.editModeDelete")}
               </Text>
             </Pressable>
           )}
@@ -782,22 +833,23 @@ function AppShell({ onThemeChange }) {
               style={{ backgroundColor: BLUE, paddingVertical: 6, alignItems: "center" }}
             >
               <Text style={{ color: "#fff", fontSize: 11, fontWeight: "bold" }}>
-                РЕДАКТИРОВАТЬ
+                {t("app.editModeEdit")}
               </Text>
             </Pressable>
           )}
 
           <View style={{
-            flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+            flexDirection: isRTL ? "row-reverse" : "row",
+            alignItems: "center",
+            justifyContent: "space-between",
             paddingHorizontal: 12, paddingVertical: 10, backgroundColor: bar,
           }}>
             {screen.parentId ? (
-              
               <Pressable
                 onPress={() => { setEditMode(false); setCurrentId(screen.parentId); }}
                 style={{ flexDirection: "row", alignItems: "center", gap: 4, minWidth: 36 }}
               >
-                <MaterialIcons name="arrow-back" size={22} color={ink} />
+                <MaterialIcons name={backIcon} size={22} color={ink} />
               </Pressable>
             ) : <View style={{ width: 36 }} />}
 
@@ -814,7 +866,6 @@ function AppShell({ onThemeChange }) {
                     <Pressable
                       onPress={() => {
                         if (!isLast) {
-                          // закрыть все оверлеи
                           resetNav();
                           setEditMode(false);
                           setEditAction("none");
@@ -836,7 +887,9 @@ function AppShell({ onThemeChange }) {
                       </Text>
                     </Pressable>
                     {!isLast && (
-                      <Text style={{ fontSize: 12, color: ink, opacity: 0.35 }}>›</Text>
+                      <Text style={{ fontSize: 12, color: ink, opacity: 0.35 }}>
+                        {isRTL ? "‹" : "›"}
+                      </Text>
                     )}
                   </React.Fragment>
                 );
@@ -856,7 +909,6 @@ function AppShell({ onThemeChange }) {
               setMapSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })
             }
           >
-            {/* Long-press по фону */}
             {!editMode && screen.parentId && (
               <Pressable
                 onLongPress={() => {
@@ -867,8 +919,7 @@ function AppShell({ onThemeChange }) {
                 style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}
               />
             )}
-            
-            {/* Тап вне AddTaskBar — свернуть в плашку */}
+
             {addTaskBarExpanded && !addTaskBarMinimized && (
               <Pressable
                 style={{
@@ -882,7 +933,7 @@ function AppShell({ onThemeChange }) {
                 }}
               />
             )}
-                 
+
             {!editMode && siblings.list.length > 1 && (
               <View
                 pointerEvents="box-none"
@@ -893,14 +944,14 @@ function AppShell({ onThemeChange }) {
                 }}
               >
                 {siblings.index > 0 ? (
-                  <Pressable onPress={() => animateSlide(1)} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
-                    <MaterialIcons name="arrow-back" size={30} color={ink} />
+                  <Pressable onPress={() => animateSlide(isRTL ? -1 : 1)} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+                    <MaterialIcons name={backIcon} size={30} color={ink} />
                   </Pressable>
                 ) : <View style={{ width: 30 }} />}
 
                 {siblings.index !== -1 && siblings.index < siblings.list.length - 1 ? (
-                  <Pressable onPress={() => animateSlide(-1)} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
-                    <MaterialIcons name="arrow-forward" size={30} color={ink} />
+                  <Pressable onPress={() => animateSlide(isRTL ? 1 : -1)} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+                    <MaterialIcons name={nextIcon} size={30} color={ink} />
                   </Pressable>
                 ) : <View style={{ width: 30 }} />}
               </View>
@@ -1023,8 +1074,8 @@ function AppShell({ onThemeChange }) {
 
           <NewPinForm
             mode="create"
-            title="Новая метка"
-            confirmLabel="Добавить метку"
+            title={t("pin.newMarker")}
+            confirmLabel={t("pin.addMarker")}
             showPlaceHints={currentId !== "home"}
             onClose={popNav}
             onCreate={createMarker}
@@ -1033,8 +1084,8 @@ function AppShell({ onThemeChange }) {
 
           <NewPinForm
             mode="create"
-            title="Новое поле"
-            confirmLabel="Создать поле"
+            title={t("pin.newField")}
+            confirmLabel={t("pin.createField")}
             showColor={false}
             imageAspect={[9, 16]}
             onClose={popNav}
@@ -1046,8 +1097,8 @@ function AppShell({ onThemeChange }) {
             <NewPinForm
               key={editingMarker.id}
               mode="edit"
-              title="Редактировать метку"
-              confirmLabel="Сохранить"
+              title={t("pin.editMarker")}
+              confirmLabel={t("pin.save")}
               initialValues={{
                 name: editingMarker.name,
                 emoji: editingMarker.emoji,
@@ -1066,8 +1117,8 @@ function AppShell({ onThemeChange }) {
             <NewPinForm
               key={editingField.id}
               mode="editField"
-              title="Редактировать поле"
-              confirmLabel="Сохранить"
+              title={t("pin.editField")}
+              confirmLabel={t("pin.save")}
               showColor={false}
               initialValues={{
                 name: editingField.name,
@@ -1084,14 +1135,18 @@ function AppShell({ onThemeChange }) {
 
           {placementConfirm && (
             <InfoDialog
-              message={`«${placementConfirm.title}» добавлено в «${placementConfirm.markerName}».`}
+              message={t("app.placementAdded", {
+                title: placementConfirm.title,
+                marker: placementConfirm.markerName,
+              })}
               onClose={() => setPlacementConfirm(null)}
             />
           )}
 
           {pendingDelete && (
             <ConfirmDialog
-              message={`Удалить метку «${pendingDelete.name}»?`}
+              message={t("app.deleteMarker", { name: pendingDelete.name })}
+              confirmLabel={t("confirm.delete")}
               onCancel={() => setPendingDelete(null)}
               onConfirm={() => {
                 deleteMarker(pendingDelete.id);
@@ -1104,7 +1159,8 @@ function AppShell({ onThemeChange }) {
 
           {pendingDeleteField && (
             <ConfirmDialog
-              message={`Удалить поле «${pendingDeleteField.name}» вместе со всеми метками?`}
+              message={t("app.deleteField", { name: pendingDeleteField.name })}
+              confirmLabel={t("confirm.delete")}
               onCancel={() => setPendingDeleteField(null)}
               onConfirm={() => {
                 deleteField(pendingDeleteField.id);
@@ -1112,11 +1168,11 @@ function AppShell({ onThemeChange }) {
               }}
             />
           )}
-          
+
           {pendingResetBg && (
             <ConfirmDialog
-              message="Очистить фон?"
-              confirmLabel="Очистить"
+              message={t("app.clearBg")}
+              confirmLabel={t("confirm.clear")}
               confirmColor={RED}
               onCancel={() => setPendingResetBg(false)}
               onConfirm={() => {
@@ -1128,8 +1184,8 @@ function AppShell({ onThemeChange }) {
 
           {showExitConfirm && (
             <ConfirmDialog
-              message="Выйти из приложения?"
-              confirmLabel="Выйти"
+              message={t("app.exit")}
+              confirmLabel={t("confirm.exit")}
               confirmColor={BLUE}
               onCancel={() => setShowExitConfirm(false)}
               onConfirm={() => { setShowExitConfirm(false); BackHandler.exitApp(); }}
@@ -1141,7 +1197,7 @@ function AppShell({ onThemeChange }) {
               key={taskDetailData.task.id}
               task={taskDetailData.task}
               markerColor={taskDetailData.marker ? taskDetailData.marker.color : "#B08968"}
-              markerName={taskDetailData.marker ? taskDetailData.marker.name : "Свободное"}
+              markerName={taskDetailData.marker ? taskDetailData.marker.name : t("common.free")}
               screenName={taskDetailData.screen.name}
               onBack={() => setTaskDetail(null)}
               onRename={renameTask}
