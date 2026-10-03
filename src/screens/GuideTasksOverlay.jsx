@@ -34,7 +34,7 @@ export function GuideTasksOverlay({
 	const handlePick = useCallback((task) => {
 	  const taken = usedSet.has(task.id);
 	  const completed = completedSet.has(task.id);
-	  // активная (взята и не выполнена) — повторно взять нельзя
+    // активная (взята и не выполнена) — повторно взять нельзя
 	  if (taken && !completed) return;
 	  setConfirmTaskId(task.id);
 	}, [usedSet, completedSet]);

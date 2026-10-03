@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "TodoMapApp",
+    "name": "TodoMapApp preview v2",
     "slug": "TodoMapApp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,7 +16,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.arctiqa.TodoMapApp"
+      "package": "com.arctiqa.TodoMapApp.preview.v2"
     },
     "web": {
       "favicon": "./assets/favicon.png"

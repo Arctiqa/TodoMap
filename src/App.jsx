@@ -161,6 +161,7 @@ function AppShell({ onThemeChange }) {
     moveStickerToMarker, moveStickerToField, moveTaskToField, deleteSticker, toggleSticker,
     incrementStickerRepeat, decrementStickerRepeat,
   } = useTasks({
+    screens,
     updateScreen, setScreens, setHistory,
     markGuideCompleted,
     releaseGuideTask,
@@ -365,52 +366,65 @@ function AppShell({ onThemeChange }) {
     if (!taskDetail) return;
     const { screenId, markerId, taskId } = taskDetail;
 
-    let snapshot = null;
+   const scr = screens[screenId];
+    if (!scr) { setTaskDetail(null); return; }
+
+    let task = null;
+    if (markerId === FIELD_MARKER_ID) {
+      task = (scr.stickers || []).find((s) => s.id === taskId);
+    } else {
+      const mk = scr.markers.find((m) => m.id === markerId);
+      task = mk && mk.tasks.find((t) => t.id === taskId);
+    }
+
+    if (!task || task.done) {
+      setTaskDetail(null);
+      return;
+    }
+
+    if (task.source && task.guideOfferId) {
+      releaseGuideTask(task.guideOfferId);
+      markGuideCompleted(task.source, task.guideOfferId);
+    }
+
     setScreens((prev) => {
-      const scr = prev[screenId];
-      if (!scr) return prev;
+      const s = prev[screenId];
+      if (!s) return prev;
 
       if (markerId === FIELD_MARKER_ID) {
-        const sticker = (scr.stickers || []).find((s) => s.id === taskId);
-        if (sticker && !sticker.done) {
-          snapshot = sticker;
-        }
         return {
           ...prev,
           [screenId]: {
-            ...scr,
-            stickers: (scr.stickers || []).map((s) =>
-              s.id === taskId ? { ...s, done: true, completedAt: Date.now() } : s
+            ...s,
+            stickers: (s.stickers || []).map((x) =>
+              x.id === taskId ? { ...x, done: true, completedAt: Date.now() } : x
             ),
           },
         };
       }
 
-      const mk = scr.markers.find((m) => m.id === markerId);
-      const task = mk && mk.tasks.find((t) => t.id === taskId);
-      if (task && !task.done) {
-        snapshot = task;
-      }
       return {
         ...prev,
         [screenId]: {
-          ...scr,
-          markers: scr.markers.map((m) =>
+          ...s,
+          markers: s.markers.map((m) =>
             m.id === markerId
-              ? { ...m, tasks: m.tasks.map((t) => (t.id === taskId ? { ...t, done: true, completedAt: Date.now() } : t)) }
+              ? {
+                  ...m,
+                  tasks: m.tasks.map((t) =>
+                    t.id === taskId
+                      ? { ...t, done: true, completedAt: Date.now() }
+                      : t
+                  ),
+                }
               : m
           ),
         },
       };
     });
 
-    if (snapshot && snapshot.source && snapshot.guideOfferId) {
-      releaseGuideTask(snapshot.guideOfferId);
-      markGuideCompleted(snapshot.source, snapshot.guideOfferId);
-    }
-
-    setTaskDetail(null);
-  }, [taskDetail, setScreens, releaseGuideTask, markGuideCompleted, setTaskDetail]);
+  setTaskDetail(null);
+}, [taskDetail, screens, setScreens, releaseGuideTask, markGuideCompleted, setTaskDetail]);
 
   const uncompleteTaskFromDetail = useCallback(() => {
     patchTaskInDetail((t) => ({ ...t, done: false, completedAt: null }));
@@ -421,58 +435,68 @@ function AppShell({ onThemeChange }) {
     const { screenId, markerId, taskId } = taskDetail;
     cancelTaskNotifications(taskId);
 
+    const scr = screens[screenId];
+    if (!scr) { setTaskDetail(null); return; }
+
+    let task = null;
+    let marker = null;
+
+    if (markerId === FIELD_MARKER_ID) {
+      task = (scr.stickers || []).find((s) => s.id === taskId);
+    } else {
+      marker = scr.markers.find((m) => m.id === markerId);
+      task = marker && marker.tasks.find((t) => t.id === taskId);
+    }
+
+    if (!task) { setTaskDetail(null); return; }
+    
+    if (task.source && task.guideOfferId && !task.done) {
+      releaseGuideTask(task.guideOfferId);
+    }
+
+    setHistory((h) => [
+      ...h,
+      {
+        screenId,
+        screenName: scr.name,
+        markerId: markerId === FIELD_MARKER_ID ? null : (marker ? marker.id : null),
+        markerName: markerId === FIELD_MARKER_ID ? "Свободное" : (marker ? marker.name : ""),
+        markerEmoji: markerId === FIELD_MARKER_ID ? (scr.emoji || "📌") : (marker ? marker.emoji : "📌"),
+        markerColor: markerId === FIELD_MARKER_ID ? "#B08968" : (marker ? marker.color : "#B08968"),
+        task,
+        removedAt: Date.now(),
+      },
+    ]);
+
     setScreens((prev) => {
-      const scr = prev[screenId];
-      if (!scr) return prev;
+      const s = prev[screenId];
+      if (!s) return prev;
 
       if (markerId === FIELD_MARKER_ID) {
-        const sticker = (scr.stickers || []).find((s) => s.id === taskId);
-        if (sticker) {
-          if (sticker.source && sticker.guideOfferId && !sticker.done) {
-            releaseGuideTask(sticker.guideOfferId);
-          }
-          setHistory((h) => [...h, {
-            screenId, screenName: scr.name,
-            markerId: null, markerName: "Свободное",
-            markerEmoji: scr.emoji || "📌", markerColor: "#B08968",
-            task: sticker, removedAt: Date.now(),
-          }]);
-        }
         return {
           ...prev,
           [screenId]: {
-            ...scr,
-            stickers: (scr.stickers || []).filter((s) => s.id !== taskId),
+            ...s,
+            stickers: (s.stickers || []).filter((x) => x.id !== taskId),
           },
         };
       }
 
-      const marker = scr.markers.find((m) => m.id === markerId);
-      const task = marker && marker.tasks.find((t) => t.id === taskId);
-      if (marker && task) {
-        if (task.source && task.guideOfferId && !task.done) {
-          releaseGuideTask(task.guideOfferId);
-        }
-        setHistory((h) => [...h, {
-          screenId, screenName: scr.name,
-          markerId: marker.id, markerName: marker.name,
-          markerEmoji: marker.emoji, markerColor: marker.color,
-          task, removedAt: Date.now(),
-        }]);
-      }
       return {
         ...prev,
         [screenId]: {
-          ...scr,
-          markers: scr.markers.map((m) =>
-            m.id === markerId ? { ...m, tasks: m.tasks.filter((t) => t.id !== taskId) } : m
+          ...s,
+          markers: s.markers.map((m) =>
+            m.id === markerId
+              ? { ...m, tasks: m.tasks.filter((t) => t.id !== taskId) }
+              : m
           ),
         },
       };
     });
 
-    setTaskDetail(null);
-  }, [taskDetail, setScreens, setHistory, releaseGuideTask, setTaskDetail]);
+      setTaskDetail(null);
+  }, [taskDetail, screens, setScreens, releaseGuideTask, markGuideCompleted, setTaskDetail]);
 
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
 
@@ -499,7 +523,9 @@ function AppShell({ onThemeChange }) {
 
   const handleBottomAction = useCallback((action) => {
     switch (action) {
-      case "menu": setShowSideMenu(true); break;
+      case "menu":
+        setShowSideMenu((v) => !v);
+        break;
       case "home":
         resetNav();
         setCurrentId("main");

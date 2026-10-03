@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { nextId } from "../utils/id";
 
 export function useTasks({
+  screens,
   updateScreen, setScreens, setHistory,
   markGuideCompleted,
   releaseGuideTask,
@@ -40,22 +41,30 @@ export function useTasks({
   }, [setScreens]);
 
   const toggleTask = useCallback((screenId, markerId, taskId) => {
-    let snapshot = null;
+    // 1) Читаем актуальное состояние из пропса screens, а не из reducer
+    const scr = screens[screenId];
+    if (!scr) return;
+    const marker = scr.markers.find((m) => m.id === markerId);
+    const task = marker && marker.tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const willBeDone = !task.done;
+
+    // 2) Побочки — синхронно, до setScreens
+    if (willBeDone && task.source && task.guideOfferId) {
+      releaseGuideTask(task.guideOfferId);
+      markGuideCompleted(task.source, task.guideOfferId);
+    }
+
+    // 3) Обновляем стейт
     setScreens((prev) => {
-      const scr = prev[screenId];
-      if (!scr) return prev;
-      const marker = scr.markers.find((m) => m.id === markerId);
-      const task = marker && marker.tasks.find((t) => t.id === taskId);
-      if (!task) return prev;
-
-      const willBeDone = !task.done;
-      snapshot = { task, willBeDone };
-
+      const s = prev[screenId];
+      if (!s) return prev;
       return {
         ...prev,
         [screenId]: {
-          ...scr,
-          markers: scr.markers.map((m) => m.id === markerId
+          ...s,
+          markers: s.markers.map((m) => m.id === markerId
             ? {
                 ...m,
                 tasks: m.tasks.map((t) => {
@@ -75,35 +84,31 @@ export function useTasks({
         },
       };
     });
-
-    if (snapshot) {
-      if (snapshot.willBeDone) {
-        if (snapshot.task.source && snapshot.task.guideOfferId) {
-          releaseGuideTask(snapshot.task.guideOfferId);
-          markGuideCompleted(snapshot.task.source, snapshot.task.guideOfferId);
-        }
-      }
-    }
-  }, [setScreens, markGuideCompleted, releaseGuideTask]);
+  }, [screens, setScreens, markGuideCompleted, releaseGuideTask]);
 
   const incrementRepeat = useCallback((screenId, markerId, taskId) => {
-    let snapshot = null;
+    const scr = screens[screenId];
+    if (!scr) return;
+    const marker = scr.markers.find((m) => m.id === markerId);
+    const task = marker && marker.tasks.find((t) => t.id === taskId);
+    if (!task || !task.repeat || task.done) return;
+
+    const nextCount = Math.min(task.repeat.target, task.repeat.count + 1);
+    const willFinish = nextCount >= task.repeat.target;
+
+    if (willFinish && task.source && task.guideOfferId) {
+      releaseGuideTask(task.guideOfferId);
+      markGuideCompleted(task.source, task.guideOfferId);
+    }
+
     setScreens((prev) => {
-      const scr = prev[screenId];
-      if (!scr) return prev;
-      const marker = scr.markers.find((m) => m.id === markerId);
-      const task = marker && marker.tasks.find((t) => t.id === taskId);
-      if (!task || !task.repeat || task.done) return prev;
-
-      const nextCount = Math.min(task.repeat.target, task.repeat.count + 1);
-      const willFinish = nextCount >= task.repeat.target;
-      snapshot = { task, willFinish };
-
+      const s = prev[screenId];
+      if (!s) return prev;
       return {
         ...prev,
         [screenId]: {
-          ...scr,
-          markers: scr.markers.map((m) => m.id === markerId
+          ...s,
+          markers: s.markers.map((m) => m.id === markerId
             ? {
                 ...m,
                 tasks: m.tasks.map((t) => t.id === taskId
@@ -119,16 +124,7 @@ export function useTasks({
         },
       };
     });
-
-    if (snapshot) {
-      if (snapshot.willFinish) {
-        if (snapshot.task.source && snapshot.task.guideOfferId) {
-          releaseGuideTask(snapshot.task.guideOfferId);
-          markGuideCompleted(snapshot.task.source, snapshot.task.guideOfferId);
-        }
-      }
-    }
-  }, [setScreens, markGuideCompleted, releaseGuideTask]);
+  }, [screens, setScreens, markGuideCompleted, releaseGuideTask]);
 
   const decrementRepeat = useCallback((screenId, markerId, taskId) => {
     setScreens((prev) => {
@@ -164,37 +160,45 @@ export function useTasks({
   }, [setScreens]);
 
   const deleteTask = useCallback((screenId, markerId, taskId) => {
+    // Читаем актуальный стейт, побочки наружу
+    const scr = screens[screenId];
+    if (!scr) return;
+    const marker = scr.markers.find((m) => m.id === markerId);
+    const task = marker && marker.tasks.find((t) => t.id === taskId);
+    if (!marker || !task) return;
+
+    // Если задача ещё активная и гид-задача — освобождаем слот
+    // (если выполнена — ничего не делаем, id остаётся в completedOffers,
+    //  но взятие больше не блокируется, т.к. taken=false)
+    if (task.source && task.guideOfferId && !task.done) {
+      releaseGuideTask(task.guideOfferId);
+    }
+
+    setHistory((h) => [...h, {
+      screenId,
+      screenName: scr.name,
+      markerId: marker.id,
+      markerName: marker.name,
+      markerEmoji: marker.emoji,
+      markerColor: marker.color,
+      task,
+      removedAt: Date.now(),
+    }]);
+
     setScreens((prev) => {
-      const scr = prev[screenId];
-      if (!scr) return prev;
-      const marker = scr.markers.find((m) => m.id === markerId);
-      const task = marker && marker.tasks.find((t) => t.id === taskId);
-      if (marker && task) {
-        if (task.source && task.guideOfferId && !task.done) {
-          releaseGuideTask(task.guideOfferId);
-        }
-        setHistory((h) => [...h, {
-          screenId,
-          screenName: scr.name,
-          markerId: marker.id,
-          markerName: marker.name,
-          markerEmoji: marker.emoji,
-          markerColor: marker.color,
-          task,
-          removedAt: Date.now(),
-        }]);
-      }
+      const s = prev[screenId];
+      if (!s) return prev;
       return {
         ...prev,
         [screenId]: {
-          ...scr,
-          markers: scr.markers.map((m) => (m.id === markerId
+          ...s,
+          markers: s.markers.map((m) => (m.id === markerId
             ? { ...m, tasks: m.tasks.filter((t) => t.id !== taskId) }
             : m)),
         },
       };
     });
-  }, [setScreens, setHistory, releaseGuideTask]);
+  }, [screens, setScreens, setHistory, releaseGuideTask]);
 
   // ============================================================
   // Стикеры
@@ -311,7 +315,7 @@ export function useTasks({
         title: task.title,
         due: task.due || null,
         done: task.done || false,
-        completedAt: task.completedAt || null, 
+        completedAt: task.completedAt || null,
         notes: task.notes || [],
         createdAt: task.createdAt || Date.now(),
         source: task.source || undefined,
@@ -339,67 +343,76 @@ export function useTasks({
   }, [setScreens]);
 
   const deleteSticker = useCallback((screenId, stickerId) => {
+    const scr = screens[screenId];
+    if (!scr) return;
+    const sticker = (scr.stickers || []).find((s) => s.id === stickerId);
+    if (!sticker) return;
+
+    if (sticker.source && sticker.guideOfferId && !sticker.done) {
+      releaseGuideTask(sticker.guideOfferId);
+    }
+
+    setHistory((h) => [...h, {
+      screenId,
+      screenName: scr.name,
+      markerId: null,
+      markerName: "Свободное",
+      markerEmoji: scr.emoji || "📌",
+      markerColor: "#B08968",
+      task: {
+        id: sticker.id,
+        title: sticker.title,
+        due: sticker.due || null,
+        done: sticker.done || false,
+        notes: sticker.notes || [],
+        createdAt: sticker.createdAt || Date.now(),
+        completedAt: sticker.done ? Date.now() : null,
+        source: sticker.source || undefined,
+        guideOfferId: sticker.guideOfferId || undefined,
+        repeat: sticker.repeat || null,
+        color: sticker.color || null,
+        rotation: sticker.rotation || 0,
+      },
+      removedAt: Date.now(),
+    }]);
+
     setScreens((prev) => {
-      const scr = prev[screenId];
-      if (!scr) return prev;
-      const sticker = (scr.stickers || []).find((s) => s.id === stickerId);
-      if (sticker) {
-        if (sticker.source && sticker.guideOfferId && !sticker.done) {
-          releaseGuideTask(sticker.guideOfferId);
-        }
-        setHistory((h) => [...h, {
-          screenId,
-          screenName: scr.name,
-          markerId: null,
-          markerName: "Свободное",
-          markerEmoji: scr.emoji || "📌",
-          markerColor: "#B08968",
-          task: {
-            id: sticker.id,
-            title: sticker.title,
-            due: sticker.due || null,
-            done: sticker.done || false,
-            notes: sticker.notes || [],
-            createdAt: sticker.createdAt || Date.now(),
-            completedAt: sticker.done ? Date.now() : null,
-            source: sticker.source || undefined,
-            guideOfferId: sticker.guideOfferId || undefined,
-            repeat: sticker.repeat || null,
-            color: sticker.color || null,
-            rotation: sticker.rotation || 0,
-          },
-          removedAt: Date.now(),
-        }]);
-      }
+      const s = prev[screenId];
+      if (!s) return prev;
       return {
         ...prev,
         [screenId]: {
-          ...scr,
-          stickers: (scr.stickers || []).filter((s) => s.id !== stickerId),
+          ...s,
+          stickers: (s.stickers || []).filter((s2) => s2.id !== stickerId),
         },
       };
     });
-  }, [setScreens, setHistory, releaseGuideTask]);
+  }, [screens, setScreens, setHistory, releaseGuideTask]);
 
   const toggleSticker = useCallback((screenId, stickerId) => {
-    let snapshot = null;
+    const scr = screens[screenId];
+    if (!scr) return;
+    const sticker = (scr.stickers || []).find((s) => s.id === stickerId);
+    if (!sticker) return;
+
+    const willBeDone = !sticker.done;
+
+    if (willBeDone && sticker.source && sticker.guideOfferId) {
+      releaseGuideTask(sticker.guideOfferId);
+      markGuideCompleted(sticker.source, sticker.guideOfferId);
+    }
+
     setScreens((prev) => {
-      const scr = prev[screenId];
-      if (!scr) return prev;
-      const sticker = (scr.stickers || []).find((s) => s.id === stickerId);
-      if (!sticker) return prev;
-
-      const willBeDone = !sticker.done;
-      snapshot = { sticker, willBeDone };
-
+      const s = prev[screenId];
+      if (!s) return prev;
       return {
         ...prev,
         [screenId]: {
-          ...scr,
-          stickers: (scr.stickers || []).map((s) => {
-            if (s.id !== stickerId) return s;
+          ...s,
+          stickers: (s.stickers || []).map((x) => {
+            if (x.id !== stickerId) return x;
             return {
-              ...s,
+              ...x,
               done: willBeDone,
               completedAt: willBeDone ? Date.now() : null,
             };
@@ -407,54 +420,41 @@ export function useTasks({
         },
       };
     });
-
-    if (snapshot) {
-      if (snapshot.willBeDone) {
-        if (snapshot.sticker.source && snapshot.sticker.guideOfferId) {
-          releaseGuideTask(snapshot.sticker.guideOfferId);
-          markGuideCompleted(snapshot.sticker.source, snapshot.sticker.guideOfferId);
-        }
-      }
-    }
-  }, [setScreens, markGuideCompleted, releaseGuideTask]);
+  }, [screens, setScreens, markGuideCompleted, releaseGuideTask]);
 
   const incrementStickerRepeat = useCallback((screenId, stickerId) => {
-    let snapshot = null;
+    const scr = screens[screenId];
+    if (!scr) return;
+    const sticker = (scr.stickers || []).find((s) => s.id === stickerId);
+    if (!sticker || !sticker.repeat || sticker.done) return;
+
+    const nextCount = Math.min(sticker.repeat.target, sticker.repeat.count + 1);
+    const willFinish = nextCount >= sticker.repeat.target;
+
+    if (willFinish && sticker.source && sticker.guideOfferId) {
+      releaseGuideTask(sticker.guideOfferId);
+      markGuideCompleted(sticker.source, sticker.guideOfferId);
+    }
+
     setScreens((prev) => {
-      const scr = prev[screenId];
-      if (!scr) return prev;
-      const sticker = (scr.stickers || []).find((s) => s.id === stickerId);
-      if (!sticker || !sticker.repeat || sticker.done) return prev;
-
-      const nextCount = Math.min(sticker.repeat.target, sticker.repeat.count + 1);
-      const willFinish = nextCount >= sticker.repeat.target;
-      snapshot = { sticker, willFinish };
-
+      const s = prev[screenId];
+      if (!s) return prev;
       return {
         ...prev,
         [screenId]: {
-          ...scr,
-          stickers: (scr.stickers || []).map((s) => s.id === stickerId
+          ...s,
+          stickers: (s.stickers || []).map((x) => x.id === stickerId
             ? {
-                ...s,
-                repeat: { ...s.repeat, count: nextCount },
+                ...x,
+                repeat: { ...x.repeat, count: nextCount },
                 done: willFinish,
-                completedAt: willFinish ? (s.completedAt || Date.now()) : null,
+                completedAt: willFinish ? (x.completedAt || Date.now()) : null,
               }
-            : s),
+            : x),
         },
       };
     });
-
-    if (snapshot) {
-      if (snapshot.willFinish) {
-        if (snapshot.sticker.source && snapshot.sticker.guideOfferId) {
-          releaseGuideTask(snapshot.sticker.guideOfferId);
-          markGuideCompleted(snapshot.sticker.source, snapshot.sticker.guideOfferId);
-        }
-      }
-    }
-  }, [setScreens, markGuideCompleted, releaseGuideTask]);
+  }, [screens, setScreens, markGuideCompleted, releaseGuideTask]);
 
   const decrementStickerRepeat = useCallback((screenId, stickerId) => {
     setScreens((prev) => {

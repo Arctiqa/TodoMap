@@ -90,7 +90,7 @@ export function NewPinForm({
 
     const payload = {
       name: name.trim(),
-      emoji: emoji.trim() || "📍",
+      emoji: emoji.trim() || "",
       color,
       type,
       image,

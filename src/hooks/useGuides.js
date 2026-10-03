@@ -9,9 +9,6 @@ export function useGuides({
   onTakeSticker,
   popNav,
 }) {
-  // ------------------------------------------------------------------
-  // Отметить задачу выполненной → добавить id в completed (для бледнения)
-  // ------------------------------------------------------------------
   const markCompleted = useCallback((guideKey, offerId) => {
     if (!guideKey || !offerId) return;
     if (guideCompletedOffers.includes(offerId)) return;
@@ -20,9 +17,6 @@ export function useGuides({
     );
   }, [guideCompletedOffers, setGuideCompletedOffers]);
 
-  // ------------------------------------------------------------------
-  // Проверки
-  // ------------------------------------------------------------------
   const isTaken = useCallback((offerId) => {
     return guideUsedOffers.includes(offerId);
   }, [guideUsedOffers]);
@@ -31,9 +25,6 @@ export function useGuides({
     return guideCompletedOffers.includes(offerId);
   }, [guideCompletedOffers]);
 
-  // ------------------------------------------------------------------
-  // Взять задачу
-  // ------------------------------------------------------------------
   const takeTask = useCallback((guideKey, task) => {
     if (!task || !task.id || !task.title) return;
 
@@ -54,9 +45,6 @@ export function useGuides({
     popNav && popNav();
   }, [setGuideUsedOffers, onTakeSticker, popNav]);
 
-  // ------------------------------------------------------------------
-  // Освободить задачу (при удалении невыполненной)
-  // ------------------------------------------------------------------
   const releaseTask = useCallback((offerId) => {
     if (!offerId) return;
     setGuideUsedOffers((prev) => prev.filter((id) => id !== offerId));
