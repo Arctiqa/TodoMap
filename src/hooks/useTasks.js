@@ -369,6 +369,16 @@ export function useTasks({
       releaseGuideTask(sticker.guideOfferId);
     }
 
+    logEvent("task_deleted", {
+      where: "sticker",
+      viaTrash: true,
+      screenId,
+      stickerId,
+      wasDone: !!sticker.done,
+      wasExpired: !sticker.done && sticker.due != null,
+      ageMs: Date.now() - (sticker.createdAt || Date.now()),
+    });
+
     setHistory((h) => [...h, {
       screenId,
       screenName: scr.name,
@@ -417,6 +427,18 @@ export function useTasks({
     if (willBeDone && sticker.source && sticker.guideOfferId) {
       releaseGuideTask(sticker.guideOfferId);
       markGuideCompleted(sticker.source, sticker.guideOfferId);
+    }
+
+    if (willBeDone) {
+      logEvent("task_completed", {
+        where: "sticker",
+        screenId,
+        stickerId,
+        timeToCompleteMs: Date.now() - (sticker.createdAt || Date.now()),
+        hasRepeat: !!sticker.repeat,
+        hasNotes: (sticker.notes || []).length > 0,
+        notesCount: (sticker.notes || []).length,
+      });
     }
 
     setScreens((prev) => {

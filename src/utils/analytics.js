@@ -11,7 +11,7 @@ const MAX_EVENTS = 5000;
 // Сколько событий отправляем за раз
 const BATCH_SIZE = 50;
 
-const ANALYTICS_ENDPOINT = "https://abc123-xyz.ngrok-free.app/api/logs";
+const ANALYTICS_ENDPOINT = "https://uncertainly-nourished-basilisk.cloudpub.ru/api/logs";
 
 // Идентификаторы
 function uid() {
@@ -81,14 +81,18 @@ async function writeQueue(queue) {
 
 async function sendToServer(events) {
   if (!events.length) return true;
+  const url = ANALYTICS_ENDPOINT;
   try {
-    const res = await fetch(ANALYTICS_ENDPOINT, {
+    console.log("[analytics] POST →", url, "events:", events.length);
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ events }),
     });
+    console.log("[analytics] response status:", res.status);
     return res.ok;
-  } catch {
+  } catch (e) {
+    console.warn("[analytics] fetch failed:", e.message || e);
     return false;
   }
 }

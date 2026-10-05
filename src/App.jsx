@@ -65,24 +65,32 @@ export default function App() {
   const [language, setLanguage] = useState(null);
   const [loadedLang, setLoadedLang] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      await retryPending();
-      await getFirstOpenAt();         // фиксирует первый запуск
-      await logSessionStart();        // session_start
-    })();
-  }, []);
+  const sessionStartedRef = useRef(false);
 
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "background") {
-        logSessionEnd();
-      } else if (state === "active") {
-        logSessionStart();  //Сессия в день
+    useEffect(() => {
+      (async () => {
+        await retryPending();
+        await getFirstOpenAt();
+      })();
+    }, []);
+
+    useEffect(() => {
+      const sub = AppState.addEventListener("change", (state) => {
+        if (state === "background") {
+          logSessionEnd();
+          sessionStartedRef.current = false;
+        } else if (state === "active" && !sessionStartedRef.current) {
+          logSessionStart();
+          sessionStartedRef.current = true;
+        }
+      });
+      // При старте приложения
+      if (!sessionStartedRef.current) {
+        logSessionStart();
+        sessionStartedRef.current = true;
       }
-    });
-    return () => sub.remove();
-  }, []);
+      return () => sub.remove();
+    }, []);
 
   useEffect(() => {
     AsyncStorage.getItem("questmap_theme")
@@ -461,6 +469,17 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
       markGuideCompleted(task.source, task.guideOfferId);
     }
 
+    logEvent("task_completed", {
+      where: markerId === FIELD_MARKER_ID ? "sticker" : "marker",
+      screenId,
+      markerId: markerId === FIELD_MARKER_ID ? null : markerId,
+      taskId,
+      timeToCompleteMs: Date.now() - (task.createdAt || Date.now()),
+      hasRepeat: !!task.repeat,
+      hasNotes: (task.notes || []).length > 0,
+      notesCount: (task.notes || []).length,
+    });
+
     setScreens((prev) => {
       const s = prev[screenId];
       if (!s) return prev;
@@ -528,6 +547,18 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
       releaseGuideTask(task.guideOfferId);
     }
 
+    // ⬇️ ЛОГИРУЕМ УДАЛЕНИЕ
+    logEvent("task_deleted", {
+      where: markerId === FIELD_MARKER_ID ? "sticker" : "marker",
+      viaDetail: true,
+      screenId,
+      markerId: markerId === FIELD_MARKER_ID ? null : markerId,
+      taskId,
+      wasDone: !!task.done,
+      wasExpired: !task.done && task.due != null,
+      ageMs: Date.now() - (task.createdAt || Date.now()),
+    });
+
     setHistory((h) => [
       ...h,
       {
@@ -571,7 +602,7 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
 
     setTaskDetail(null);
   }, [taskDetail, screens, setScreens, releaseGuideTask, markGuideCompleted, setTaskDetail, t, setHistory]);
-
+  
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
 
   const activeTaskId = topNav.type === NAV.TASK ? topNav.payload.markerId : null;
