@@ -1,6 +1,7 @@
 // hooks/useTasks.js
 import { useCallback } from "react";
 import { nextId } from "../utils/id";
+import { logEvent } from "../utils/analytics";
 
 export function useTasks({
   screens,
@@ -41,7 +42,6 @@ export function useTasks({
   }, [setScreens]);
 
   const toggleTask = useCallback((screenId, markerId, taskId) => {
-    // 1) Читаем актуальное состояние из пропса screens, а не из reducer
     const scr = screens[screenId];
     if (!scr) return;
     const marker = scr.markers.find((m) => m.id === markerId);
@@ -50,13 +50,22 @@ export function useTasks({
 
     const willBeDone = !task.done;
 
-    // 2) Побочки — синхронно, до setScreens
     if (willBeDone && task.source && task.guideOfferId) {
       releaseGuideTask(task.guideOfferId);
       markGuideCompleted(task.source, task.guideOfferId);
     }
 
-    // 3) Обновляем стейт
+    if (willBeDone) {
+      const timeToComplete = Date.now() - (task.createdAt || Date.now());
+      logEvent("task_completed", {
+        markerId,
+        timeToCompleteMs: timeToComplete,
+        hasRepeat: !!task.repeat,
+        hasNotes: (task.notes || []).length > 0,
+        notesCount: (task.notes || []).length,
+      });
+    }
+
     setScreens((prev) => {
       const s = prev[screenId];
       if (!s) return prev;
@@ -184,6 +193,14 @@ export function useTasks({
       task,
       removedAt: Date.now(),
     }]);
+
+    if (task) {
+      logEvent("task_deleted", {
+        wasDone: !!task.done,
+        wasExpired: !task.done && task.due != null,
+        ageMs: Date.now() - (task.createdAt || Date.now()),
+      });
+    }
 
     setScreens((prev) => {
       const s = prev[screenId];

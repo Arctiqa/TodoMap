@@ -15,6 +15,7 @@ import { AddTaskBar } from "../components/AddTaskBar";
 import { resolveImageSource } from "../data/initialScreens";
 import { STICKER_LONG_PRESS } from "../constants/config";
 import { GUIDE_BY_KEY } from "../constants/guides";
+import { logEvent } from "../utils/analytics";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   try { UIManager.setLayoutAnimationEnabledExperimental(true); } catch (e) {}
@@ -461,6 +462,13 @@ export function TaskScreen({
             onSubmit={({ title, due, repeat, share, color }) => {
               LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
               onAdd(marker.id, title, due, repeat, color);
+              logEvent("task_created", {
+                hasDue: !!due,
+                hasRepeat: !!repeat,
+                hasShare: !!share,
+                hasColor: !!color,
+                target: "marker",   // добавили в метку
+              });             
               if (share && onShare) onShare(title, due);
               setAddBarExpanded(false);
               setAddBarMinimized(false);

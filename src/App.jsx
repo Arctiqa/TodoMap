@@ -1,6 +1,6 @@
 // App.jsx
 import React, { useState, useMemo, useReducer, useEffect, useCallback, useRef } from "react";
-import { View, Text, Pressable, StatusBar, Image, BackHandler, Animated, ScrollView, Platform } from "react-native";
+import { View, Text, Pressable, StatusBar, Image, BackHandler, Animated, ScrollView, Platform, AppState  } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -46,6 +46,7 @@ import { OnboardingOverlay } from "./screens/OnboardingOverlay";
 
 import { screenTitle } from "./utils/text";
 import { cancelTaskNotifications } from "./utils/notifications";
+import { logEvent, logSessionStart, logSessionEnd, getFirstOpenAt, retryPending } from "./utils/analytics";
 import { resolveImageSource, DOM_DEFAULT_BG, MAP_DEFAULT_BG } from "./data/initialScreens";
 
 import { useOverlayState } from "./hooks/useOverlayState";
@@ -65,6 +66,25 @@ export default function App() {
   const [loadedLang, setLoadedLang] = useState(false);
 
   useEffect(() => {
+    (async () => {
+      await retryPending();
+      await getFirstOpenAt();         // фиксирует первый запуск
+      await logSessionStart();        // session_start
+    })();
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "background") {
+        logSessionEnd();
+      } else if (state === "active") {
+        logSessionStart();  //Сессия в день
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
     AsyncStorage.getItem("questmap_theme")
       .then((v) => v && setThemeName(v))
       .catch((e) => console.warn("QuestMap: тема не загрузилась", e));
@@ -79,6 +99,7 @@ export default function App() {
   }, []);
 
   const handleThemeChange = useCallback((key) => {
+    logEvent("theme_changed", { to: key });
     setThemeName(key);
     AsyncStorage.setItem("questmap_theme", key).catch((e) =>
       console.warn("QuestMap: тема не сохранилась", e)
@@ -86,6 +107,7 @@ export default function App() {
   }, []);
 
   const handleLanguageChange = useCallback(async (key) => {
+    logEvent("language_changed", { to: key });
     setLanguage(key);
     AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, key).catch((e) =>
       console.warn("QuestMap: язык не сохранился", e)
@@ -144,6 +166,7 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
   const finishOnboarding = useCallback(() => {
     setShowOnboarding(false);
     AsyncStorage.setItem("questmap_onboarded_v1", "1").catch(() => {});
+    logEvent("onboarding_complete", {});
   }, []);
 
   const toggleNotifications = useCallback((value) => {
@@ -162,6 +185,7 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
 
   const [addTaskBarExpanded, setAddTaskBarExpanded] = useState(false);
   const [addTaskBarMinimized, setAddTaskBarMinimized] = useState(false);
+
 
   const overlay = useOverlayState();
   const {
@@ -217,6 +241,17 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
     screens, screen, currentId, setScreens, updateScreen,
     setTopLevelOrder, setHistory, setEditMode, popNav, setCurrentId,
   });
+
+  const handleCreateMarker = useCallback((values) => {
+    createMarker(values);
+    logEvent("marker_created", {
+      asField: !!values.asField,
+      hasImage: !!values.image,
+      hasColor: !!values.color,
+    });
+  }, [createMarker]);    
+
+
 
   const {
     addOrUpdate: addOrUpdateThought,
@@ -557,6 +592,13 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
 
   const handleAddTaskFromBar = useCallback(({ title, due, repeat, share, color }) => {
     addSticker(currentId, { title, due, repeat, color }, 50, 50);
+    logEvent("task_created", {
+      hasDue: !!due,
+      hasRepeat: !!repeat,
+      hasShare: !!share,
+      hasColor: !!color,
+      target: "field",   // добавили в поле, а не в метку
+    });
     if (share) shareTaskToPool(title, due);
   }, [currentId, addSticker, shareTaskToPool]);
 
@@ -621,6 +663,7 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
     }
     return chain;
   }, [currentId, screens]);
+
 
   const handleOpenSticker = useCallback((sticker) => {
     setTaskDetail({
@@ -1078,7 +1121,7 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
             confirmLabel={t("pin.addMarker")}
             showPlaceHints={currentId !== "home"}
             onClose={popNav}
-            onCreate={createMarker}
+            onCreate={handleCreateMarker} // ← стало
             visible={topNav.type === NAV.ADD_MARKER}
           />
 

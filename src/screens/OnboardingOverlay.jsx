@@ -23,6 +23,8 @@ export function OnboardingOverlay({ onDone }) {
     { emoji: "📍", text: t("onb.slide2") },
     { emoji: "📌", text: t("onb.slide3") },
     { emoji: "🧩", text: t("onb.slide4") },
+    { emoji: "📖", text: t("onb.slide5") },
+    { emoji: "📷", text: t("onb.slide6") },
   ];
 
   const go = (dir) => {

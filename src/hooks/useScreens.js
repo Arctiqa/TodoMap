@@ -28,6 +28,7 @@ export function useScreens({
 
   // ---- Метки ----
   const createMarker = useCallback(({ name, emoji, color, type, image, asField }) => {
+    
     if (asField) {
       const newScreenId = `s${nextId()}`;
       const markerId = `m${nextId()}`;
