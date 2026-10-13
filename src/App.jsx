@@ -65,24 +65,28 @@ export default function App() {
   const [language, setLanguage] = useState(null);
   const [loadedLang, setLoadedLang] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      await retryPending();
-      await getFirstOpenAt();         // фиксирует первый запуск
-      await logSessionStart();        // session_start
-    })();
-  }, []);
+  const sessionStartedRef = useRef(false);
 
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "background") {
-        logSessionEnd();
-      } else if (state === "active") {
-        logSessionStart();  //Сессия в день
-      }
-    });
-    return () => sub.remove();
-  }, []);
+    useEffect(() => {
+      (async () => {
+        await retryPending();
+        await getFirstOpenAt();
+      })();
+    }, []);
+
+    useEffect(() => {
+      const sub = AppState.addEventListener("change", (state) => {
+        if (state === "background") {
+          logSessionEnd();
+          sessionStartedRef.current = false;
+        } else if (state === "active" && !sessionStartedRef.current) {
+          logSessionStart();
+          sessionStartedRef.current = true;
+        }
+      });
+
+      return () => sub.remove();
+    }, []);
 
   useEffect(() => {
     AsyncStorage.getItem("questmap_theme")
@@ -143,11 +147,11 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
   const store = useQuestStore();
   const {
     state, setScreens, updateScreen, setTopLevelOrder, setHistory, setThoughts,
-    setGuideUsedOffers, setGuideCompletedOffers, setSharedPool,
+    setGuideUsedOffers, setSharedPool,
   } = store;
   const {
     screens, topLevelOrder, historyLog, thoughts,
-    guideUsedOffers, guideCompletedOffers, sharedPool, loaded,
+    guideUsedOffers, sharedPool, loaded,
   } = state;
 
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -206,14 +210,11 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
   const takeStickerRef = useRef(null);
 
   const {
-    markCompleted: markGuideCompleted,
     takeTask: takeGuideTask,
     releaseTask: releaseGuideTask,
   } = useGuides({
     guideUsedOffers,
     setGuideUsedOffers,
-    guideCompletedOffers,
-    setGuideCompletedOffers,
     onTakeSticker: (payload) => takeStickerRef.current && takeStickerRef.current(payload),
     popNav,
   });
@@ -226,7 +227,6 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
   } = useTasks({
     screens,
     updateScreen, setScreens, setHistory,
-    markGuideCompleted,
     releaseGuideTask,
   });
 
@@ -456,10 +456,16 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
       return;
     }
 
-    if (task.source && task.guideOfferId) {
-      releaseGuideTask(task.guideOfferId);
-      markGuideCompleted(task.source, task.guideOfferId);
-    }
+    logEvent("task_completed", {
+      where: markerId === FIELD_MARKER_ID ? "sticker" : "marker",
+      screenId,
+      markerId: markerId === FIELD_MARKER_ID ? null : markerId,
+      taskId,
+      timeToCompleteMs: Date.now() - (task.createdAt || Date.now()),
+      hasRepeat: !!task.repeat,
+      hasNotes: (task.notes || []).length > 0,
+      notesCount: (task.notes || []).length,
+    });
 
     setScreens((prev) => {
       const s = prev[screenId];
@@ -498,7 +504,7 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
     });
 
     setTaskDetail(null);
-  }, [taskDetail, screens, setScreens, releaseGuideTask, markGuideCompleted, setTaskDetail]);
+  }, [taskDetail, screens, setScreens, releaseGuideTask, setTaskDetail]);
 
   const uncompleteTaskFromDetail = useCallback(() => {
     patchTaskInDetail((tsk) => ({ ...tsk, done: false, completedAt: null }));
@@ -524,9 +530,21 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
 
     if (!task) { setTaskDetail(null); return; }
 
-    if (task.source && task.guideOfferId && !task.done) {
+    if (task.source && task.guideOfferId) {
       releaseGuideTask(task.guideOfferId);
     }
+
+    // ⬇️ ЛОГИРУЕМ УДАЛЕНИЕ
+    logEvent("task_deleted", {
+      where: markerId === FIELD_MARKER_ID ? "sticker" : "marker",
+      viaDetail: true,
+      screenId,
+      markerId: markerId === FIELD_MARKER_ID ? null : markerId,
+      taskId,
+      wasDone: !!task.done,
+      wasExpired: !task.done && task.due != null,
+      ageMs: Date.now() - (task.createdAt || Date.now()),
+    });
 
     setHistory((h) => [
       ...h,
@@ -570,8 +588,8 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
     });
 
     setTaskDetail(null);
-  }, [taskDetail, screens, setScreens, releaseGuideTask, markGuideCompleted, setTaskDetail, t, setHistory]);
-
+  }, [taskDetail, screens, setScreens, releaseGuideTask, setTaskDetail, t, setHistory]);
+  
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
 
   const activeTaskId = topNav.type === NAV.TASK ? topNav.payload.markerId : null;
@@ -815,7 +833,6 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
           <GuideTasksOverlay
             guideKey={topNav.payload.guideKey}
             guideUsedOffers={guideUsedOffers}
-            guideCompletedOffers={guideCompletedOffers}
             onTakeTask={takeGuideTask}
             onBack={popNav}
             onClose={popNav}

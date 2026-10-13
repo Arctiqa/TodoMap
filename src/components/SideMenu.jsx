@@ -89,7 +89,7 @@ export function SideMenu({ visible, onClose, onAction }) {
       title: t("side.section.progress"),
       items: [
         { key: "guides",  icon: "explore",      label: t("side.guides") },
-        { key: "titles",  icon: "emoji-events", label: t("side.titles") },
+        // { key: "titles",  icon: "emoji-events", label: t("side.titles") },
         { key: "history", icon: "history",      label: t("side.history") },
       ],
     },

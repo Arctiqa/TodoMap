@@ -6,7 +6,6 @@ import { logEvent } from "../utils/analytics";
 export function useTasks({
   screens,
   updateScreen, setScreens, setHistory,
-  markGuideCompleted,
   releaseGuideTask,
 }) {
   // ============================================================
@@ -50,11 +49,6 @@ export function useTasks({
 
     const willBeDone = !task.done;
 
-    if (willBeDone && task.source && task.guideOfferId) {
-      releaseGuideTask(task.guideOfferId);
-      markGuideCompleted(task.source, task.guideOfferId);
-    }
-
     if (willBeDone) {
       const timeToComplete = Date.now() - (task.createdAt || Date.now());
       logEvent("task_completed", {
@@ -93,7 +87,7 @@ export function useTasks({
         },
       };
     });
-  }, [screens, setScreens, markGuideCompleted, releaseGuideTask]);
+  }, [screens, setScreens, releaseGuideTask]);
 
   const incrementRepeat = useCallback((screenId, markerId, taskId) => {
     const scr = screens[screenId];
@@ -104,11 +98,6 @@ export function useTasks({
 
     const nextCount = Math.min(task.repeat.target, task.repeat.count + 1);
     const willFinish = nextCount >= task.repeat.target;
-
-    if (willFinish && task.source && task.guideOfferId) {
-      releaseGuideTask(task.guideOfferId);
-      markGuideCompleted(task.source, task.guideOfferId);
-    }
 
     setScreens((prev) => {
       const s = prev[screenId];
@@ -133,7 +122,7 @@ export function useTasks({
         },
       };
     });
-  }, [screens, setScreens, markGuideCompleted, releaseGuideTask]);
+  }, [screens, setScreens, releaseGuideTask]);
 
   const decrementRepeat = useCallback((screenId, markerId, taskId) => {
     setScreens((prev) => {
@@ -176,10 +165,8 @@ export function useTasks({
     const task = marker && marker.tasks.find((t) => t.id === taskId);
     if (!marker || !task) return;
 
-    // Если задача ещё активная и гид-задача — освобождаем слот
-    // (если выполнена — ничего не делаем, id остаётся в completedOffers,
-    //  но взятие больше не блокируется, т.к. taken=false)
-    if (task.source && task.guideOfferId && !task.done) {
+   
+    if (task.source && task.guideOfferId) {
       releaseGuideTask(task.guideOfferId);
     }
 
@@ -365,9 +352,19 @@ export function useTasks({
     const sticker = (scr.stickers || []).find((s) => s.id === stickerId);
     if (!sticker) return;
 
-    if (sticker.source && sticker.guideOfferId && !sticker.done) {
+    if (sticker.source && sticker.guideOfferId) {
       releaseGuideTask(sticker.guideOfferId);
     }
+
+    logEvent("task_deleted", {
+      where: "sticker",
+      viaTrash: true,
+      screenId,
+      stickerId,
+      wasDone: !!sticker.done,
+      wasExpired: !sticker.done && sticker.due != null,
+      ageMs: Date.now() - (sticker.createdAt || Date.now()),
+    });
 
     setHistory((h) => [...h, {
       screenId,
@@ -416,7 +413,18 @@ export function useTasks({
 
     if (willBeDone && sticker.source && sticker.guideOfferId) {
       releaseGuideTask(sticker.guideOfferId);
-      markGuideCompleted(sticker.source, sticker.guideOfferId);
+    }
+
+    if (willBeDone) {
+      logEvent("task_completed", {
+        where: "sticker",
+        screenId,
+        stickerId,
+        timeToCompleteMs: Date.now() - (sticker.createdAt || Date.now()),
+        hasRepeat: !!sticker.repeat,
+        hasNotes: (sticker.notes || []).length > 0,
+        notesCount: (sticker.notes || []).length,
+      });
     }
 
     setScreens((prev) => {
@@ -437,7 +445,7 @@ export function useTasks({
         },
       };
     });
-  }, [screens, setScreens, markGuideCompleted, releaseGuideTask]);
+  }, [screens, setScreens, releaseGuideTask]);
 
   const incrementStickerRepeat = useCallback((screenId, stickerId) => {
     const scr = screens[screenId];
@@ -450,7 +458,6 @@ export function useTasks({
 
     if (willFinish && sticker.source && sticker.guideOfferId) {
       releaseGuideTask(sticker.guideOfferId);
-      markGuideCompleted(sticker.source, sticker.guideOfferId);
     }
 
     setScreens((prev) => {
@@ -471,7 +478,7 @@ export function useTasks({
         },
       };
     });
-  }, [screens, setScreens, markGuideCompleted, releaseGuideTask]);
+  }, [screens, setScreens, releaseGuideTask]);
 
   const decrementStickerRepeat = useCallback((screenId, stickerId) => {
     setScreens((prev) => {

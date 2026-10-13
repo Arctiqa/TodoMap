@@ -5,6 +5,9 @@ const BG3 = require("../../assets/backgrounds/BG_3.png");
 const BG4 = require("../../assets/backgrounds/BG_4.png");
 const BG5 = require("../../assets/backgrounds/BG_5.png");
 const BG6 = require("../../assets/backgrounds/BG_6.png");
+const BG7 = require("../../assets/backgrounds/BG_7.png");
+const BG8 = require("../../assets/backgrounds/BG_8.png");
+const BG9 = require("../../assets/backgrounds/BG_9.png");
 
 export const CUSTOM_BACKGROUNDS = [
   { key: "bg1", label: "Фон 1", source: BG1 },
@@ -13,4 +16,7 @@ export const CUSTOM_BACKGROUNDS = [
   { key: "bg4", label: "Фон 4", source: BG4 },
   { key: "bg5", label: "Фон 5", source: BG5 },
   { key: "bg6", label: "Фон 6", source: BG6 },
+  { key: "bg7", label: "Фон 7", source: BG7 },
+  { key: "bg8", label: "Фон 8", source: BG8 },
+  { key: "bg9", label: "Фон 9", source: BG9 },
 ];

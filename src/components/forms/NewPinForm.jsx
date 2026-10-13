@@ -372,8 +372,8 @@ export function NewPinForm({
 
               {!isEdit && showColor && (
                 <Pressable onPress={() => setAsField((v) => !v)} style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                  <View style={{ width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center", backgroundColor: asField ? ink : card }}>
-                    {asField && <Text style={{ color: paper, fontSize: 12 }}>✓</Text>}
+                  <View style={{ width: 28, height: 28, borderRadius: 7, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center", backgroundColor: asField ? ink : card }}>
+                    {asField && <MaterialIcons name="check" size={20} color={paper} />}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 12.5, color: ink, fontWeight: "bold", textAlign: isRTL ? "right" : "left" }}>{t("pin.asField")}</Text>

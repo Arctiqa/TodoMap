@@ -1,30 +1,17 @@
-// hooks/useGuides.js
 import { useCallback } from "react";
 
 export function useGuides({
   guideUsedOffers,
   setGuideUsedOffers,
-  guideCompletedOffers,
-  setGuideCompletedOffers,
   onTakeSticker,
   popNav,
 }) {
-  const markCompleted = useCallback((guideKey, offerId) => {
-    if (!guideKey || !offerId) return;
-    if (guideCompletedOffers.includes(offerId)) return;
-    setGuideCompletedOffers((prev) =>
-      prev.includes(offerId) ? prev : [...prev, offerId]
-    );
-  }, [guideCompletedOffers, setGuideCompletedOffers]);
-
+  // Взято ли задание
   const isTaken = useCallback((offerId) => {
     return guideUsedOffers.includes(offerId);
   }, [guideUsedOffers]);
 
-  const isCompleted = useCallback((offerId) => {
-    return guideCompletedOffers.includes(offerId);
-  }, [guideCompletedOffers]);
-
+  // Взять задание — кладём в поле как стикер и помечаем как «взято»
   const takeTask = useCallback((guideKey, task) => {
     if (!task || !task.id || !task.title) return;
 
@@ -45,15 +32,14 @@ export function useGuides({
     popNav && popNav();
   }, [setGuideUsedOffers, onTakeSticker, popNav]);
 
+  // Освободить слот (когда задача удалена)
   const releaseTask = useCallback((offerId) => {
     if (!offerId) return;
     setGuideUsedOffers((prev) => prev.filter((id) => id !== offerId));
   }, [setGuideUsedOffers]);
 
   return {
-    markCompleted,
     isTaken,
-    isCompleted,
     takeTask,
     releaseTask,
   };

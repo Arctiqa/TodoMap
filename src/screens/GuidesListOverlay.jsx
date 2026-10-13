@@ -5,6 +5,7 @@ import { OverlayHeader } from "../components/ui/OverlayHeader";
 import { useTheme } from "../theme/ThemeContext";
 import { useT, useRTL } from "../i18n/LanguageContext";
 import { GUIDE_META } from "../constants/guides";
+import { MaterialIcons } from "@expo/vector-icons";
 
 export function GuidesListOverlay({ onSelect, onClose }) {
   const { ink, card } = useTheme();
@@ -22,10 +23,10 @@ export function GuidesListOverlay({ onSelect, onClose }) {
               onPress={() => onSelect(key)}
               style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 12, backgroundColor: card, borderWidth: 1.5, borderColor: ink, borderRadius: 12, padding: 12, marginBottom: 8 }}
             >
-              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: meta.color, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ fontSize: 22 }}>{meta.emoji}</Text>
-              </View>
-              <Text style={{ fontSize: 15, fontWeight: "bold", color: ink, flex: 1, textAlign: isRTL ? "right" : "left" }}>{meta.name}</Text>
+                <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: meta.color, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
+                  <MaterialIcons name={meta.icon} size={22} color={ink} />
+                </View>
+                <Text style={{ fontSize: 15, fontWeight: "bold", color: ink, flex: 1, textAlign: isRTL ? "right" : "left" }}>{t(meta.nameKey)}</Text>
               <Text style={{ fontSize: 16, color: ink, opacity: 0.6 }}>{isRTL ? "‹" : "›"}</Text>
             </Pressable>
           );

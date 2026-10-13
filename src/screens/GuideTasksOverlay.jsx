@@ -11,12 +11,11 @@ import { GUIDE_BY_KEY } from "../constants/guides";
 export function GuideTasksOverlay({
   guideKey,
   guideUsedOffers,
-  guideCompletedOffers,
   onTakeTask,
   onBack,
   onClose,
 }) {
-  const { ink, card, paper, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
+  const { ink, card, paper, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
   const t = useT();
   const isRTL = useRTL();
   const [confirmTaskId, setConfirmTaskId] = useState(null);
@@ -24,18 +23,15 @@ export function GuideTasksOverlay({
   const guide = GUIDE_BY_KEY[guideKey];
   if (!guide) return null;
 
-  const meta = { name: guide.name, icon: guide.icon, color: guide.color };
+  const meta = { nameKey: guide.nameKey, icon: guide.icon, color: guide.color };
   const tasks = guide.tasks || [];
 
   const usedSet = useMemo(() => new Set(guideUsedOffers || []), [guideUsedOffers]);
-  const completedSet = useMemo(() => new Set(guideCompletedOffers || []), [guideCompletedOffers]);
 
   const handlePick = useCallback((task) => {
-    const taken = usedSet.has(task.id);
-    const completed = completedSet.has(task.id);
-    if (taken && !completed) return;
+    if (usedSet.has(task.id)) return; // уже взято — не даём
     setConfirmTaskId(task.id);
-  }, [usedSet, completedSet]);
+  }, [usedSet]);
 
   const handleConfirm = useCallback(() => {
     const task = tasks.find((tsk) => tsk.id === confirmTaskId);
@@ -46,6 +42,8 @@ export function GuideTasksOverlay({
   const handleCancel = useCallback(() => {
     setConfirmTaskId(null);
   }, []);
+
+  const takenCount = tasks.filter((tsk) => usedSet.has(tsk.id)).length;
 
   return (
     <Overlay zIndex={74} background={paper}>
@@ -62,14 +60,11 @@ export function GuideTasksOverlay({
         >
           <MaterialIcons name={meta.icon} size={30} color={ink} />
         </View>
-        <Text style={{ fontSize: 12, fontWeight: "800", color: ink, marginTop: 8, letterSpacing: 1 }}>
-          {meta.name}
-        </Text>
+          <Text style={{ fontSize: 12, fontWeight: "800", color: ink, marginTop: 8, letterSpacing: 1 }}>
+            {t(meta.nameKey)}
+          </Text>
         <Text style={{ fontSize: 11, color: ink, opacity: 0.5, marginTop: 2 }}>
-          {t("guideTasks.completed", {
-            done: guideCompletedOffers ? guideCompletedOffers.filter((id) => id.startsWith(guideKey + "_")).length : 0,
-            total: tasks.length,
-          })}
+          {t("guideTasks.taken", { taken: takenCount, total: tasks.length })}
         </Text>
       </View>
 
@@ -79,13 +74,13 @@ export function GuideTasksOverlay({
       >
         {tasks.map((task) => {
           const taken = usedSet.has(task.id);
-          const completed = completedSet.has(task.id);
           const confirming = confirmTaskId === task.id;
 
           return (
             <View key={task.id} style={{ marginBottom: SPACING.sm }}>
               <Pressable
                 onPress={() => handlePick(task)}
+                disabled={taken}
                 style={({ pressed }) => [
                   {
                     flexDirection: isRTL ? "row-reverse" : "row",
@@ -94,7 +89,7 @@ export function GuideTasksOverlay({
                     backgroundColor: card,
                     borderRadius: RADIUS.lg,
                     padding: SPACING.md,
-                    opacity: completed ? 0.45 : pressed ? 0.9 : 1,
+                    opacity: taken ? 0.45 : pressed ? 0.9 : 1,
                   },
                   SHADOW.sm,
                 ]}
@@ -122,21 +117,8 @@ export function GuideTasksOverlay({
                   {task.title}
                 </Text>
 
-                {taken && !completed && (
-                  <View
-                    style={{
-                      width: 22, height: 22, borderRadius: 11,
-                      backgroundColor: GREEN,
-                      borderWidth: 1.5, borderColor: ink,
-                      alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <MaterialIcons name="check" size={14} color="#fff" />
-                  </View>
-                )}
-
-                {completed && (
-                  <MaterialIcons name="check-circle" size={20} color={ink} style={{ opacity: 0.6 }} />
+                {taken && (
+                  <MaterialIcons name="lock" size={18} color={ink} style={{ opacity: 0.5 }} />
                 )}
               </Pressable>
 

@@ -25,7 +25,6 @@ const initialState = {
   historyLog: [],
   thoughts: [],
   guideUsedOffers: [],
-  guideCompletedOffers: [],
   sharedPool: [],
   loaded: false,
 };
@@ -68,9 +67,6 @@ function reducer(state, action) {
     case "SET_GUIDE_USED_OFFERS":
       return { ...state, guideUsedOffers: typeof action.value === "function" ? action.value(state.guideUsedOffers) : action.value };
 
-    case "SET_GUIDE_COMPLETED_OFFERS":
-      return { ...state, guideCompletedOffers: typeof action.value === "function" ? action.value(state.guideCompletedOffers) : action.value };
-
     case "SET_SHARED_POOL":
       return { ...state, sharedPool: typeof action.value === "function" ? action.value(state.sharedPool) : action.value };
 
@@ -96,7 +92,6 @@ export function useQuestStore() {
           if (data.thoughts) patch.thoughts = data.thoughts;
 
           patch.guideUsedOffers = mergeOfferIds(data.guideUsedOffers);
-          patch.guideCompletedOffers = mergeOfferIds(data.guideCompletedOffers);
 
           if (data.sharedPool) patch.sharedPool = data.sharedPool;
           dispatch({ type: "HYDRATE", payload: patch });
@@ -122,7 +117,6 @@ export function useQuestStore() {
           historyLog: state.historyLog,
           thoughts: state.thoughts,
           guideUsedOffers: state.guideUsedOffers,
-          guideCompletedOffers: state.guideCompletedOffers,
           sharedPool: state.sharedPool,
         })
       ).catch((e) => console.warn("QuestMap: не удалось сохранить", e));
@@ -135,7 +129,6 @@ export function useQuestStore() {
     state.historyLog,
     state.thoughts,
     state.guideUsedOffers,
-    state.guideCompletedOffers,
     state.sharedPool,
   ]);
 
@@ -145,7 +138,6 @@ export function useQuestStore() {
   const setHistory = useCallback((value) => dispatch({ type: "SET_HISTORY", value }), []);
   const setThoughts = useCallback((value) => dispatch({ type: "SET_THOUGHTS", value }), []);
   const setGuideUsedOffers = useCallback((value) => dispatch({ type: "SET_GUIDE_USED_OFFERS", value }), []);
-  const setGuideCompletedOffers = useCallback((value) => dispatch({ type: "SET_GUIDE_COMPLETED_OFFERS", value }), []);
   const setSharedPool = useCallback((value) => dispatch({ type: "SET_SHARED_POOL", value }), []);
 
   return {
@@ -157,7 +149,6 @@ export function useQuestStore() {
     setHistory,
     setThoughts,
     setGuideUsedOffers,
-    setGuideCompletedOffers,
     setSharedPool,
   };
 }

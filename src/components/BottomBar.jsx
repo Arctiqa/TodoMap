@@ -16,7 +16,8 @@ export function BottomBar({ onAction, activeKey }) {
     { key: "home",    icon: "home",             label: t("bottom.home"),    action: "home" },
     { key: "journal", icon: "menu-book",        label: t("bottom.journal"), action: "journal" },
     { key: "marker",  icon: "add-location-alt", label: t("bottom.marker"),  action: "add-marker" },
-    { key: "others",  icon: "public",           label: t("bottom.others"),  action: "others" },
+    { key: "field",   icon: "layers",           label: t("bottom.field"),   action: "add-field" },
+ // { key: "others",  icon: "public",           label: t("bottom.others"),  action: "others" },
   ];
 
   return (
