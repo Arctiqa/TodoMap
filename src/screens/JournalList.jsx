@@ -1,12 +1,11 @@
 import React, { useState, useMemo, useCallback, memo, useRef } from "react";
-import { View, Text, Pressable, FlatList, LayoutAnimation, Platform, UIManager } from "react-native";
+import { View, Text, Pressable, LayoutAnimation, Platform, UIManager } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Overlay } from "../components/ui/Overlay";
 import { OverlayHeader } from "../components/ui/OverlayHeader";
 import { Chip } from "../components/ui/Chip";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
-import { EmptyState } from "../components/ui/EmptyState";
 import { TaskRow } from "../components/TaskRow";
 import { useTheme } from "../theme/ThemeContext";
 import { useT, useRTL } from "../i18n/LanguageContext";
@@ -68,6 +67,7 @@ export function JournalList({
   onClose, onOpenDetail,
   onAddThought, onDeleteThought, onConvertThought,
   onReturnTask, onCompleteTask, onDeleteTask,
+  onDeleteAllDone,
 }) {
   const { ink, card, muted, SPACING, RADIUS, SHADOW, TYPE } = useTheme();
   const t = useT();
@@ -75,6 +75,7 @@ export function JournalList({
   const [mode, setMode] = useState("markers");
   const [doneFilter, setDoneFilter] = useState("all");
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [pendingDeleteAll, setPendingDeleteAll] = useState(false);
   const scrollRef = useRef(null);
   const [pendingExpiredAction, setPendingExpiredAction] = useState(null);
 
@@ -123,37 +124,35 @@ export function JournalList({
     out.push({ type: "header", key: "h_active", section: "active", title: t("journal.active"), count: active.length, color: RED });
     if (openSections.active) {
       out.push({ type: "sortChips", key: "sort_active" });
-      if (flatActive.length === 0) {
-        out.push({ title: t("journal.noActive") });
-      } else if (mode === "markers") {
-        const byMarker = new Map();
-        flatActive.forEach((e) => {
-          const key = `${e.screenId}::${e.markerId}`;
-          if (!byMarker.has(key)) {
-            byMarker.set(key, {
-              markerId: e.markerId, markerName: e.markerName,
-              markerEmoji: e.markerEmoji, markerColor: e.markerColor,
-              screenName: e.screenName, items: [],
-            });
-          }
-          byMarker.get(key).items.push(e);
-        });
-        const blocks = [...byMarker.values()].sort((a, b) =>
-          a.markerName.localeCompare(b.markerName, undefined, { sensitivity: "base" })
-        );
-        blocks.forEach((block, bi) => {
-          out.push({ type: "markerBlock", key: `mb_${block.markerId}_${bi}`, block });
-        });
-      } else {
-        flatActive.forEach((e) => out.push({ type: "task", key: `a_${e.task.id}`, entry: e, showPath: true }));
+      if (flatActive.length > 0) {
+        if (mode === "markers") {
+          const byMarker = new Map();
+          flatActive.forEach((e) => {
+            const key = `${e.screenId}::${e.markerId}`;
+            if (!byMarker.has(key)) {
+              byMarker.set(key, {
+                markerId: e.markerId, markerName: e.markerName,
+                markerEmoji: e.markerEmoji, markerColor: e.markerColor,
+                screenName: e.screenName, items: [],
+              });
+            }
+            byMarker.get(key).items.push(e);
+          });
+          const blocks = [...byMarker.values()].sort((a, b) =>
+            a.markerName.localeCompare(b.markerName, undefined, { sensitivity: "base" })
+          );
+          blocks.forEach((block, bi) => {
+            out.push({ type: "markerBlock", key: `mb_${block.markerId}_${bi}`, block });
+          });
+        } else {
+          flatActive.forEach((e) => out.push({ type: "task", key: `a_${e.task.id}`, entry: e, showPath: true }));
+        }
       }
     }
 
     out.push({ type: "header", key: "h_expired", section: "expired", title: t("journal.expired"), count: expired.length, color: BLUE });
     if (openSections.expired) {
-      if (flatExpired.length === 0) {
-        out.push({ title: t("journal.noExpired") });
-      } else {
+      if (flatExpired.length > 0) {
         flatExpired.forEach((e) => out.push({ type: "task", key: `x_${e.task.id}`, entry: e, showPath: true, withActions: true, actionKind: "expired" }));
       }
     }
@@ -161,9 +160,7 @@ export function JournalList({
     out.push({ type: "header", key: "h_done", section: "done", title: t("journal.done"), count: done.length, color: TEAL });
     if (openSections.done) {
       out.push({ type: "doneChips", key: "done_chips" });
-      if (filteredDone.length === 0) {
-        out.push({ title: t("journal.noDone") });
-      } else {
+      if (filteredDone.length > 0) {
         filteredDone.forEach((e) => out.push({ type: "task", key: `d_${e.task.id}`, entry: e, showPath: true, isDone: true, withActions: true, actionKind: "done" }));
       }
     }
@@ -251,20 +248,42 @@ export function JournalList({
 
       case "doneChips":
         return (
-          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: SPACING.xs, marginBottom: SPACING.sm }}>
-            {[
-              { key: "today", label: t("journal.filterToday") },
-              { key: "week",  label: t("journal.filterWeek") },
-              { key: "month", label: t("journal.filterMonth") },
-              { key: "all",   label: t("journal.filterAll") },
-            ].map((f) => (
-              <Chip key={f.key} label={f.label} active={doneFilter === f.key} onPress={() => setDoneFilter(f.key)} size="sm" />
-            ))}
+          <View style={{ marginBottom: SPACING.sm }}>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: SPACING.xs }}>
+              {[
+                { key: "today", label: t("journal.filterToday") },
+                { key: "week",  label: t("journal.filterWeek") },
+                { key: "month", label: t("journal.filterMonth") },
+                { key: "all",   label: t("journal.filterAll") },
+              ].map((f) => (
+                <Chip key={f.key} label={f.label} active={doneFilter === f.key} onPress={() => setDoneFilter(f.key)} size="sm" />
+              ))}
+            </View>
+
+            {done.length > 0 && onDeleteAllDone && (
+              <Pressable
+                onPress={() => setPendingDeleteAll(true)}
+                style={({ pressed }) => ({
+                  flexDirection: isRTL ? "row-reverse" : "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  marginTop: SPACING.sm,
+                  borderWidth: 1.5,
+                  borderColor: RED,
+                  borderRadius: RADIUS.md,
+                  paddingVertical: SPACING.sm,
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <MaterialIcons name="delete-sweep" size={16} color={RED} />
+                <Text style={{ fontSize: 12, fontWeight: "700", color: RED }}>
+                  {t("journal.deleteAllDone")}
+                </Text>
+              </Pressable>
+            )}
           </View>
         );
-
-      case "empty":
-        return <EmptyState emoji={item.emoji} title={item.title} subtitle={item.subtitle} compact />;
 
       case "task":
         return (
@@ -318,7 +337,13 @@ export function JournalList({
       default:
         return null;
     }
-  }, [openSections, ink, card, muted, SPACING, RADIUS, SHADOW, TYPE, mode, doneFilter, thoughts, onOpenDetail, onReturnTask, onCompleteTask, onAddThought, onDeleteThought, onConvertThought, toggle, SORTS, isRTL, t]);
+  }, [
+    openSections, ink, card, muted, SPACING, RADIUS, SHADOW, TYPE,
+    mode, doneFilter, done, thoughts,
+    onOpenDetail, onReturnTask, onCompleteTask, onDeleteTask, onDeleteAllDone,
+    onAddThought, onDeleteThought, onConvertThought,
+    toggle, SORTS, isRTL, t,
+  ]);
 
   const keyExtractor = useCallback((item) => item.key, []);
 
@@ -346,6 +371,20 @@ export function JournalList({
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             onDeleteTask(pendingDelete);
             setPendingDelete(null);
+          }}
+        />
+      )}
+
+      {pendingDeleteAll && (
+        <ConfirmDialog
+          message={t("journal.deleteAllDoneConfirm")}
+          confirmLabel={t("confirm.delete")}
+          confirmColor={RED}
+          onCancel={() => setPendingDeleteAll(false)}
+          onConfirm={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            onDeleteAllDone && onDeleteAllDone();
+            setPendingDeleteAll(false);
           }}
         />
       )}

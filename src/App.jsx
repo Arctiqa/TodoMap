@@ -19,7 +19,7 @@ import {
   detectSystemLanguage,
   normalizeLanguage,
 } from "./utils/language";
-import { applyRTL } from "./utils/rtl";
+// import { applyRTL } from "./utils/rtl";
 
 import { BottomBar } from "./components/BottomBar";
 import { SideMenu } from "./components/SideMenu";
@@ -75,6 +75,9 @@ export default function App() {
     }, []);
 
     useEffect(() => {
+      logSessionStart();
+      sessionStartedRef.current = true;
+
       const sub = AppState.addEventListener("change", (state) => {
         if (state === "background") {
           logSessionEnd();
@@ -117,7 +120,7 @@ export default function App() {
       console.warn("QuestMap: язык не сохранился", e)
     );
     // RTL-переключение делается в LanguagePickerOverlay (там есть подтверждение и reload)
-    await applyRTL(key);
+    // await applyRTL(key);
   }, []);
 
   if (!loadedLang) return null;
@@ -267,7 +270,8 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
     returnToActive: returnTaskToActive,
     complete: completeTaskFromJournal,
     remove: deleteTaskFromJournal,
-  } = useJournalActions({ setScreens, setHistory });
+    removeAllDone: deleteAllDoneFromJournal,
+  } = useJournalActions({ setScreens, setHistory, releaseGuideTask });
 
   const {
     load: loadSharedPool,
@@ -633,6 +637,7 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
         break;
       case "journal": resetNav(); pushNav(NAV.JOURNAL); break;
       case "add-marker": resetNav(); pushNav(NAV.ADD_MARKER); break;
+      case "add-field": resetNav(); pushNav(NAV.ADD_SCREEN); break;
       case "others": resetNav(); pushNav(NAV.OTHERS); loadSharedPool(); break;
     }
   }, [setShowSideMenu, resetNav, pushNav, loadSharedPool, setCurrentId, setEditMode, setEditAction]);
@@ -751,6 +756,7 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
             onReturnTask={returnTaskToActive}
             onCompleteTask={completeTaskFromJournal}
             onDeleteTask={deleteTaskFromJournal}
+            onDeleteAllDone={() => deleteAllDoneFromJournal(doneList)}
           />
         );
 
@@ -802,7 +808,7 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
       case NAV.GUIDES_LIST:
         return (
           <GuidesListOverlay
-            onSelect={(key) => { popNav(); pushNav(NAV.GUIDE_TASKS, { guideKey: key }); }}
+            onSelect={(key) => pushNav(NAV.GUIDE_TASKS, { guideKey: key })}
             onClose={popNav}
           />
         );

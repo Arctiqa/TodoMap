@@ -13,7 +13,7 @@ import {
 } from "./guideTasks";
 
 export const GUIDES = [
-  { key: "order",   nameKey: "guide.order.name",   icon: "cleaning-services", color: "#BDEFC9", tasks: ORDER_TASKS },
+  { key: "order",   nameKey: "guide.order.name",   icon: "home",               color: "#BDEFC9", tasks: ORDER_TASKS },
   { key: "health",  nameKey: "guide.health.name",  icon: "favorite",           color: "#FFD5B0", tasks: HEALTH_TASKS },
   { key: "edu",     nameKey: "guide.edu.name",     icon: "school",             color: "#C8D6F0", tasks: EDU_TASKS },
   { key: "growth",  nameKey: "guide.growth.name",  icon: "trending-up",        color: "#C8E6F0", tasks: GROWTH_TASKS },

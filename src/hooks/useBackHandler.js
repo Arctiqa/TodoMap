@@ -38,19 +38,11 @@ export function useBackHandler({
       if (o.pendingPlacement) { cancelPendingPlacement(); return true; }
       if (o.showExitConfirm) { o.setShowExitConfirm(false); return true; }
 
-      const stack = navRef.current;
-      if (stack.length > 1) {
-        const top = stack[stack.length - 1];
-
-        if (top.type === NAV.GUIDE_TASKS) {
-          navDispatch({ type: "POP" });
-          navDispatch({ type: "PUSH", navType: NAV.GUIDES_LIST });
-          return true;
-        }
-
-        navDispatch({ type: "POP" });
-        return true;
-      }
+    const stack = navRef.current;
+    if (stack.length > 1) {
+      navDispatch({ type: "POP" });
+      return true;
+    }
 
       const { editMode, currentId, screens } = stateRef.current;
       if (editMode) { setEditMode(false); setEditAction("none"); return true; }

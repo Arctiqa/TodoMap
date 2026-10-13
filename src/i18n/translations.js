@@ -120,6 +120,8 @@ export const TRANSLATIONS = {
     "journal.returnConfirm": "Вернуть задачу в активные?",
     "journal.completeConfirm": "Отметить задачу выполненной?",
     "journal.deleteConfirm": "Удалить «{title}» из журнала?",
+    "journal.deleteAllDone": "Удалить все выполненные",
+    "journal.deleteAllDoneConfirm": "Удалить все выполненные задачи?",        
 
     "thoughts.new": "Новая мысль...",
     "thoughts.empty": "Пока пусто. Записывай сюда идеи, желания, планы.",
@@ -195,6 +197,11 @@ export const TRANSLATIONS = {
     "onb.slide4": "Нажимая на новое дело, добавляется стикер дела, который можно вкладывать или выкладывать из выбранной метки. Распределяйте задачи по меткам, чтобы наглядно увидеть дела, связанные с ней",
     "onb.slide5": "В журнале задач можно посмотреть все дела из разных меток",
     "onb.slide6": "Добавляйте свои фото или лица друзей на метки, чтобы удобнее хранить связанные с ними события и дела",
+    "onb.slide6": "Добавляйте свои фото или лица друзей на метки, чтобы удобнее хранить связанные с ними события и дела",
+    "onb.back": "Назад",
+    "onb.next": "Далее",
+    "onb.start": "Начать",
+    "onb.skip": "Пропустить",
 
     "confirm.cancel": "Отмена",
     "confirm.delete": "Удалить",
@@ -327,6 +334,8 @@ export const TRANSLATIONS = {
     "journal.returnConfirm": "Return task to active?",
     "journal.completeConfirm": "Mark task as completed?",
     "journal.deleteConfirm": "Delete “{title}” from journal?",
+    "journal.deleteAllDone": "Delete all completed",
+    "journal.deleteAllDoneConfirm": "Delete all completed tasks?",
 
     "thoughts.new": "New thought...",
     "thoughts.empty": "Empty for now. Write down ideas, wishes, plans.",
@@ -538,6 +547,8 @@ export const TRANSLATIONS = {
     "journal.returnConfirm": "¿Devolver la tarea a activas?",
     "journal.completeConfirm": "¿Marcar la tarea como completada?",
     "journal.deleteConfirm": "¿Eliminar «{title}» del diario?",
+    "journal.deleteAllDone": "Eliminar todas las completadas",
+    "journal.deleteAllDoneConfirm": "¿Eliminar todas las tareas completadas?",
 
     "thoughts.new": "Nueva idea...",
     "thoughts.empty": "Vacío por ahora. Anota ideas, deseos, planes.",
@@ -749,6 +760,8 @@ export const TRANSLATIONS = {
     "journal.returnConfirm": "Devolver a tarefa às ativas?",
     "journal.completeConfirm": "Marcar a tarefa como concluída?",
     "journal.deleteConfirm": "Excluir «{title}» do diário?",
+    "journal.deleteAllDone": "Excluir todas as concluídas",
+    "journal.deleteAllDoneConfirm": "Excluir todas as tarefas concluídas?",  
 
     "thoughts.new": "Nova ideia...",
     "thoughts.empty": "Vazio por enquanto. Anote ideias, desejos, planos.",
@@ -960,6 +973,9 @@ export const TRANSLATIONS = {
     "journal.returnConfirm": "काम को सक्रिय में लौटाएँ?",
     "journal.completeConfirm": "काम को पूर्ण चिह्नित करें?",
     "journal.deleteConfirm": "जर्नल से «{title}» हटाएँ?",
+    "journal.deleteAllDone": "सभी पूर्ण हटाएँ",
+    "journal.deleteAllDoneConfirm": "सभी पूर्ण कार्य हटाएँ?",    
+
 
     "thoughts.new": "नया विचार...",
     "thoughts.empty": "अभी ख़ाली है। यहाँ विचार, इच्छाएँ, योजनाएँ लिखें।",
@@ -1171,6 +1187,8 @@ export const TRANSLATIONS = {
     "journal.returnConfirm": "إعادة المهمة إلى النشطة؟",
     "journal.completeConfirm": "وضع علامة مكتملة؟",
     "journal.deleteConfirm": "حذف «{title}» من السجل؟",
+    "journal.deleteAllDone": "حذف كل المكتملة",
+    "journal.deleteAllDoneConfirm": "حذف كل المهام المكتملة؟",
 
     "thoughts.new": "فكرة جديدة...",
     "thoughts.empty": "فارغ حاليًا. اكتب هنا الأفكار والأمنيات والخطط.",
@@ -1382,6 +1400,8 @@ export const TRANSLATIONS = {
     "journal.returnConfirm": "Kembalikan tugas ke aktif?",
     "journal.completeConfirm": "Tandai tugas selesai?",
     "journal.deleteConfirm": "Hapus «{title}» dari jurnal?",
+    "journal.deleteAllDone": "Hapus semua yang selesai",
+    "journal.deleteAllDoneConfirm": "Hapus semua tugas yang selesai?",    
 
     "thoughts.new": "Pemikiran baru...",
     "thoughts.empty": "Masih kosong. Tulis ide, keinginan, rencana di sini.",
@@ -1593,6 +1613,8 @@ export const TRANSLATIONS = {
     "journal.returnConfirm": "タスクをアクティブに戻しますか？",
     "journal.completeConfirm": "タスクを完了にしますか？",
     "journal.deleteConfirm": "ジャーナルから「{title}」を削除しますか？",
+    "journal.deleteAllDone": "完了をすべて削除",
+    "journal.deleteAllDoneConfirm": "完了したタスクをすべて削除しますか？",
 
     "thoughts.new": "新しい思考...",
     "thoughts.empty": "まだ空です。アイデア、願い、計画をここに書いてください。",

@@ -64,7 +64,7 @@ export function GuideTasksOverlay({
             {t(meta.nameKey)}
           </Text>
         <Text style={{ fontSize: 11, color: ink, opacity: 0.5, marginTop: 2 }}>
-          {t("guideTasks.taken", { taken: takenCount, total: tasks.length })}
+          {t("guideTasks.completed", { done: takenCount, total: tasks.length })}
         </Text>
       </View>
 

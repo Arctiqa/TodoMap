@@ -30,6 +30,7 @@ export function useGuides({
       });
 
     popNav && popNav();
+    popNav && popNav();
   }, [setGuideUsedOffers, onTakeSticker, popNav]);
 
   // Освободить слот (когда задача удалена)
