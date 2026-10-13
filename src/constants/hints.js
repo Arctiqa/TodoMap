@@ -4,7 +4,7 @@ export const PLACE_HINTS = [
     type: "home",
     items: [
       { emoji: "🏠", name: "Дом" },
-      { emoji: "👵", name: "Дом бабушки" },
+      { emoji: "🏥", name: "Больница" },
       { emoji: "🗺", name: "Дом друга" },
       { emoji: "👨‍👩‍👧", name: "Родители" },
       { emoji: "🏚", name: "Дача" },
@@ -73,7 +73,7 @@ export const PLACE_HINTS = [
       { emoji: "🌊", name: "Море" },
       { emoji: "🏔", name: "Горы" },
       { emoji: "🌲", name: "Лес" },
-      { emoji: "💧", name: "Байкал" },
+      { emoji: "🏖️", name: "Пляж" },
     ],
   },
   {
