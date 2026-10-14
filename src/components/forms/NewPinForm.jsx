@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MaterialIcons } from "@expo/vector-icons"
 import {
   View,
@@ -55,6 +55,18 @@ export function NewPinForm({
     const found = CUSTOM_BACKGROUNDS.find((bg) => bg.source === initialValues.image);
     return found ? found.key : null;
   });
+
+  useEffect(() => {
+    if (visible || isEditField) return;
+    setName(initialValues?.name || "");
+    setEmoji(initialValues?.emoji || "");
+    setColor(initialValues?.color || PALETTE[0]);
+    setType(initialValues?.type || "general");
+    setImage(initialValues?.image || null);
+    setShowHints(false);
+    setAsField(!!initialValues?.asField);
+    setBgKey(null);
+  }, [visible]);
 
   const pickImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();

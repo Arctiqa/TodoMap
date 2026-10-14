@@ -33,7 +33,7 @@ export function AddTaskBar({
   onUnminimize,
   showColorPicker = true,
 }) {
-  const { ink, card, paper, inputBg } = useTheme();
+  const { ink, card, paper, inputBg, addTaskBarBg  } = useTheme();
   const t = useT();
   const isRTL = useRTL();
 
@@ -44,7 +44,7 @@ export function AddTaskBar({
   const [dueDays, setDueDays] = useState(1);
   const [repeatOn, setRepeatOn] = useState(false);
   const [repeatTarget, setRepeatTarget] = useState(1);
-  const [shareToPool, setShareToPool] = useState(false);
+  // const [shareToPool, setShareToPool] = useState(false);
   const [color, setColor] = useState(null);
 
   const animValue = useRef(new Animated.Value(collapsed ? 0 : 1)).current;
@@ -98,7 +98,7 @@ export function AddTaskBar({
     setDueDays(1);
     setRepeatOn(false);
     setRepeatTarget(1);
-    setShareToPool(false);
+    // setShareToPool(false);
     setColor(null);
   };
 
@@ -118,7 +118,12 @@ export function AddTaskBar({
       due = { target: Date.now() + dueDays * 86400000, kind: "duration" };
     }
     const repeat = repeatOn ? { count: 0, target: Math.max(1, repeatTarget) } : null;
-    onSubmit({ title: title.trim(), due, repeat, share: shareToPool, color });
+    onSubmit({ title: 
+      title.trim(),
+      due, 
+      repeat,
+      // share: shareToPool, 
+      color });
     reset();
     onCollapse && onCollapse();
   };
@@ -161,7 +166,7 @@ export function AddTaskBar({
             alignItems: "center",
             justifyContent: "center",
             gap: 8,
-            backgroundColor: paper,
+            backgroundColor: addTaskBarBg || paper,
             borderTopLeftRadius: 20,
             borderTopRightRadius: 20,
             paddingHorizontal: 20,
@@ -194,7 +199,7 @@ export function AddTaskBar({
           style={{
             borderTopLeftRadius: 18,
             borderTopRightRadius: 18,
-            backgroundColor: paper,
+            backgroundColor: addTaskBarBg || paper,
             shadowColor: "#000",
             shadowOffset: { width: 0, height: -4 },
             shadowOpacity: 0.15,
@@ -336,6 +341,7 @@ export function AddTaskBar({
               </View>
             )}
 
+{/*
             <Pressable
               onPress={() => setShareToPool((v) => !v)}
               style={{
@@ -357,6 +363,7 @@ export function AddTaskBar({
               </View>
               <Text style={{ fontSize: 13.5, color: ink }}>{t("addTask.share")}</Text>
             </Pressable>
+*/}
 
             {showColorPicker && (
               <>
@@ -400,7 +407,7 @@ export function AddTaskBar({
             <PrimaryButton
               label={t("addTask.add")}
               color={GREEN_SOFT}
-              textColor="#000"
+              textColor="#000000"
               onPress={submit}
             />
           </ScrollView>

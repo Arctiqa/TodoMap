@@ -20,7 +20,6 @@ export async function requestNotificationPermission() {
     await Notifications.setNotificationChannelAsync("task-reminders", {
       name: "Напоминания о задачах",
       importance: Notifications.AndroidImportance.HIGH,
-      sound: "default",
     });
   }
   return true;

@@ -61,7 +61,7 @@ import { useNotifications } from "./hooks/useNotifications";
 import { useBackHandler } from "./hooks/useBackHandler";
 
 export default function App() {
-  const [themeName, setThemeName] = useState("light");
+  const [themeName, setThemeName] = useState("yellow");
   const [language, setLanguage] = useState(null);
   const [loadedLang, setLoadedLang] = useState(false);
 

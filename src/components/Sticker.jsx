@@ -37,7 +37,7 @@ function StickerInner({
   onHoverMarker,
   isOverTrashRef,
 }) {
-  const { ink, card, paper } = useTheme();
+  const { ink, card, paper, stickerBg, stickerInk } = useTheme();
   const isRTL = useRTL();
 
   const xRef = useRef(pctToPx(sticker.x, containerSize.width || 1));
@@ -381,7 +381,8 @@ function StickerInner({
   const baseRotation = sticker.rotation != null ? sticker.rotation : 0;
   const rotation = dragging ? baseRotation + 3 : baseRotation;
 
-  const bgColor = sticker.color || card;
+  const bgColor = sticker.color || stickerBg || card;
+  const textColor = stickerInk || ink;
 
   return (
     <Animated.View
@@ -445,7 +446,7 @@ function StickerInner({
             fontSize: 10,
             fontStyle: "italic",
             lineHeight: STRIPE_STEP,
-            color: expired ? BLUE : ink,
+            color: expired ? BLUE : textColor,
             textDecorationLine: sticker.done ? "line-through" : "none",
             textAlign: isRTL ? "right" : "left",
           }}
@@ -478,7 +479,7 @@ function StickerInner({
           <Text
             style={{
               fontSize: 9,
-              color: ink,
+              color: textColor,
               opacity: 0.55,
               marginTop: 2,
               fontFamily: "monospace",
@@ -495,7 +496,7 @@ function StickerInner({
               style={{
                 height: 3,
                 borderRadius: 1.5,
-                backgroundColor: ink,
+                backgroundColor: textColor,
                 opacity: 0.15,
                 marginTop: 3,
                 overflow: "hidden",
@@ -513,7 +514,7 @@ function StickerInner({
             <Text
               style={{
                 fontSize: 9,
-                color: ink,
+                color: textColor,
                 opacity: 0.5,
                 marginTop: 1,
                 fontFamily: "monospace",

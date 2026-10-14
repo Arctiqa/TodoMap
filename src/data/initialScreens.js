@@ -3,8 +3,11 @@ import { nextId } from "../utils/id";
 
 let MAP_DEFAULT_BG = null;
 let STAND_DEFAULT_BG = null;
+let HOME_DEFAULT_BG = null;
+
 try { MAP_DEFAULT_BG = require("../../assets/backgrounds/BG_3.png"); } catch (e) {}
 try { STAND_DEFAULT_BG = require("../../assets/backgrounds/BG_5.png"); } catch (e) {}
+try { HOME_DEFAULT_BG = require("../../assets/backgrounds/BG_2.png"); } catch (e) {}
 
 export { MAP_DEFAULT_BG };
 
@@ -38,7 +41,7 @@ export function buildInitialScreens(t) {
       name: t("screen.home"),
       theme: "home",
       parentId: "main",
-      image: STAND_DEFAULT_BG,
+      image: HOME_DEFAULT_BG,
       markers: [
         {
           id: "order",

@@ -21,9 +21,9 @@ export function GuidesListOverlay({ onSelect, onClose }) {
             <Pressable
               key={key}
               onPress={() => onSelect(key)}
-              style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 12, backgroundColor: card, borderWidth: 1.5, borderColor: ink, borderRadius: 12, padding: 12, marginBottom: 8 }}
+              style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 12, backgroundColor: card, borderWidth: 1.5, borderColor: ink, borderRadius: 12, padding: 10, marginBottom: 1 }}
             >
-                <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: meta.color, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: meta.color, borderWidth: 2, borderColor: ink, alignItems: "center", justifyContent: "center" }}>
                   <MaterialIcons name={meta.icon} size={22} color={ink} />
                 </View>
                 <Text style={{ fontSize: 15, fontWeight: "bold", color: ink, flex: 1, textAlign: isRTL ? "right" : "left" }}>{t(meta.nameKey)}</Text>
