@@ -3,12 +3,14 @@ import { screenTitle } from "../utils/text";
 import { FIELD_MARKER_ID } from "../constants/config";
 
 export function findMarker(screens, screenId, markerId) {
+  if (!screens) return null;
   const scr = screens[screenId];
   if (!scr) return null;
   return scr.markers.find((m) => m.id === markerId) || null;
 }
 
 export function findTask(screens, screenId, markerId, taskId) {
+  if (!screens) return null;
   if (markerId === FIELD_MARKER_ID || markerId === null || markerId === undefined) {
     const scr = screens[screenId];
     if (!scr) return null;
@@ -19,6 +21,7 @@ export function findTask(screens, screenId, markerId, taskId) {
 }
 
 export function allEntries(screens) {
+  if (!screens) return [];
   const out = [];
   Object.values(screens).forEach((scr) => {
     (scr.markers || []).forEach((mk) => {
@@ -55,11 +58,12 @@ export function activeEntries(screens) {
 }
 
 export function historyEntries(screens, historyLog) {
-  return [...allEntries(screens), ...historyLog].sort((a, b) => (b.task.createdAt || 0) - (a.task.createdAt || 0));
+  const entries = allEntries(screens);
+  return [...entries, ...(historyLog || [])].sort((a, b) => (b.task.createdAt || 0) - (a.task.createdAt || 0));
 }
 
 export function findEntry(screens, loc) {
-  if (!loc) return null;
+  if (!loc || !screens) return null;
   const scr = screens[loc.screenId];
   if (!scr) return null;
 
@@ -105,6 +109,6 @@ export function countByStatus(screens, historyLog) {
   const active = all.filter((e) => !e.task.done && !isTaskExpired(e.task)).length;
   const expired = all.filter((e) => !e.task.done && isTaskExpired(e.task)).length;
   const done = all.filter((e) => e.task.done).length;
-  const archived = historyLog.length;
+  const archived = (historyLog || []).length;
   return { active, expired, done, archived };
 }

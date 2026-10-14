@@ -77,6 +77,12 @@ export const TRANSLATIONS = {
     "pin.placeIntro": "Вводите места, которые представляют для вас интерес — например: универмаг, огород, библиотека, дом друга, знакомый, или место цели - например: Египет, новая работа и т.д.",
     "pin.hintsTitle": "💡 Места, куда можно попасть",
 
+    "screen.main": "КАРТА",
+    "screen.home": "ДОМ",
+    "screen.schedule": "РАСПОРЯДОК",
+    "marker.order": "Порядок",
+    "task.waterFlowers": "Полить цветы",
+
     "markerPicker.title": "Куда поместить дело?",
     "markerPicker.empty": "Пока нет ни одной метки. Сначала создай хотя бы одну.",
 
@@ -289,6 +295,12 @@ export const TRANSLATIONS = {
     "pin.hintsBtn": "💡 Hints — what places exist?",
     "pin.placeIntro": "Enter places that interest you — for example: a department store, a garden, a library, a friend's house, an acquaintance, or a goal destination — for example: Egypt, a new job, etc.",
     "pin.hintsTitle": "💡 Places you can visit",
+
+    "screen.main": "MAP",
+    "screen.home": "HOME",
+    "screen.schedule": "SCHEDULE",
+    "marker.order": "Order",
+    "task.waterFlowers": "Water the flowers",    
 
     "markerPicker.title": "Where to place the task?",
     "markerPicker.empty": "No markers yet. Create at least one first.",
@@ -503,6 +515,12 @@ export const TRANSLATIONS = {
     "pin.placeIntro": "Introduce lugares que te interesen — por ejemplo: unos grandes almacenes, un huerto, una biblioteca, la casa de un amigo, un conocido, o un destino meta — por ejemplo: Egipto, un nuevo trabajo, etc.",
     "pin.hintsTitle": "💡 Lugares que puedes visitar",
 
+    "screen.main": "MAPA",
+    "screen.home": "CASA",
+    "screen.schedule": "HORARIO",
+    "marker.order": "Orden",
+    "task.waterFlowers": "Regar las flores",    
+
     "markerPicker.title": "¿Dónde colocar la tarea?",
     "markerPicker.empty": "Aún no hay marcadores. Crea al menos uno primero.",
 
@@ -716,6 +734,12 @@ export const TRANSLATIONS = {
     "pin.placeIntro": "Digite lugares que te interessam — por exemplo: uma loja de departamentos, uma horta, uma biblioteca, a casa de um amigo, um conhecido, ou um destino meta — por exemplo: Egito, um novo emprego, etc.",
     "pin.hintsTitle": "💡 Lugares que você pode visitar",
 
+    "screen.main": "MAPA",
+    "screen.home": "CASA",
+    "screen.schedule": "AGENDA",
+    "marker.order": "Ordem",
+    "task.waterFlowers": "Regar as flores",    
+
     "markerPicker.title": "Onde colocar a tarefa?",
     "markerPicker.empty": "Ainda não há marcadores. Crie pelo menos um primeiro.",
 
@@ -928,6 +952,12 @@ export const TRANSLATIONS = {
     "pin.hintsBtn": "💡 सुझाव — कौन-कौन सी जगहें होती हैं?",
     "pin.placeIntro": "वे जगहें लिखें जो आपके लिए रुचिकर हैं — जैसे: डिपार्टमेंट स्टोर, बग़ीचा, पुस्तकालय, मित्र का घर, कोई परिचित, या कोई लक्ष्य-स्थान — जैसे: मिस्र, नई नौकरी, आदि।",
     "pin.hintsTitle": "💡 जगहें जहाँ आप जा सकते हैं",
+
+    "screen.main": "नक़्शा",
+    "screen.home": "घर",
+    "screen.schedule": "कार्यक्रम",
+    "marker.order": "व्यवस्था",
+    "task.waterFlowers": "फूलों को पानी दें",    
 
     "markerPicker.title": "काम कहाँ रखें?",
     "markerPicker.empty": "अभी कोई मार्कर नहीं है। पहले कम से कम एक बनाएँ।",
@@ -1143,6 +1173,12 @@ export const TRANSLATIONS = {
     "pin.placeIntro": "أدخل الأماكن التي تهمك — مثل: متجر شامل، حديقة، مكتبة، منزل صديق، شخص تعرفه، أو مكان هدف — مثل: مصر، وظيفة جديدة، إلخ.",
     "pin.hintsTitle": "💡 أماكن يمكنك زيارتها",
 
+    "screen.main": "الخريطة",
+    "screen.home": "المنزل",
+    "screen.schedule": "الجدول",
+    "marker.order": "النظام",
+    "task.waterFlowers": "اسقِ الزهور",    
+
     "markerPicker.title": "أين تضع المهمة؟",
     "markerPicker.empty": "لا توجد علامات بعد. أنشئ واحدة على الأقل أولًا.",
 
@@ -1356,6 +1392,12 @@ export const TRANSLATIONS = {
     "pin.placeIntro": "Masukkan tempat yang menarik bagi Anda — misalnya: toserba, kebun, perpustakaan, rumah teman, kenalan, atau tempat tujuan — misalnya: Mesir, pekerjaan baru, dll.",
     "pin.hintsTitle": "💡 Tempat yang bisa Anda kunjungi",
 
+    "screen.main": "PETA",
+    "screen.home": "RUMAH",
+    "screen.schedule": "JADWAL",
+    "marker.order": "Keteraturan",
+    "task.waterFlowers": "Siram bunga",
+
     "markerPicker.title": "Di mana meletakkan tugas?",
     "markerPicker.empty": "Belum ada penanda. Buat setidaknya satu dulu.",
 
@@ -1568,6 +1610,12 @@ export const TRANSLATIONS = {
     "pin.hintsBtn": "💡 ヒント — どんな場所がある？",
     "pin.placeIntro": "興味のある場所を入力してください — 例：デパート、庭、図書館、友人の家、知人、または目標の場所 — 例：エジプト、新しい仕事など。",
     "pin.hintsTitle": "💡 行くことができる場所",
+
+    "screen.main": "地図",
+    "screen.home": "家",
+    "screen.schedule": "スケジュール",
+    "marker.order": "整理",
+    "task.waterFlowers": "花に水をやる",
 
     "markerPicker.title": "タスクをどこに置きますか？",
     "markerPicker.empty": "マーカーがまだありません。まず1つ作成してください。",

@@ -47,7 +47,7 @@ import { OnboardingOverlay } from "./screens/OnboardingOverlay";
 import { screenTitle } from "./utils/text";
 import { cancelTaskNotifications } from "./utils/notifications";
 import { logEvent, logSessionStart, logSessionEnd, getFirstOpenAt, retryPending } from "./utils/analytics";
-import { resolveImageSource, DOM_DEFAULT_BG, MAP_DEFAULT_BG } from "./data/initialScreens";
+import { resolveImageSource, buildInitialScreens, MAP_DEFAULT_BG } from "./data/initialScreens";
 
 import { useOverlayState } from "./hooks/useOverlayState";
 import { useThoughts } from "./hooks/useThoughts";
@@ -157,6 +157,13 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
     guideUsedOffers, sharedPool, loaded,
   } = state;
 
+  useEffect(() => {
+    if (!loaded) return;
+    if (screens) return;
+    setScreens(buildInitialScreens(t));
+    setTopLevelOrder(["main", "schedule"]);
+  }, [loaded, screens, t, setScreens, setTopLevelOrder]);
+
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
@@ -188,7 +195,7 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
   const topNav = navStack[navStack.length - 1];
 
   const [currentId, setCurrentId] = useState("main");
-  const screen = screens[currentId];
+  const screen = screens ? screens[currentId] : null;
 
   const [addTaskBarExpanded, setAddTaskBarExpanded] = useState(false);
   const [addTaskBarMinimized, setAddTaskBarMinimized] = useState(false);
@@ -597,7 +604,9 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
 
   const activeTaskId = topNav.type === NAV.TASK ? topNav.payload.markerId : null;
-  const activeMarker = activeTaskId ? (screen.markers || []).find((m) => m.id === activeTaskId) : null;
+  const activeMarker = activeTaskId && screen
+    ? (screen.markers || []).find((m) => m.id === activeTaskId)
+    : null;
 
   const active = useMemo(() => activeEntries(screens), [screens]);
   const expired = useMemo(() => expiredEntries(screens), [screens]);
@@ -677,6 +686,7 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
 
   const breadcrumbs = useMemo(() => {
     const chain = [];
+    if (!screens) return chain;
     let id = currentId;
     let guard = 0;
     while (id && screens[id] && guard < 20) {
@@ -686,7 +696,6 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
     }
     return chain;
   }, [currentId, screens]);
-
 
   const handleOpenSticker = useCallback((sticker) => {
     setTaskDetail({
@@ -821,8 +830,6 @@ function AppShell({ onThemeChange, language, onLanguageChange }) {
               if (value === "__DEFAULT__") {
                 const def = currentId === "main"
                   ? MAP_DEFAULT_BG
-                  : currentId === "home"
-                  ? DOM_DEFAULT_BG
                   : null;
                 updateScreenImage(currentId, def);
               } else {

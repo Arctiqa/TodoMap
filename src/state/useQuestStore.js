@@ -3,7 +3,6 @@ import { useReducer, useEffect, useCallback, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { STORAGE_KEY } from "../constants/config";
 import { dedupeIds } from "../utils/id";
-import { initialScreens } from "../data/initialScreens";
 
 // ---------- Миграция массива id (строки, уникальные) ----------
 function mergeOfferIds(saved) {
@@ -20,7 +19,7 @@ function mergeOfferIds(saved) {
 }
 
 const initialState = {
-  screens: initialScreens,
+  screens: null,
   topLevelOrder: ["main"],
   historyLog: [],
   thoughts: [],
@@ -107,6 +106,7 @@ export function useQuestStore() {
 
   useEffect(() => {
     if (!state.loaded) return;
+    if (!state.screens) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       AsyncStorage.setItem(

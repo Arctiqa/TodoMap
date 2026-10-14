@@ -4,7 +4,6 @@ export const PLACE_HINTS = [
     type: "home",
     items: [
       { emoji: "🏠", name: "Дом" },
-      { emoji: "🏥", name: "Больница" },
       { emoji: "🗺", name: "Дом друга" },
       { emoji: "👨‍👩‍👧", name: "Родители" },
       { emoji: "🏚", name: "Дача" },

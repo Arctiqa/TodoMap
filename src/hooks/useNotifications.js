@@ -27,9 +27,8 @@ export function useNotifications({ screens, loaded, enabled }) {
     scheduledRef.current.clear();
   }, [enabled]);
 
-  // 3) Дифф по id
   useEffect(() => {
-    if (!loaded || !enabled) return;
+    if (!loaded || !enabled || !screens) return; 
 
     const map = scheduledRef.current;
     const presentIds = new Set();
