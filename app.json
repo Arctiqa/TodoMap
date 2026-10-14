@@ -11,10 +11,9 @@
     },
     "android": {
       "adaptiveIcon": {
-	    "foregroundImage": "./assets/adaptive-icon.png",
-	    "backgroundImage": "./assets/android-icon-background.png",
-	    "monochromeImage": "./assets/android-icon-monochrome.png"
-        },
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#30b6fb"
+      },
       "package": "com.arctiqa.TodoMapApp"
     },
     "web": {
